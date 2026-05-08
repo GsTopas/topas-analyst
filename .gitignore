@@ -1,0 +1,31 @@
+# env / secrets
+.env
+.env.local
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+.venv/
+venv/
+env/
+*.egg-info/
+.pytest_cache/
+
+# Data — DB stays local only, but dashboard.json is committed by the scraper
+# (and consumed by the dashboard via fetch())
+data/*.db
+data/raw/
+!data/.gitkeep
+!data/dashboard.json
+
+# IDE
+.vscode/
+.idea/
+*.swp
+.DS_Store
+
+# Cached scrapes — for local debugging, never committed
+.cache/

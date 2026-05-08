@@ -1,0 +1,2205 @@
+{
+  "snapshotRunId": "b702b34f-fac9-4379-b97e-09b54dcd729b",
+  "snapshotTakenAt": "2026-05-08T09:13:19+00:00",
+  "tours": [
+    {
+      "code": "PTMD",
+      "name": "Majestætiske tinder og levadavandring på Madeira",
+      "country": "Portugal",
+      "durationDays": 8,
+      "mealsIncluded": 10,
+      "mealsDescription": "7 morgenmad · 3 frokost",
+      "audience": "Åben",
+      "competitor": {
+        "operator": "Smilrejser",
+        "tier": 1,
+        "name": "Vandreferie på Madeira"
+      },
+      "topasFromPrice": 9970,
+      "competitorFromPrice": 12995,
+      "topasPerDep": 11651,
+      "competitorPerDep": 13411,
+      "topasFromRank": 1,
+      "topasPerDepRank": 1,
+      "eligibleSetSize": 4,
+      "flags": {
+        "priceChange": false,
+        "slopeMismatch": true,
+        "competitorSellout": true
+      },
+      "scraped": true,
+      "scrapedAt": "b702b34f-fac9-4379-b97e-09b54dcd729b",
+      "departures": [
+        {
+          "startDate": "2026-07-10",
+          "priceDkk": 13970,
+          "status": "Få pladser",
+          "lastSeenRun": "c57dac28-83bb-4573-a191-00280ae04a66",
+          "isArchived": false,
+          "endDate": null,
+          "departureCode": null
+        },
+        {
+          "startDate": "2026-07-17",
+          "priceDkk": 13470,
+          "status": "Garanteret",
+          "lastSeenRun": "c57dac28-83bb-4573-a191-00280ae04a66",
+          "isArchived": false,
+          "endDate": null,
+          "departureCode": null
+        },
+        {
+          "startDate": "2026-10-03",
+          "priceDkk": 12470,
+          "status": "Garanteret",
+          "lastSeenRun": "c57dac28-83bb-4573-a191-00280ae04a66",
+          "isArchived": false,
+          "endDate": null,
+          "departureCode": null
+        },
+        {
+          "startDate": "2026-10-10",
+          "priceDkk": 12470,
+          "status": "Garanteret",
+          "lastSeenRun": "c57dac28-83bb-4573-a191-00280ae04a66",
+          "isArchived": false,
+          "endDate": null,
+          "departureCode": null
+        },
+        {
+          "startDate": "2026-10-17",
+          "priceDkk": 11970,
+          "status": "Garanteret",
+          "lastSeenRun": "c57dac28-83bb-4573-a191-00280ae04a66",
+          "isArchived": false,
+          "endDate": null,
+          "departureCode": null
+        },
+        {
+          "startDate": "2026-11-07",
+          "priceDkk": 11470,
+          "status": "Garanteret",
+          "lastSeenRun": "c57dac28-83bb-4573-a191-00280ae04a66",
+          "isArchived": false,
+          "endDate": null,
+          "departureCode": null
+        },
+        {
+          "startDate": "2026-11-14",
+          "priceDkk": 10470,
+          "status": "Garanteret",
+          "lastSeenRun": "c57dac28-83bb-4573-a191-00280ae04a66",
+          "isArchived": false,
+          "endDate": null,
+          "departureCode": null
+        },
+        {
+          "startDate": "2027-03-13",
+          "priceDkk": 9970,
+          "status": "Åben",
+          "lastSeenRun": "c57dac28-83bb-4573-a191-00280ae04a66",
+          "isArchived": false,
+          "endDate": null,
+          "departureCode": null
+        },
+        {
+          "startDate": "2027-03-20",
+          "priceDkk": 10970,
+          "status": "Åben",
+          "lastSeenRun": "c57dac28-83bb-4573-a191-00280ae04a66",
+          "isArchived": false,
+          "endDate": null,
+          "departureCode": null
+        },
+        {
+          "startDate": "2027-03-27",
+          "priceDkk": 9970,
+          "status": "Åben",
+          "lastSeenRun": "c57dac28-83bb-4573-a191-00280ae04a66",
+          "isArchived": false,
+          "endDate": null,
+          "departureCode": null
+        },
+        {
+          "startDate": "2027-04-03",
+          "priceDkk": 10970,
+          "status": "Åben",
+          "lastSeenRun": "c57dac28-83bb-4573-a191-00280ae04a66",
+          "isArchived": false,
+          "endDate": null,
+          "departureCode": null
+        }
+      ]
+    },
+    {
+      "code": "VNSN",
+      "name": "Den store rundrejse fra syd til nord",
+      "country": "Vietnam",
+      "durationDays": 19,
+      "mealsIncluded": 37,
+      "mealsDescription": "16 morgenmad · 12 frokost · 9 aftensmad",
+      "audience": "Åben",
+      "competitor": {
+        "operator": "Albatros",
+        "tier": 2,
+        "name": "Vidunderlige Vietnam"
+      },
+      "topasFromPrice": 26970,
+      "competitorFromPrice": 17998,
+      "topasPerDep": 28041,
+      "competitorPerDep": 19155,
+      "topasFromRank": 12,
+      "topasPerDepRank": 12,
+      "eligibleSetSize": 12,
+      "flags": {
+        "priceChange": false,
+        "slopeMismatch": false,
+        "competitorSellout": false
+      },
+      "scraped": true,
+      "scrapedAt": "b702b34f-fac9-4379-b97e-09b54dcd729b",
+      "departures": [
+        {
+          "startDate": "2026-07-04",
+          "priceDkk": 28970,
+          "status": "Garanteret",
+          "lastSeenRun": "b702b34f-fac9-4379-b97e-09b54dcd729b",
+          "isArchived": false,
+          "endDate": null,
+          "departureCode": null
+        },
+        {
+          "startDate": "2026-10-03",
+          "priceDkk": 28470,
+          "status": "Garanteret",
+          "lastSeenRun": "b702b34f-fac9-4379-b97e-09b54dcd729b",
+          "isArchived": false,
+          "endDate": null,
+          "departureCode": null
+        },
+        {
+          "startDate": "2026-10-17",
+          "priceDkk": 27970,
+          "status": "Garanteret",
+          "lastSeenRun": "b702b34f-fac9-4379-b97e-09b54dcd729b",
+          "isArchived": false,
+          "endDate": null,
+          "departureCode": null
+        },
+        {
+          "startDate": "2027-02-27",
+          "priceDkk": 27970,
+          "status": "Åben",
+          "lastSeenRun": "b702b34f-fac9-4379-b97e-09b54dcd729b",
+          "isArchived": false,
+          "endDate": null,
+          "departureCode": null
+        },
+        {
+          "startDate": "2027-03-16",
+          "priceDkk": 27970,
+          "status": "Garanteret",
+          "lastSeenRun": "b702b34f-fac9-4379-b97e-09b54dcd729b",
+          "isArchived": false,
+          "endDate": null,
+          "departureCode": null
+        },
+        {
+          "startDate": "2027-03-25",
+          "priceDkk": 27970,
+          "status": "Garanteret",
+          "lastSeenRun": "b702b34f-fac9-4379-b97e-09b54dcd729b",
+          "isArchived": false,
+          "endDate": null,
+          "departureCode": null
+        },
+        {
+          "startDate": "2027-07-10",
+          "priceDkk": 26970,
+          "status": "Åben",
+          "lastSeenRun": "b702b34f-fac9-4379-b97e-09b54dcd729b",
+          "isArchived": false,
+          "endDate": null,
+          "departureCode": null
+        }
+      ]
+    },
+    {
+      "code": "ALBT",
+      "name": "På cykel fra Ohrid-søen til Det Joniske Hav i Albanien",
+      "country": "Albanien",
+      "durationDays": 8,
+      "mealsIncluded": null,
+      "mealsDescription": null,
+      "audience": "Åben",
+      "competitor": null,
+      "topasFromPrice": 12970,
+      "competitorFromPrice": null,
+      "topasPerDep": 13470,
+      "competitorPerDep": null,
+      "topasFromRank": 1,
+      "topasPerDepRank": 1,
+      "eligibleSetSize": 1,
+      "flags": {
+        "priceChange": false,
+        "slopeMismatch": false,
+        "competitorSellout": false
+      },
+      "scraped": true,
+      "scrapedAt": "b702b34f-fac9-4379-b97e-09b54dcd729b",
+      "departures": [
+        {
+          "startDate": "2026-09-12",
+          "priceDkk": 13970,
+          "status": "Garanteret",
+          "lastSeenRun": "c828861f-a383-43b9-b9e7-f74adde6cfdd",
+          "isArchived": false,
+          "endDate": null,
+          "departureCode": null
+        },
+        {
+          "startDate": "2027-04-24",
+          "priceDkk": 12970,
+          "status": "Åben",
+          "lastSeenRun": "c828861f-a383-43b9-b9e7-f74adde6cfdd",
+          "isArchived": false,
+          "endDate": null,
+          "departureCode": null
+        }
+      ]
+    },
+    {
+      "code": "ALAP",
+      "name": "Rå og autentisk trekking i de albanske alper",
+      "country": "Albanien",
+      "durationDays": 8,
+      "mealsIncluded": null,
+      "mealsDescription": null,
+      "audience": "Åben",
+      "competitor": {
+        "operator": "JyskRejsebureau",
+        "tier": 2,
+        "name": "Trekking på Peaks of the Balkans"
+      },
+      "topasFromPrice": 14470,
+      "competitorFromPrice": 14995,
+      "topasPerDep": 14720,
+      "competitorPerDep": 14995,
+      "topasFromRank": 1,
+      "topasPerDepRank": 1,
+      "eligibleSetSize": 2,
+      "flags": {
+        "priceChange": false,
+        "slopeMismatch": false,
+        "competitorSellout": false
+      },
+      "scraped": true,
+      "scrapedAt": "b702b34f-fac9-4379-b97e-09b54dcd729b",
+      "departures": [
+        {
+          "startDate": "2026-07-18",
+          "priceDkk": 14970,
+          "status": "Garanteret",
+          "lastSeenRun": "7b4fd7cc-7898-416d-bf53-96c707e11be1",
+          "isArchived": false,
+          "endDate": null,
+          "departureCode": null
+        },
+        {
+          "startDate": "2026-07-25",
+          "priceDkk": 14470,
+          "status": "Garanteret",
+          "lastSeenRun": "7b4fd7cc-7898-416d-bf53-96c707e11be1",
+          "isArchived": false,
+          "endDate": null,
+          "departureCode": null
+        }
+      ]
+    },
+    {
+      "code": "CYSV",
+      "name": "Aktiv ferie med sol, strand og vandring på Cypern",
+      "country": "Cypern",
+      "durationDays": 9,
+      "mealsIncluded": 16,
+      "mealsDescription": "7 morgenmad · 4 frokost · 5 aftensmad",
+      "audience": "Åben",
+      "competitor": {
+        "operator": "Fyrholtrejser",
+        "tier": 2,
+        "name": "Vandreferie på Cypern"
+      },
+      "topasFromPrice": 10970,
+      "competitorFromPrice": 12495,
+      "topasPerDep": 11095,
+      "competitorPerDep": 12495,
+      "topasFromRank": 1,
+      "topasPerDepRank": 1,
+      "eligibleSetSize": 2,
+      "flags": {
+        "priceChange": false,
+        "slopeMismatch": false,
+        "competitorSellout": false
+      },
+      "scraped": true,
+      "scrapedAt": "b702b34f-fac9-4379-b97e-09b54dcd729b",
+      "departures": [
+        {
+          "startDate": "2026-10-10",
+          "priceDkk": 11470,
+          "status": "Garanteret",
+          "lastSeenRun": "ee9d80dd-4ad9-4e49-91ed-84e607c7f5aa",
+          "isArchived": false,
+          "endDate": null,
+          "departureCode": null
+        },
+        {
+          "startDate": "2026-10-17",
+          "priceDkk": 10970,
+          "status": "Åben",
+          "lastSeenRun": "ee9d80dd-4ad9-4e49-91ed-84e607c7f5aa",
+          "isArchived": false,
+          "endDate": null,
+          "departureCode": null
+        },
+        {
+          "startDate": "2026-11-07",
+          "priceDkk": 10970,
+          "status": "Åben",
+          "lastSeenRun": "ee9d80dd-4ad9-4e49-91ed-84e607c7f5aa",
+          "isArchived": false,
+          "endDate": null,
+          "departureCode": null
+        },
+        {
+          "startDate": "2026-11-14",
+          "priceDkk": 10970,
+          "status": "Åben",
+          "lastSeenRun": "ee9d80dd-4ad9-4e49-91ed-84e607c7f5aa",
+          "isArchived": false,
+          "endDate": null,
+          "departureCode": null
+        }
+      ]
+    },
+    {
+      "code": "ITTO",
+      "name": "La Fontanella - En ægte perle i Toscana",
+      "country": "Italien",
+      "durationDays": 8,
+      "mealsIncluded": 11,
+      "mealsDescription": "7 morgenmad · 4 frokost",
+      "audience": "Åben",
+      "competitor": {
+        "operator": "Albatros",
+        "tier": 2,
+        "name": "Kultur og vandring i Toscana - Ferie alene i fællesskab"
+      },
+      "topasFromPrice": 9470,
+      "competitorFromPrice": 8498,
+      "topasPerDep": 10355,
+      "competitorPerDep": 8498,
+      "topasFromRank": 2,
+      "topasPerDepRank": 2,
+      "eligibleSetSize": 6,
+      "flags": {
+        "priceChange": false,
+        "slopeMismatch": false,
+        "competitorSellout": false
+      },
+      "scraped": true,
+      "scrapedAt": "b702b34f-fac9-4379-b97e-09b54dcd729b",
+      "departures": [
+        {
+          "startDate": "2026-05-09",
+          "priceDkk": 11970,
+          "status": "Få pladser",
+          "lastSeenRun": "aa52158b-7d3c-464b-930e-30949963d167",
+          "isArchived": false,
+          "endDate": null,
+          "departureCode": null
+        },
+        {
+          "startDate": "2026-05-16",
+          "priceDkk": 11970,
+          "status": "Få pladser",
+          "lastSeenRun": "aa52158b-7d3c-464b-930e-30949963d167",
+          "isArchived": false,
+          "endDate": null,
+          "departureCode": null
+        },
+        {
+          "startDate": "2026-05-23",
+          "priceDkk": 11470,
+          "status": "Få pladser",
+          "lastSeenRun": "aa52158b-7d3c-464b-930e-30949963d167",
+          "isArchived": false,
+          "endDate": null,
+          "departureCode": null
+        },
+        {
+          "startDate": "2026-05-30",
+          "priceDkk": 10470,
+          "status": "Få pladser",
+          "lastSeenRun": "aa52158b-7d3c-464b-930e-30949963d167",
+          "isArchived": false,
+          "endDate": null,
+          "departureCode": null
+        },
+        {
+          "startDate": "2026-06-06",
+          "priceDkk": 10470,
+          "status": "Garanteret",
+          "lastSeenRun": "aa52158b-7d3c-464b-930e-30949963d167",
+          "isArchived": false,
+          "endDate": null,
+          "departureCode": null
+        },
+        {
+          "startDate": "2026-06-13",
+          "priceDkk": 10470,
+          "status": "Garanteret",
+          "lastSeenRun": "aa52158b-7d3c-464b-930e-30949963d167",
+          "isArchived": false,
+          "endDate": null,
+          "departureCode": null
+        },
+        {
+          "startDate": "2026-06-20",
+          "priceDkk": 10970,
+          "status": "Garanteret",
+          "lastSeenRun": "aa52158b-7d3c-464b-930e-30949963d167",
+          "isArchived": false,
+          "endDate": null,
+          "departureCode": null
+        },
+        {
+          "startDate": "2026-06-27",
+          "priceDkk": 10470,
+          "status": "Garanteret",
+          "lastSeenRun": "aa52158b-7d3c-464b-930e-30949963d167",
+          "isArchived": false,
+          "endDate": null,
+          "departureCode": null
+        },
+        {
+          "startDate": "2026-07-04",
+          "priceDkk": 11470,
+          "status": "Få pladser",
+          "lastSeenRun": "aa52158b-7d3c-464b-930e-30949963d167",
+          "isArchived": false,
+          "endDate": null,
+          "departureCode": null
+        },
+        {
+          "startDate": "2026-07-11",
+          "priceDkk": 11970,
+          "status": "Få pladser",
+          "lastSeenRun": "aa52158b-7d3c-464b-930e-30949963d167",
+          "isArchived": false,
+          "endDate": null,
+          "departureCode": null
+        },
+        {
+          "startDate": "2026-07-18",
+          "priceDkk": 11970,
+          "status": "Få pladser",
+          "lastSeenRun": "aa52158b-7d3c-464b-930e-30949963d167",
+          "isArchived": false,
+          "endDate": null,
+          "departureCode": null
+        },
+        {
+          "startDate": "2026-07-25",
+          "priceDkk": 10470,
+          "status": "Garanteret",
+          "lastSeenRun": "aa52158b-7d3c-464b-930e-30949963d167",
+          "isArchived": false,
+          "endDate": null,
+          "departureCode": null
+        },
+        {
+          "startDate": "2026-08-01",
+          "priceDkk": 10970,
+          "status": "Garanteret",
+          "lastSeenRun": "aa52158b-7d3c-464b-930e-30949963d167",
+          "isArchived": false,
+          "endDate": null,
+          "departureCode": null
+        },
+        {
+          "startDate": "2026-08-08",
+          "priceDkk": 10470,
+          "status": "Garanteret",
+          "lastSeenRun": "aa52158b-7d3c-464b-930e-30949963d167",
+          "isArchived": false,
+          "endDate": null,
+          "departureCode": null
+        },
+        {
+          "startDate": "2026-08-15",
+          "priceDkk": 9970,
+          "status": "Garanteret",
+          "lastSeenRun": "aa52158b-7d3c-464b-930e-30949963d167",
+          "isArchived": false,
+          "endDate": null,
+          "departureCode": null
+        },
+        {
+          "startDate": "2026-08-22",
+          "priceDkk": 9970,
+          "status": "Garanteret",
+          "lastSeenRun": "aa52158b-7d3c-464b-930e-30949963d167",
+          "isArchived": false,
+          "endDate": null,
+          "departureCode": null
+        },
+        {
+          "startDate": "2026-08-29",
+          "priceDkk": 9970,
+          "status": "Garanteret",
+          "lastSeenRun": "aa52158b-7d3c-464b-930e-30949963d167",
+          "isArchived": false,
+          "endDate": null,
+          "departureCode": null
+        },
+        {
+          "startDate": "2026-09-05",
+          "priceDkk": 9970,
+          "status": "Garanteret",
+          "lastSeenRun": "aa52158b-7d3c-464b-930e-30949963d167",
+          "isArchived": false,
+          "endDate": null,
+          "departureCode": null
+        },
+        {
+          "startDate": "2026-09-12",
+          "priceDkk": 10970,
+          "status": "Garanteret",
+          "lastSeenRun": "aa52158b-7d3c-464b-930e-30949963d167",
+          "isArchived": false,
+          "endDate": null,
+          "departureCode": null
+        },
+        {
+          "startDate": "2026-09-19",
+          "priceDkk": 10970,
+          "status": "Garanteret",
+          "lastSeenRun": "aa52158b-7d3c-464b-930e-30949963d167",
+          "isArchived": false,
+          "endDate": null,
+          "departureCode": null
+        },
+        {
+          "startDate": "2026-09-26",
+          "priceDkk": 9970,
+          "status": "Garanteret",
+          "lastSeenRun": "aa52158b-7d3c-464b-930e-30949963d167",
+          "isArchived": false,
+          "endDate": null,
+          "departureCode": null
+        },
+        {
+          "startDate": "2026-10-03",
+          "priceDkk": 9970,
+          "status": "Garanteret",
+          "lastSeenRun": "aa52158b-7d3c-464b-930e-30949963d167",
+          "isArchived": false,
+          "endDate": null,
+          "departureCode": null
+        },
+        {
+          "startDate": "2026-10-10",
+          "priceDkk": 9970,
+          "status": "Garanteret",
+          "lastSeenRun": "aa52158b-7d3c-464b-930e-30949963d167",
+          "isArchived": false,
+          "endDate": null,
+          "departureCode": null
+        },
+        {
+          "startDate": "2026-10-17",
+          "priceDkk": 9470,
+          "status": "Garanteret",
+          "lastSeenRun": "aa52158b-7d3c-464b-930e-30949963d167",
+          "isArchived": false,
+          "endDate": null,
+          "departureCode": null
+        },
+        {
+          "startDate": "2027-04-17",
+          "priceDkk": 9970,
+          "status": "Garanteret",
+          "lastSeenRun": "aa52158b-7d3c-464b-930e-30949963d167",
+          "isArchived": false,
+          "endDate": null,
+          "departureCode": null
+        },
+        {
+          "startDate": "2027-04-24",
+          "priceDkk": 9470,
+          "status": "Åben",
+          "lastSeenRun": "aa52158b-7d3c-464b-930e-30949963d167",
+          "isArchived": false,
+          "endDate": null,
+          "departureCode": null
+        },
+        {
+          "startDate": "2027-05-01",
+          "priceDkk": 9470,
+          "status": "Åben",
+          "lastSeenRun": "aa52158b-7d3c-464b-930e-30949963d167",
+          "isArchived": false,
+          "endDate": null,
+          "departureCode": null
+        },
+        {
+          "startDate": "2027-05-08",
+          "priceDkk": 9970,
+          "status": "Garanteret",
+          "lastSeenRun": "aa52158b-7d3c-464b-930e-30949963d167",
+          "isArchived": false,
+          "endDate": null,
+          "departureCode": null
+        },
+        {
+          "startDate": "2027-05-15",
+          "priceDkk": 9970,
+          "status": "Garanteret",
+          "lastSeenRun": "aa52158b-7d3c-464b-930e-30949963d167",
+          "isArchived": false,
+          "endDate": null,
+          "departureCode": null
+        },
+        {
+          "startDate": "2027-05-22",
+          "priceDkk": 9470,
+          "status": "Åben",
+          "lastSeenRun": "aa52158b-7d3c-464b-930e-30949963d167",
+          "isArchived": false,
+          "endDate": null,
+          "departureCode": null
+        },
+        {
+          "startDate": "2027-05-29",
+          "priceDkk": 9470,
+          "status": "Åben",
+          "lastSeenRun": "aa52158b-7d3c-464b-930e-30949963d167",
+          "isArchived": false,
+          "endDate": null,
+          "departureCode": null
+        },
+        {
+          "startDate": "2027-06-05",
+          "priceDkk": 9470,
+          "status": "Åben",
+          "lastSeenRun": "aa52158b-7d3c-464b-930e-30949963d167",
+          "isArchived": false,
+          "endDate": null,
+          "departureCode": null
+        },
+        {
+          "startDate": "2027-06-12",
+          "priceDkk": 9470,
+          "status": "Åben",
+          "lastSeenRun": "aa52158b-7d3c-464b-930e-30949963d167",
+          "isArchived": false,
+          "endDate": null,
+          "departureCode": null
+        },
+        {
+          "startDate": "2027-06-19",
+          "priceDkk": 9470,
+          "status": "Åben",
+          "lastSeenRun": "aa52158b-7d3c-464b-930e-30949963d167",
+          "isArchived": false,
+          "endDate": null,
+          "departureCode": null
+        },
+        {
+          "startDate": "2027-06-26",
+          "priceDkk": 9470,
+          "status": "Åben",
+          "lastSeenRun": "aa52158b-7d3c-464b-930e-30949963d167",
+          "isArchived": false,
+          "endDate": null,
+          "departureCode": null
+        }
+      ]
+    },
+    {
+      "code": "MATO",
+      "name": "Trekking i Høje Atlas-bjergene til toppen af Mount Toubkal",
+      "country": "Marokko",
+      "durationDays": 8,
+      "mealsIncluded": 18,
+      "mealsDescription": "7 morgenmad · 5 frokost · 6 aftensmad",
+      "audience": "Åben",
+      "competitor": {
+        "operator": "JyskRejsebureau",
+        "tier": 2,
+        "name": "Trek til toppen af Mt. Toubkal"
+      },
+      "topasFromPrice": 11470,
+      "competitorFromPrice": 9950,
+      "topasPerDep": 11803,
+      "competitorPerDep": 9950,
+      "topasFromRank": 3,
+      "topasPerDepRank": 3,
+      "eligibleSetSize": 3,
+      "flags": {
+        "priceChange": false,
+        "slopeMismatch": false,
+        "competitorSellout": true
+      },
+      "scraped": true,
+      "scrapedAt": "b702b34f-fac9-4379-b97e-09b54dcd729b",
+      "departures": [
+        {
+          "startDate": "2026-07-07",
+          "priceDkk": 12470,
+          "status": "Garanteret",
+          "lastSeenRun": "8d994492-ec08-4a24-8404-14c1ebdb96a0",
+          "isArchived": false,
+          "endDate": null,
+          "departureCode": null
+        },
+        {
+          "startDate": "2026-09-01",
+          "priceDkk": 11470,
+          "status": "Garanteret",
+          "lastSeenRun": "8d994492-ec08-4a24-8404-14c1ebdb96a0",
+          "isArchived": false,
+          "endDate": null,
+          "departureCode": null
+        },
+        {
+          "startDate": "2026-09-08",
+          "priceDkk": 11470,
+          "status": "Garanteret",
+          "lastSeenRun": "8d994492-ec08-4a24-8404-14c1ebdb96a0",
+          "isArchived": false,
+          "endDate": null,
+          "departureCode": null
+        }
+      ]
+    }
+  ],
+  "competitors": [
+    {
+      "operator": "Smilrejser",
+      "holding": "Aller Leisure",
+      "segment": "Kulturrejser, Europa",
+      "tourName": "Vandreferie på Madeira",
+      "tourSlug": "vandreferie-paa-madeira",
+      "url": "https://smilrejser.dk/portugal/vandreferie-paa-madeira",
+      "country": "",
+      "competesWith": "PTMD",
+      "durationDays": 8,
+      "fromPrice": 12995,
+      "eligibilityNotes": "Extracted via Firecrawl JSON · 12 departures · duration 8 dage · from-pris 12995 kr.",
+      "mealsIncluded": 24,
+      "mealsDescription": "8 All Inclusive · 4 frokost",
+      "perDepAvg": 13411,
+      "departureCount": 12,
+      "departureCountTotal": 12,
+      "departures": [
+        {
+          "startDate": "2026-05-15",
+          "priceDkk": 12995,
+          "status": "Udsolgt",
+          "lastSeenRun": "c57dac28-83bb-4573-a191-00280ae04a66",
+          "isArchived": false,
+          "rejseleder": null,
+          "flightOrigin": "København"
+        },
+        {
+          "startDate": "2026-07-28",
+          "priceDkk": 12995,
+          "status": "Åben",
+          "lastSeenRun": "c57dac28-83bb-4573-a191-00280ae04a66",
+          "isArchived": false,
+          "rejseleder": null,
+          "flightOrigin": "København"
+        },
+        {
+          "startDate": "2026-08-25",
+          "priceDkk": 12995,
+          "status": "Åben",
+          "lastSeenRun": "c57dac28-83bb-4573-a191-00280ae04a66",
+          "isArchived": false,
+          "rejseleder": null,
+          "flightOrigin": "København"
+        },
+        {
+          "startDate": "2026-09-22",
+          "priceDkk": 13490,
+          "status": "Åben",
+          "lastSeenRun": "c57dac28-83bb-4573-a191-00280ae04a66",
+          "isArchived": false,
+          "rejseleder": null,
+          "flightOrigin": "København"
+        },
+        {
+          "startDate": "2026-10-16",
+          "priceDkk": 12995,
+          "status": "Åben",
+          "lastSeenRun": "c57dac28-83bb-4573-a191-00280ae04a66",
+          "isArchived": false,
+          "rejseleder": null,
+          "flightOrigin": "København"
+        },
+        {
+          "startDate": "2027-03-08",
+          "priceDkk": 12995,
+          "status": "Åben",
+          "lastSeenRun": "c57dac28-83bb-4573-a191-00280ae04a66",
+          "isArchived": false,
+          "rejseleder": null,
+          "flightOrigin": "Aalborg"
+        },
+        {
+          "startDate": "2027-03-12",
+          "priceDkk": 13495,
+          "status": "Åben",
+          "lastSeenRun": "c57dac28-83bb-4573-a191-00280ae04a66",
+          "isArchived": false,
+          "rejseleder": null,
+          "flightOrigin": "København"
+        },
+        {
+          "startDate": "2027-03-26",
+          "priceDkk": 13995,
+          "status": "Åben",
+          "lastSeenRun": "c57dac28-83bb-4573-a191-00280ae04a66",
+          "isArchived": false,
+          "rejseleder": null,
+          "flightOrigin": "København"
+        },
+        {
+          "startDate": "2027-04-05",
+          "priceDkk": 13495,
+          "status": "Åben",
+          "lastSeenRun": "c57dac28-83bb-4573-a191-00280ae04a66",
+          "isArchived": false,
+          "rejseleder": "Dansktalende rejseleder",
+          "flightOrigin": "Aalborg"
+        },
+        {
+          "startDate": "2027-04-16",
+          "priceDkk": 13995,
+          "status": "Åben",
+          "lastSeenRun": "c57dac28-83bb-4573-a191-00280ae04a66",
+          "isArchived": false,
+          "rejseleder": null,
+          "flightOrigin": "København"
+        },
+        {
+          "startDate": "2027-04-19",
+          "priceDkk": 13495,
+          "status": "Åben",
+          "lastSeenRun": "c57dac28-83bb-4573-a191-00280ae04a66",
+          "isArchived": false,
+          "rejseleder": null,
+          "flightOrigin": "Aalborg"
+        },
+        {
+          "startDate": "2027-05-14",
+          "priceDkk": 13995,
+          "status": "Åben",
+          "lastSeenRun": "c57dac28-83bb-4573-a191-00280ae04a66",
+          "isArchived": false,
+          "rejseleder": null,
+          "flightOrigin": "København"
+        }
+      ],
+      "tierForPTMD": 1
+    },
+    {
+      "operator": "Viktorsfarmor",
+      "holding": null,
+      "segment": null,
+      "tourName": "Vandreferie på Madeira",
+      "tourSlug": "vandreferie-paa-madeira",
+      "url": "https://www.viktorsfarmor.dk/rejsemal/europa/portugal/vandreferie-pa-madeira",
+      "country": "",
+      "competesWith": "PTMD",
+      "durationDays": 8,
+      "fromPrice": 13990,
+      "eligibilityNotes": "Extracted via Firecrawl JSON · 5 departures · duration 8 dage · from-pris 13990 kr.",
+      "mealsIncluded": 20,
+      "mealsDescription": "8 morgenmad · 4 frokostpakke · 2 frokost · 4 aftensmad · 2 middag evt.",
+      "perDepAvg": 14390,
+      "departureCount": 5,
+      "departureCountTotal": 5,
+      "departures": [
+        {
+          "startDate": "2026-05-09",
+          "priceDkk": 13990,
+          "status": "Udsolgt",
+          "lastSeenRun": "c57dac28-83bb-4573-a191-00280ae04a66",
+          "isArchived": false,
+          "rejseleder": "Jørgen T. Karlsen",
+          "flightOrigin": "København"
+        },
+        {
+          "startDate": "2026-07-01",
+          "priceDkk": 13990,
+          "status": "Åben",
+          "lastSeenRun": "c57dac28-83bb-4573-a191-00280ae04a66",
+          "isArchived": false,
+          "rejseleder": "Meggie Nøddegaard",
+          "flightOrigin": "København"
+        },
+        {
+          "startDate": "2026-07-18",
+          "priceDkk": 13990,
+          "status": "Få pladser",
+          "lastSeenRun": "c57dac28-83bb-4573-a191-00280ae04a66",
+          "isArchived": false,
+          "rejseleder": "Jørgen T. Karlsen",
+          "flightOrigin": "København"
+        },
+        {
+          "startDate": "2026-10-10",
+          "priceDkk": 14990,
+          "status": "Få pladser",
+          "lastSeenRun": "c57dac28-83bb-4573-a191-00280ae04a66",
+          "isArchived": false,
+          "rejseleder": "Pia Frederiksen",
+          "flightOrigin": "København"
+        },
+        {
+          "startDate": "2026-10-31",
+          "priceDkk": 14990,
+          "status": "Åben",
+          "lastSeenRun": "c57dac28-83bb-4573-a191-00280ae04a66",
+          "isArchived": false,
+          "rejseleder": "Jannie I. Julsen",
+          "flightOrigin": "København"
+        }
+      ],
+      "tierForPTMD": 3
+    },
+    {
+      "operator": "RubyRejser",
+      "holding": null,
+      "segment": null,
+      "tourName": "Fantastisk vandring på frodige Madeira",
+      "tourSlug": "fantastisk-vandring-paa-frodige-madeira",
+      "url": "https://ruby-rejser.dk/vandreferie/frodige-madeira.html",
+      "country": "",
+      "competesWith": "PTMD",
+      "durationDays": 7,
+      "fromPrice": 12998,
+      "eligibilityNotes": "Extracted via Firecrawl JSON · 1 departures · duration 7 dage · from-pris 12998 kr.",
+      "mealsIncluded": 6,
+      "mealsDescription": "6 middag",
+      "perDepAvg": 12998,
+      "departureCount": 1,
+      "departureCountTotal": 1,
+      "departures": [
+        {
+          "startDate": "2026-11-01",
+          "priceDkk": 12998,
+          "status": "Åben",
+          "lastSeenRun": "c57dac28-83bb-4573-a191-00280ae04a66",
+          "isArchived": false,
+          "rejseleder": "Dansk rejseleder",
+          "flightOrigin": "København"
+        }
+      ],
+      "tierForPTMD": 3
+    },
+    {
+      "operator": "Albatros",
+      "holding": null,
+      "segment": null,
+      "tourName": "Vidunderlige Vietnam",
+      "tourSlug": "vidunderlige-vietnam",
+      "url": "https://www.albatros.dk/rejser/vidunderlige-vietnam",
+      "country": "",
+      "competesWith": "VNSN",
+      "durationDays": 13,
+      "fromPrice": 17998,
+      "eligibilityNotes": "Extracted via Firecrawl JSON · 7 departures · duration 13 dage · from-pris 17998 kr.",
+      "mealsIncluded": 33,
+      "mealsDescription": "12 morgenmad · 7 frokost · 1 brunch · 7 middag",
+      "perDepAvg": 19155,
+      "departureCount": 7,
+      "departureCountTotal": 7,
+      "departures": [
+        {
+          "startDate": "2026-10-15",
+          "priceDkk": 20798,
+          "status": "Åben",
+          "lastSeenRun": "b702b34f-fac9-4379-b97e-09b54dcd729b",
+          "isArchived": false,
+          "rejseleder": "Dansk",
+          "flightOrigin": "København"
+        },
+        {
+          "startDate": "2026-11-05",
+          "priceDkk": 17998,
+          "status": "Åben",
+          "lastSeenRun": "b702b34f-fac9-4379-b97e-09b54dcd729b",
+          "isArchived": false,
+          "rejseleder": "Dansk",
+          "flightOrigin": "København"
+        },
+        {
+          "startDate": "2027-01-14",
+          "priceDkk": 21798,
+          "status": "Åben",
+          "lastSeenRun": "b702b34f-fac9-4379-b97e-09b54dcd729b",
+          "isArchived": false,
+          "rejseleder": "Dansk",
+          "flightOrigin": "København"
+        },
+        {
+          "startDate": "2027-02-04",
+          "priceDkk": 18998,
+          "status": "Åben",
+          "lastSeenRun": "b702b34f-fac9-4379-b97e-09b54dcd729b",
+          "isArchived": false,
+          "rejseleder": "Dansk",
+          "flightOrigin": "København"
+        },
+        {
+          "startDate": "2027-02-18",
+          "priceDkk": 18498,
+          "status": "Åben",
+          "lastSeenRun": "b702b34f-fac9-4379-b97e-09b54dcd729b",
+          "isArchived": false,
+          "rejseleder": "Dansk",
+          "flightOrigin": "København"
+        },
+        {
+          "startDate": "2027-03-04",
+          "priceDkk": 17998,
+          "status": "Åben",
+          "lastSeenRun": "b702b34f-fac9-4379-b97e-09b54dcd729b",
+          "isArchived": false,
+          "rejseleder": "Dansk",
+          "flightOrigin": "Billund"
+        },
+        {
+          "startDate": "2027-03-18",
+          "priceDkk": 17998,
+          "status": "Åben",
+          "lastSeenRun": "b702b34f-fac9-4379-b97e-09b54dcd729b",
+          "isArchived": false,
+          "rejseleder": "Dansk",
+          "flightOrigin": "København"
+        }
+      ],
+      "tierForPTMD": 3
+    },
+    {
+      "operator": "Albatros",
+      "holding": null,
+      "segment": null,
+      "tourName": "Den store Vietnamrejse",
+      "tourSlug": "den-store-vietnamrejse",
+      "url": "https://www.albatros.dk/rejser/den-store-vietnamrejse",
+      "country": "",
+      "competesWith": "VNSN",
+      "durationDays": 20,
+      "fromPrice": 22998,
+      "eligibilityNotes": "Extracted via Firecrawl JSON · 6 departures · duration 20 dage · from-pris 22998 kr.",
+      "mealsIncluded": 30,
+      "mealsDescription": "De fleste måltider inkl. – morgenmad, frokost og middag tælles fra dagsprogram",
+      "perDepAvg": 24331,
+      "departureCount": 6,
+      "departureCountTotal": 6,
+      "departures": [
+        {
+          "startDate": "2026-10-21",
+          "priceDkk": 22998,
+          "status": "Garanteret",
+          "lastSeenRun": "b702b34f-fac9-4379-b97e-09b54dcd729b",
+          "isArchived": false,
+          "rejseleder": "Dansk",
+          "flightOrigin": "København"
+        },
+        {
+          "startDate": "2027-01-07",
+          "priceDkk": 24998,
+          "status": "Åben",
+          "lastSeenRun": "b702b34f-fac9-4379-b97e-09b54dcd729b",
+          "isArchived": false,
+          "rejseleder": "Dansk",
+          "flightOrigin": "København"
+        },
+        {
+          "startDate": "2027-01-24",
+          "priceDkk": 24998,
+          "status": "Åben",
+          "lastSeenRun": "b702b34f-fac9-4379-b97e-09b54dcd729b",
+          "isArchived": false,
+          "rejseleder": "Dansk",
+          "flightOrigin": "København"
+        },
+        {
+          "startDate": "2027-02-11",
+          "priceDkk": 24998,
+          "status": "Åben",
+          "lastSeenRun": "b702b34f-fac9-4379-b97e-09b54dcd729b",
+          "isArchived": false,
+          "rejseleder": "Dansk",
+          "flightOrigin": "København"
+        },
+        {
+          "startDate": "2027-02-18",
+          "priceDkk": 23998,
+          "status": "Åben",
+          "lastSeenRun": "b702b34f-fac9-4379-b97e-09b54dcd729b",
+          "isArchived": false,
+          "rejseleder": "Dansk",
+          "flightOrigin": "København"
+        },
+        {
+          "startDate": "2027-03-11",
+          "priceDkk": 23998,
+          "status": "Få pladser",
+          "lastSeenRun": "b702b34f-fac9-4379-b97e-09b54dcd729b",
+          "isArchived": false,
+          "rejseleder": "Dansk",
+          "flightOrigin": "København"
+        }
+      ],
+      "tierForPTMD": 3
+    },
+    {
+      "operator": "Albatros",
+      "holding": null,
+      "segment": null,
+      "tourName": "Sommer i Vietnam",
+      "tourSlug": "sommer-i-vietnam",
+      "url": "https://www.albatros.dk/rejser/sommer-i-vietnam",
+      "country": "",
+      "competesWith": "VNSN",
+      "durationDays": 16,
+      "fromPrice": 20998,
+      "eligibilityNotes": "Extracted via Firecrawl JSON · 1 departures · duration 16 dage · from-pris 20998 kr.",
+      "mealsIncluded": 27,
+      "mealsDescription": "15 morgenmad · 1 brunch · 6 frokost · 5 middag",
+      "perDepAvg": 20998,
+      "departureCount": 1,
+      "departureCountTotal": 1,
+      "departures": [
+        {
+          "startDate": "2026-06-28",
+          "priceDkk": 20998,
+          "status": "Garanteret",
+          "lastSeenRun": "b702b34f-fac9-4379-b97e-09b54dcd729b",
+          "isArchived": false,
+          "rejseleder": "Dansk",
+          "flightOrigin": "København"
+        }
+      ],
+      "tierForPTMD": 3
+    },
+    {
+      "operator": "Smilrejser",
+      "holding": "Aller Leisure",
+      "segment": "Kulturrejser, Europa",
+      "tourName": "Det bedste af Vietnam",
+      "tourSlug": "det-bedste-af-vietnam",
+      "url": "https://smilrejser.dk/vietnam/det-bedste-af-vietnam",
+      "country": "",
+      "competesWith": "VNSN",
+      "durationDays": 16,
+      "fromPrice": 22999,
+      "eligibilityNotes": "Extracted via Firecrawl JSON · 3 departures · duration 16 dage · from-pris 22999 kr.",
+      "mealsIncluded": 25,
+      "mealsDescription": "13 morgenmad · 8 frokost · 4 middag",
+      "perDepAvg": 23665,
+      "departureCount": 3,
+      "departureCountTotal": 3,
+      "departures": [
+        {
+          "startDate": "2026-10-18",
+          "priceDkk": 22999,
+          "status": "Få pladser",
+          "lastSeenRun": "b702b34f-fac9-4379-b97e-09b54dcd729b",
+          "isArchived": false,
+          "rejseleder": null,
+          "flightOrigin": "København"
+        },
+        {
+          "startDate": "2027-02-21",
+          "priceDkk": 23999,
+          "status": "Få pladser",
+          "lastSeenRun": "b702b34f-fac9-4379-b97e-09b54dcd729b",
+          "isArchived": false,
+          "rejseleder": null,
+          "flightOrigin": "København"
+        },
+        {
+          "startDate": "2027-03-14",
+          "priceDkk": 23999,
+          "status": "Få pladser",
+          "lastSeenRun": "b702b34f-fac9-4379-b97e-09b54dcd729b",
+          "isArchived": false,
+          "rejseleder": null,
+          "flightOrigin": "København"
+        }
+      ],
+      "tierForPTMD": 3
+    },
+    {
+      "operator": "StjernegaardRejser",
+      "holding": null,
+      "segment": null,
+      "tourName": "Det bedste af Vietnam",
+      "tourSlug": "det-bedste-af-vietnam",
+      "url": "https://www.stjernegaard-rejser.dk/vietnam/rundrejser-vietnam/det-bedste-af-vietnam/",
+      "country": "",
+      "competesWith": "VNSN",
+      "durationDays": 13,
+      "fromPrice": 17990,
+      "eligibilityNotes": "Extracted via Firecrawl JSON · 5 departures · duration 13 dage · from-pris 17990 kr.",
+      "mealsIncluded": 16,
+      "mealsDescription": "9 morgenmad · 4 frokost · 3 middag",
+      "perDepAvg": 18490,
+      "departureCount": 5,
+      "departureCountTotal": 5,
+      "departures": [
+        {
+          "startDate": "2027-01-17",
+          "priceDkk": 18490,
+          "status": "Åben",
+          "lastSeenRun": "b702b34f-fac9-4379-b97e-09b54dcd729b",
+          "isArchived": false,
+          "rejseleder": null,
+          "flightOrigin": "København"
+        },
+        {
+          "startDate": "2027-02-13",
+          "priceDkk": 18990,
+          "status": "Åben",
+          "lastSeenRun": "b702b34f-fac9-4379-b97e-09b54dcd729b",
+          "isArchived": false,
+          "rejseleder": null,
+          "flightOrigin": "København"
+        },
+        {
+          "startDate": "2027-02-27",
+          "priceDkk": 18490,
+          "status": "Åben",
+          "lastSeenRun": "b702b34f-fac9-4379-b97e-09b54dcd729b",
+          "isArchived": false,
+          "rejseleder": null,
+          "flightOrigin": "København"
+        },
+        {
+          "startDate": "2027-03-13",
+          "priceDkk": 17990,
+          "status": "Åben",
+          "lastSeenRun": "b702b34f-fac9-4379-b97e-09b54dcd729b",
+          "isArchived": false,
+          "rejseleder": null,
+          "flightOrigin": "København"
+        },
+        {
+          "startDate": "2027-03-27",
+          "priceDkk": 18490,
+          "status": "Åben",
+          "lastSeenRun": "b702b34f-fac9-4379-b97e-09b54dcd729b",
+          "isArchived": false,
+          "rejseleder": null,
+          "flightOrigin": "København"
+        }
+      ],
+      "tierForPTMD": 3
+    },
+    {
+      "operator": "StjernegaardRejser",
+      "holding": null,
+      "segment": null,
+      "tourName": "Fra Halong til Mekong",
+      "tourSlug": "fra-halong-til-mekong",
+      "url": "https://www.stjernegaard-rejser.dk/vietnam/rundrejser-vietnam/fra-halong-til-mekong/",
+      "country": "",
+      "competesWith": "VNSN",
+      "durationDays": 16,
+      "fromPrice": 23990,
+      "eligibilityNotes": "Extracted via Firecrawl JSON · 9 departures · duration 16 dage · from-pris 23990 kr.",
+      "mealsIncluded": 29,
+      "mealsDescription": "14 morgenmad · 10 frokost · 5 middag",
+      "perDepAvg": 24434,
+      "departureCount": 9,
+      "departureCountTotal": 9,
+      "departures": [
+        {
+          "startDate": "2027-02-01",
+          "priceDkk": 24990,
+          "status": "Åben",
+          "lastSeenRun": "b702b34f-fac9-4379-b97e-09b54dcd729b",
+          "isArchived": false,
+          "rejseleder": null,
+          "flightOrigin": "København"
+        },
+        {
+          "startDate": "2027-02-08",
+          "priceDkk": 24990,
+          "status": "Åben",
+          "lastSeenRun": "b702b34f-fac9-4379-b97e-09b54dcd729b",
+          "isArchived": false,
+          "rejseleder": null,
+          "flightOrigin": "København"
+        },
+        {
+          "startDate": "2027-02-15",
+          "priceDkk": 24990,
+          "status": "Åben",
+          "lastSeenRun": "b702b34f-fac9-4379-b97e-09b54dcd729b",
+          "isArchived": false,
+          "rejseleder": null,
+          "flightOrigin": "København"
+        },
+        {
+          "startDate": "2027-02-22",
+          "priceDkk": 24990,
+          "status": "Åben",
+          "lastSeenRun": "b702b34f-fac9-4379-b97e-09b54dcd729b",
+          "isArchived": false,
+          "rejseleder": null,
+          "flightOrigin": "København"
+        },
+        {
+          "startDate": "2027-03-01",
+          "priceDkk": 23990,
+          "status": "Åben",
+          "lastSeenRun": "b702b34f-fac9-4379-b97e-09b54dcd729b",
+          "isArchived": false,
+          "rejseleder": null,
+          "flightOrigin": "København"
+        },
+        {
+          "startDate": "2027-03-08",
+          "priceDkk": 23990,
+          "status": "Åben",
+          "lastSeenRun": "b702b34f-fac9-4379-b97e-09b54dcd729b",
+          "isArchived": false,
+          "rejseleder": null,
+          "flightOrigin": "København"
+        },
+        {
+          "startDate": "2027-03-15",
+          "priceDkk": 23990,
+          "status": "Åben",
+          "lastSeenRun": "b702b34f-fac9-4379-b97e-09b54dcd729b",
+          "isArchived": false,
+          "rejseleder": null,
+          "flightOrigin": "København"
+        },
+        {
+          "startDate": "2027-03-22",
+          "priceDkk": 23990,
+          "status": "Åben",
+          "lastSeenRun": "b702b34f-fac9-4379-b97e-09b54dcd729b",
+          "isArchived": false,
+          "rejseleder": null,
+          "flightOrigin": "København"
+        },
+        {
+          "startDate": "2027-03-29",
+          "priceDkk": 23990,
+          "status": "Åben",
+          "lastSeenRun": "b702b34f-fac9-4379-b97e-09b54dcd729b",
+          "isArchived": false,
+          "rejseleder": null,
+          "flightOrigin": "København"
+        }
+      ],
+      "tierForPTMD": 3
+    },
+    {
+      "operator": "StjernegaardRejser",
+      "holding": null,
+      "segment": null,
+      "tourName": "Fra nord til syd",
+      "tourSlug": "fra-nord-til-syd",
+      "url": "https://www.stjernegaard-rejser.dk/vietnam/rundrejser-vietnam/fra-nord-til-syd/",
+      "country": "",
+      "competesWith": "VNSN",
+      "durationDays": 15,
+      "fromPrice": 24990,
+      "eligibilityNotes": "Extracted via Firecrawl JSON · 12 departures · duration 15 dage · from-pris 24990 kr.",
+      "mealsIncluded": 27,
+      "mealsDescription": "12 morgenmad · 9 frokost · 6 middag",
+      "perDepAvg": 25740,
+      "departureCount": 12,
+      "departureCountTotal": 12,
+      "departures": [
+        {
+          "startDate": "2026-12-29",
+          "priceDkk": 26990,
+          "status": "Åben",
+          "lastSeenRun": "b702b34f-fac9-4379-b97e-09b54dcd729b",
+          "isArchived": false,
+          "rejseleder": null,
+          "flightOrigin": "København"
+        },
+        {
+          "startDate": "2027-01-19",
+          "priceDkk": 25490,
+          "status": "Åben",
+          "lastSeenRun": "b702b34f-fac9-4379-b97e-09b54dcd729b",
+          "isArchived": false,
+          "rejseleder": null,
+          "flightOrigin": "København"
+        },
+        {
+          "startDate": "2027-02-02",
+          "priceDkk": 25490,
+          "status": "Åben",
+          "lastSeenRun": "b702b34f-fac9-4379-b97e-09b54dcd729b",
+          "isArchived": false,
+          "rejseleder": null,
+          "flightOrigin": "København"
+        },
+        {
+          "startDate": "2027-02-09",
+          "priceDkk": 25490,
+          "status": "Åben",
+          "lastSeenRun": "b702b34f-fac9-4379-b97e-09b54dcd729b",
+          "isArchived": false,
+          "rejseleder": null,
+          "flightOrigin": "København"
+        },
+        {
+          "startDate": "2027-02-16",
+          "priceDkk": 25990,
+          "status": "Åben",
+          "lastSeenRun": "b702b34f-fac9-4379-b97e-09b54dcd729b",
+          "isArchived": false,
+          "rejseleder": null,
+          "flightOrigin": "København"
+        },
+        {
+          "startDate": "2027-02-23",
+          "priceDkk": 25490,
+          "status": "Åben",
+          "lastSeenRun": "b702b34f-fac9-4379-b97e-09b54dcd729b",
+          "isArchived": false,
+          "rejseleder": null,
+          "flightOrigin": "København"
+        },
+        {
+          "startDate": "2027-03-02",
+          "priceDkk": 25490,
+          "status": "Åben",
+          "lastSeenRun": "b702b34f-fac9-4379-b97e-09b54dcd729b",
+          "isArchived": false,
+          "rejseleder": null,
+          "flightOrigin": "København"
+        },
+        {
+          "startDate": "2027-03-09",
+          "priceDkk": 24990,
+          "status": "Åben",
+          "lastSeenRun": "b702b34f-fac9-4379-b97e-09b54dcd729b",
+          "isArchived": false,
+          "rejseleder": null,
+          "flightOrigin": "København"
+        },
+        {
+          "startDate": "2027-03-16",
+          "priceDkk": 25490,
+          "status": "Åben",
+          "lastSeenRun": "b702b34f-fac9-4379-b97e-09b54dcd729b",
+          "isArchived": false,
+          "rejseleder": null,
+          "flightOrigin": "København"
+        },
+        {
+          "startDate": "2027-03-23",
+          "priceDkk": 25490,
+          "status": "Åben",
+          "lastSeenRun": "b702b34f-fac9-4379-b97e-09b54dcd729b",
+          "isArchived": false,
+          "rejseleder": null,
+          "flightOrigin": "København"
+        },
+        {
+          "startDate": "2027-03-30",
+          "priceDkk": 25490,
+          "status": "Åben",
+          "lastSeenRun": "b702b34f-fac9-4379-b97e-09b54dcd729b",
+          "isArchived": false,
+          "rejseleder": null,
+          "flightOrigin": "København"
+        },
+        {
+          "startDate": "2027-12-21",
+          "priceDkk": 26990,
+          "status": "Åben",
+          "lastSeenRun": "b702b34f-fac9-4379-b97e-09b54dcd729b",
+          "isArchived": false,
+          "rejseleder": null,
+          "flightOrigin": "København"
+        }
+      ],
+      "tierForPTMD": 3
+    },
+    {
+      "operator": "Viktorsfarmor",
+      "holding": null,
+      "segment": null,
+      "tourName": "Fantastiske Vietnam",
+      "tourSlug": "fantastiske-vietnam",
+      "url": "https://www.viktorsfarmor.dk/rejsemal/asien/vietnam/fantastiske-vietnam",
+      "country": "",
+      "competesWith": "VNSN",
+      "durationDays": 16,
+      "fromPrice": 24990,
+      "eligibilityNotes": "Extracted via Firecrawl JSON · 5 departures · duration 16 dage · from-pris 24990 kr.",
+      "mealsIncluded": 27,
+      "mealsDescription": "14 morgenmad · 6 frokost · 7 aftensmad",
+      "perDepAvg": 25790,
+      "departureCount": 5,
+      "departureCountTotal": 5,
+      "departures": [
+        {
+          "startDate": "2026-07-02",
+          "priceDkk": 25990,
+          "status": "Få pladser",
+          "lastSeenRun": "b702b34f-fac9-4379-b97e-09b54dcd729b",
+          "isArchived": false,
+          "rejseleder": "Tuyen Ngoc Nguyen",
+          "flightOrigin": "København"
+        },
+        {
+          "startDate": "2026-09-18",
+          "priceDkk": 24990,
+          "status": "Garanteret",
+          "lastSeenRun": "b702b34f-fac9-4379-b97e-09b54dcd729b",
+          "isArchived": false,
+          "rejseleder": "Tuyen Ngoc Nguyen",
+          "flightOrigin": "København"
+        },
+        {
+          "startDate": "2026-10-04",
+          "priceDkk": 25990,
+          "status": "Garanteret",
+          "lastSeenRun": "b702b34f-fac9-4379-b97e-09b54dcd729b",
+          "isArchived": false,
+          "rejseleder": "Tuyen Ngoc Nguyen",
+          "flightOrigin": "København"
+        },
+        {
+          "startDate": "2026-10-21",
+          "priceDkk": 25990,
+          "status": "Garanteret",
+          "lastSeenRun": "b702b34f-fac9-4379-b97e-09b54dcd729b",
+          "isArchived": false,
+          "rejseleder": "Tuyen Ngoc Nguyen",
+          "flightOrigin": "København"
+        },
+        {
+          "startDate": "2026-11-08",
+          "priceDkk": 25990,
+          "status": "Få pladser",
+          "lastSeenRun": "b702b34f-fac9-4379-b97e-09b54dcd729b",
+          "isArchived": false,
+          "rejseleder": "Tuyen Ngoc Nguyen",
+          "flightOrigin": "København"
+        }
+      ],
+      "tierForPTMD": 3
+    },
+    {
+      "operator": "Albatros",
+      "holding": null,
+      "segment": null,
+      "tourName": "Albatros' Vietnam",
+      "tourSlug": "albatros-vietnam",
+      "url": "https://www.albatros.dk/rejser/albatros-vietnam",
+      "country": "",
+      "competesWith": "VNSN",
+      "durationDays": 17,
+      "fromPrice": 19998,
+      "eligibilityNotes": "Extracted via Firecrawl JSON · 1 departures · duration 17 dage · from-pris 19998 kr.",
+      "mealsIncluded": 27,
+      "mealsDescription": "16 morgenmad · 5 frokost · 6 middag (talt fra dagsprogram)",
+      "perDepAvg": 19998,
+      "departureCount": 1,
+      "departureCountTotal": 1,
+      "departures": [
+        {
+          "startDate": "2026-10-20",
+          "priceDkk": 19998,
+          "status": "Udsolgt",
+          "lastSeenRun": "b702b34f-fac9-4379-b97e-09b54dcd729b",
+          "isArchived": false,
+          "rejseleder": null,
+          "flightOrigin": "København"
+        }
+      ],
+      "tierForPTMD": 3
+    },
+    {
+      "operator": "Albatros",
+      "holding": null,
+      "segment": null,
+      "tourName": "Langtidsferie i Vietnam",
+      "tourSlug": "langtidsferie-i-vietnam",
+      "url": "https://www.albatros.dk/rejser/langtidsferie-i-vietnam",
+      "country": "",
+      "competesWith": "VNSN",
+      "durationDays": 21,
+      "fromPrice": 21998,
+      "eligibilityNotes": "Extracted via Firecrawl JSON · 2 departures · duration 21 dage · from-pris 21998 kr.",
+      "mealsIncluded": 56,
+      "mealsDescription": "20 morgenmad · 3 frokost · 18 middag (halvpension + ekstra måltider)",
+      "perDepAvg": 21998,
+      "departureCount": 2,
+      "departureCountTotal": 2,
+      "departures": [
+        {
+          "startDate": "2027-01-14",
+          "priceDkk": 21998,
+          "status": "Åben",
+          "lastSeenRun": "b702b34f-fac9-4379-b97e-09b54dcd729b",
+          "isArchived": false,
+          "rejseleder": "Dansk",
+          "flightOrigin": "København"
+        },
+        {
+          "startDate": "2027-02-05",
+          "priceDkk": 21998,
+          "status": "Åben",
+          "lastSeenRun": "b702b34f-fac9-4379-b97e-09b54dcd729b",
+          "isArchived": false,
+          "rejseleder": "Dansk",
+          "flightOrigin": "København"
+        }
+      ],
+      "tierForPTMD": 3
+    },
+    {
+      "operator": "StjernegaardRejser",
+      "holding": null,
+      "segment": null,
+      "tourName": "Fra Sapa til Mekong",
+      "tourSlug": "fra-sapa-til-mekong",
+      "url": "https://www.stjernegaard-rejser.dk/vietnam/rundrejser-vietnam/fra-sapa-til-mekong/",
+      "country": "",
+      "competesWith": "VNSN",
+      "durationDays": 16,
+      "fromPrice": 24990,
+      "eligibilityNotes": "Extracted via Firecrawl JSON · 3 departures · duration 16 dage · from-pris 24990 kr.",
+      "mealsIncluded": 26,
+      "mealsDescription": "13 morgenmad · 8 frokost · 5 middag",
+      "perDepAvg": 24990,
+      "departureCount": 3,
+      "departureCountTotal": 3,
+      "departures": [
+        {
+          "startDate": "2027-03-02",
+          "priceDkk": 24990,
+          "status": "Åben",
+          "lastSeenRun": "b702b34f-fac9-4379-b97e-09b54dcd729b",
+          "isArchived": false,
+          "rejseleder": null,
+          "flightOrigin": "København"
+        },
+        {
+          "startDate": "2027-03-09",
+          "priceDkk": 24990,
+          "status": "Åben",
+          "lastSeenRun": "b702b34f-fac9-4379-b97e-09b54dcd729b",
+          "isArchived": false,
+          "rejseleder": null,
+          "flightOrigin": "København"
+        },
+        {
+          "startDate": "2027-03-23",
+          "priceDkk": 24990,
+          "status": "Åben",
+          "lastSeenRun": "b702b34f-fac9-4379-b97e-09b54dcd729b",
+          "isArchived": false,
+          "rejseleder": null,
+          "flightOrigin": "København"
+        }
+      ],
+      "tierForPTMD": 3
+    },
+    {
+      "operator": "Vagabondtours",
+      "holding": null,
+      "segment": null,
+      "tourName": "Vietnam fra nord til syd",
+      "tourSlug": "vietnam-fra-nord-til-syd",
+      "url": "http://www.vagabondtours.dk/rejsemaal/faellesture/vietnam/vietnam/vietnam-fra-nord-til-syd.aspx",
+      "country": "",
+      "competesWith": "VNSN",
+      "durationDays": null,
+      "fromPrice": null,
+      "eligibilityNotes": "No data extracted via LLM. Page may be empty, JS-blocked, or behind anti-bot. Tier 3 vision fallback will be tried.",
+      "mealsIncluded": null,
+      "mealsDescription": null,
+      "perDepAvg": null,
+      "departureCount": 0,
+      "departureCountTotal": 0,
+      "departures": [],
+      "tierForPTMD": 3
+    },
+    {
+      "operator": "JyskRejsebureau",
+      "holding": null,
+      "segment": null,
+      "tourName": "Trekking på Peaks of the Balkans",
+      "tourSlug": "trekking-paa-peaks-of-the-balkans",
+      "url": "https://www.jysk-rejsebureau.dk/albanien/med-dansk-rejseleder/trekking-paa-peaks-of-the-balkans/",
+      "country": "",
+      "competesWith": "ALAP",
+      "durationDays": 9,
+      "fromPrice": 14995,
+      "eligibilityNotes": "Extracted via Firecrawl JSON · 4 departures · duration 9 dage · from-pris 14995 kr.",
+      "mealsIncluded": null,
+      "mealsDescription": null,
+      "perDepAvg": 14995,
+      "departureCount": 4,
+      "departureCountTotal": 4,
+      "departures": [
+        {
+          "startDate": "2026-07-18",
+          "priceDkk": 14995,
+          "status": "Få pladser",
+          "lastSeenRun": "7b4fd7cc-7898-416d-bf53-96c707e11be1",
+          "isArchived": false,
+          "rejseleder": "Sia Kromann Nicolaisen",
+          "flightOrigin": "København"
+        },
+        {
+          "startDate": "2027-07-03",
+          "priceDkk": 14995,
+          "status": "Åben",
+          "lastSeenRun": "7b4fd7cc-7898-416d-bf53-96c707e11be1",
+          "isArchived": false,
+          "rejseleder": "Henrik Persson",
+          "flightOrigin": "København"
+        },
+        {
+          "startDate": "2027-07-31",
+          "priceDkk": 14995,
+          "status": "Åben",
+          "lastSeenRun": "7b4fd7cc-7898-416d-bf53-96c707e11be1",
+          "isArchived": false,
+          "rejseleder": null,
+          "flightOrigin": "København"
+        },
+        {
+          "startDate": "2027-09-04",
+          "priceDkk": 14995,
+          "status": "Åben",
+          "lastSeenRun": "7b4fd7cc-7898-416d-bf53-96c707e11be1",
+          "isArchived": false,
+          "rejseleder": "Matias Juul Thorn",
+          "flightOrigin": "København"
+        }
+      ],
+      "tierForPTMD": 3
+    },
+    {
+      "operator": "Fyrholtrejser",
+      "holding": null,
+      "segment": null,
+      "tourName": "Vandreferie på Cypern",
+      "tourSlug": "vandreferie-paa-cypern",
+      "url": "https://fyrholtrejser.dk/rejser/vandreferie-paa-cypern/",
+      "country": "",
+      "competesWith": "CYSV",
+      "durationDays": 8,
+      "fromPrice": 12495,
+      "eligibilityNotes": "Extracted via Firecrawl JSON · 1 departures · duration 8 dage · from-pris 12495 kr.",
+      "mealsIncluded": 17,
+      "mealsDescription": "8 morgenmad · 1 frokost · 8 aftensmad",
+      "perDepAvg": 12495,
+      "departureCount": 1,
+      "departureCountTotal": 1,
+      "departures": [
+        {
+          "startDate": "2026-10-30",
+          "priceDkk": 12495,
+          "status": "Åben",
+          "lastSeenRun": "ee9d80dd-4ad9-4e49-91ed-84e607c7f5aa",
+          "isArchived": false,
+          "rejseleder": "Astrid Dahl",
+          "flightOrigin": "København"
+        }
+      ],
+      "tierForPTMD": 3
+    },
+    {
+      "operator": "Albatros",
+      "holding": null,
+      "segment": null,
+      "tourName": "Kultur og vandring i Toscana - Ferie alene i fællesskab",
+      "tourSlug": "kultur-og-vandring-i-toscana-ferie-alene-i-faellesskab",
+      "url": "https://www.albatros.dk/rejser/kultur-og-pilgrimsvandring-i-toscana-ferie-alene-i-faelless",
+      "country": "",
+      "competesWith": "ITTO",
+      "durationDays": 7,
+      "fromPrice": 8498,
+      "eligibilityNotes": "Extracted via Firecrawl JSON · 1 departures · duration 7 dage · from-pris 8498 kr.",
+      "mealsIncluded": 13,
+      "mealsDescription": "6 morgenmad · 5 middage · 1 picnicfrokost · 1 vinsmagning",
+      "perDepAvg": 8498,
+      "departureCount": 1,
+      "departureCountTotal": 1,
+      "departures": [
+        {
+          "startDate": "2026-10-20",
+          "priceDkk": 8498,
+          "status": "Åben",
+          "lastSeenRun": "aa52158b-7d3c-464b-930e-30949963d167",
+          "isArchived": false,
+          "rejseleder": "Dansk",
+          "flightOrigin": "København"
+        }
+      ],
+      "tierForPTMD": 3
+    },
+    {
+      "operator": "JyskRejsebureau",
+      "holding": null,
+      "segment": null,
+      "tourName": "Pilgrimsvandring i Toscana på Via Francigena",
+      "tourSlug": "pilgrimsvandring-i-toscana-paa-via-francigena",
+      "url": "https://www.jysk-rejsebureau.dk/italien/med-dansk-rejseleder/pilgrimsvandring-i-toscana/",
+      "country": "",
+      "competesWith": "ITTO",
+      "durationDays": 8,
+      "fromPrice": 12450,
+      "eligibilityNotes": "Extracted via Firecrawl JSON · 3 departures · duration 8 dage · from-pris 12450 kr.",
+      "mealsIncluded": 7,
+      "mealsDescription": "7 morgenmad",
+      "perDepAvg": 12450,
+      "departureCount": 3,
+      "departureCountTotal": 3,
+      "departures": [
+        {
+          "startDate": "2026-09-19",
+          "priceDkk": 12450,
+          "status": "Garanteret",
+          "lastSeenRun": "aa52158b-7d3c-464b-930e-30949963d167",
+          "isArchived": false,
+          "rejseleder": "Jonas Elleby",
+          "flightOrigin": "København"
+        },
+        {
+          "startDate": "2027-05-01",
+          "priceDkk": 12450,
+          "status": "Garanteret",
+          "lastSeenRun": "aa52158b-7d3c-464b-930e-30949963d167",
+          "isArchived": false,
+          "rejseleder": null,
+          "flightOrigin": "København"
+        },
+        {
+          "startDate": "2027-09-25",
+          "priceDkk": 12450,
+          "status": "Garanteret",
+          "lastSeenRun": "aa52158b-7d3c-464b-930e-30949963d167",
+          "isArchived": false,
+          "rejseleder": null,
+          "flightOrigin": "København"
+        }
+      ],
+      "tierForPTMD": 3
+    },
+    {
+      "operator": "Vagabondtours",
+      "holding": null,
+      "segment": null,
+      "tourName": "FÆLLESTUR: VIA FRANCÍGENA I TOSCANA (aug-sep 2026)",
+      "tourSlug": "faellestur-via-franc-gena-i-toscana-aug-sep-2026",
+      "url": "https://www.vagabondtours.dk/tours/faellestur-via-francigena-i-toscana-2/",
+      "country": "",
+      "competesWith": "ITTO",
+      "durationDays": 8,
+      "fromPrice": 11600,
+      "eligibilityNotes": "Extracted via Firecrawl JSON · 1 departures · duration 8 dage · from-pris 11600 kr.",
+      "mealsIncluded": 11,
+      "mealsDescription": "7 morgenmad · 4 aftensmad",
+      "perDepAvg": 11600,
+      "departureCount": 1,
+      "departureCountTotal": 1,
+      "departures": [
+        {
+          "startDate": "2026-08-29",
+          "priceDkk": 11600,
+          "status": "Få pladser",
+          "lastSeenRun": "aa52158b-7d3c-464b-930e-30949963d167",
+          "isArchived": false,
+          "rejseleder": null,
+          "flightOrigin": "København"
+        }
+      ],
+      "tierForPTMD": 3
+    },
+    {
+      "operator": "Vagabondtours",
+      "holding": null,
+      "segment": null,
+      "tourName": "FÆLLESTUR: VIA FRANCÍGENA I TOSCANA (maj 2026)",
+      "tourSlug": "faellestur-via-franc-gena-i-toscana-maj-2026",
+      "url": "https://www.vagabondtours.dk/tours/faellestur-via-francigena-i-toscana/",
+      "country": "",
+      "competesWith": "ITTO",
+      "durationDays": 8,
+      "fromPrice": null,
+      "eligibilityNotes": "Extracted via Firecrawl JSON · 2 departures · duration 8 dage · from-pris ? kr.",
+      "mealsIncluded": 11,
+      "mealsDescription": "7 morgenmad · 4 aftensmad",
+      "perDepAvg": 12500,
+      "departureCount": 2,
+      "departureCountTotal": 2,
+      "departures": [
+        {
+          "startDate": "2026-05-02",
+          "priceDkk": 12500,
+          "status": "Udsolgt",
+          "lastSeenRun": "aa52158b-7d3c-464b-930e-30949963d167",
+          "isArchived": false,
+          "rejseleder": null,
+          "flightOrigin": "København"
+        },
+        {
+          "startDate": "2026-05-09",
+          "priceDkk": 12500,
+          "status": "Udsolgt",
+          "lastSeenRun": "aa52158b-7d3c-464b-930e-30949963d167",
+          "isArchived": false,
+          "rejseleder": null,
+          "flightOrigin": "København"
+        }
+      ],
+      "tierForPTMD": 3
+    },
+    {
+      "operator": "Gjoa",
+      "holding": null,
+      "segment": null,
+      "tourName": "Toscana: Corfino og vandring i Garfagnanas bjerge",
+      "tourSlug": "toscana-corfino-og-vandring-i-garfagnanas-bjerge",
+      "url": "https://gjoa.dk/vandreture/italien/toscana-corfino-og-vandring-i-garfagnanas-bjerge/",
+      "country": "",
+      "competesWith": "ITTO",
+      "durationDays": 8,
+      "fromPrice": 11375,
+      "eligibilityNotes": "Extracted via Firecrawl JSON · 2 departures · duration 8 dage · from-pris 11375 kr.",
+      "mealsIncluded": 16,
+      "mealsDescription": "7 morgenmad · 2 frokost · 7 aftensmad",
+      "perDepAvg": 11375,
+      "departureCount": 2,
+      "departureCountTotal": 2,
+      "departures": [
+        {
+          "startDate": "2026-07-13",
+          "priceDkk": 11375,
+          "status": "Udsolgt",
+          "lastSeenRun": "aa52158b-7d3c-464b-930e-30949963d167",
+          "isArchived": false,
+          "rejseleder": null,
+          "flightOrigin": "København"
+        },
+        {
+          "startDate": "2026-07-20",
+          "priceDkk": 11375,
+          "status": "Udsolgt",
+          "lastSeenRun": "aa52158b-7d3c-464b-930e-30949963d167",
+          "isArchived": false,
+          "rejseleder": null,
+          "flightOrigin": "København"
+        }
+      ],
+      "tierForPTMD": 3
+    },
+    {
+      "operator": "Gjoa",
+      "holding": null,
+      "segment": null,
+      "tourName": "Toscana: Et kloster i Luccas bjerge. Vandring, sprog, kultur og køkken",
+      "tourSlug": "toscana-et-kloster-i-luccas-bjerge-vandring-sprog-kultur-og-koekken",
+      "url": "https://gjoa.dk/temarejser/italien/toscana-et-kloster-i-luccas-bjerge-vandring-sprog-kultur-og-koekken/",
+      "country": "",
+      "competesWith": "ITTO",
+      "durationDays": 8,
+      "fromPrice": 12950,
+      "eligibilityNotes": "Extracted via Firecrawl JSON · 4 departures · duration 8 dage · from-pris 12950 kr.",
+      "mealsIncluded": 15,
+      "mealsDescription": "7 morgenmad · 2 frokost · 6 aftensmad",
+      "perDepAvg": 12950,
+      "departureCount": 4,
+      "departureCountTotal": 4,
+      "departures": [
+        {
+          "startDate": "2026-06-27",
+          "priceDkk": 12950,
+          "status": "Åben",
+          "lastSeenRun": "aa52158b-7d3c-464b-930e-30949963d167",
+          "isArchived": false,
+          "rejseleder": null,
+          "flightOrigin": "København"
+        },
+        {
+          "startDate": "2026-07-04",
+          "priceDkk": 12950,
+          "status": "Åben",
+          "lastSeenRun": "aa52158b-7d3c-464b-930e-30949963d167",
+          "isArchived": false,
+          "rejseleder": null,
+          "flightOrigin": "København"
+        },
+        {
+          "startDate": "2026-09-14",
+          "priceDkk": 12950,
+          "status": "Åben",
+          "lastSeenRun": "aa52158b-7d3c-464b-930e-30949963d167",
+          "isArchived": false,
+          "rejseleder": null,
+          "flightOrigin": "København"
+        },
+        {
+          "startDate": "2026-09-21",
+          "priceDkk": 12950,
+          "status": "Åben",
+          "lastSeenRun": "aa52158b-7d3c-464b-930e-30949963d167",
+          "isArchived": false,
+          "rejseleder": null,
+          "flightOrigin": "København"
+        }
+      ],
+      "tierForPTMD": 3
+    },
+    {
+      "operator": "JyskRejsebureau",
+      "holding": null,
+      "segment": null,
+      "tourName": "Trek til toppen af Mt. Toubkal",
+      "tourSlug": "trek-til-toppen-af-mt-toubkal",
+      "url": "https://www.jysk-rejsebureau.dk/marokko/med-dansk-rejseleder/trek-til-toppen-af-mt.-toubkal/",
+      "country": "",
+      "competesWith": "MATO",
+      "durationDays": 8,
+      "fromPrice": 9950,
+      "eligibilityNotes": "Extracted via Firecrawl JSON · 8 departures · duration 8 dage · from-pris 9950 kr.",
+      "mealsIncluded": 18,
+      "mealsDescription": "7 morgenmad · 6 frokost · 5 aftensmad",
+      "perDepAvg": 9950,
+      "departureCount": 8,
+      "departureCountTotal": 8,
+      "departures": [
+        {
+          "startDate": "2026-09-12",
+          "priceDkk": 9950,
+          "status": "Få pladser",
+          "lastSeenRun": "8d994492-ec08-4a24-8404-14c1ebdb96a0",
+          "isArchived": false,
+          "rejseleder": "Fie Rasmussen",
+          "flightOrigin": "København"
+        },
+        {
+          "startDate": "2026-09-19",
+          "priceDkk": 9950,
+          "status": "Udsolgt",
+          "lastSeenRun": "8d994492-ec08-4a24-8404-14c1ebdb96a0",
+          "isArchived": false,
+          "rejseleder": null,
+          "flightOrigin": "København"
+        },
+        {
+          "startDate": "2026-10-03",
+          "priceDkk": 9950,
+          "status": "Udsolgt",
+          "lastSeenRun": "8d994492-ec08-4a24-8404-14c1ebdb96a0",
+          "isArchived": false,
+          "rejseleder": "Karen Nøhr Christiansen",
+          "flightOrigin": "København"
+        },
+        {
+          "startDate": "2027-04-03",
+          "priceDkk": 9950,
+          "status": "Udsolgt",
+          "lastSeenRun": "8d994492-ec08-4a24-8404-14c1ebdb96a0",
+          "isArchived": false,
+          "rejseleder": null,
+          "flightOrigin": "København"
+        },
+        {
+          "startDate": "2027-05-08",
+          "priceDkk": 9950,
+          "status": "Udsolgt",
+          "lastSeenRun": "8d994492-ec08-4a24-8404-14c1ebdb96a0",
+          "isArchived": false,
+          "rejseleder": "Henrik Persson",
+          "flightOrigin": "København"
+        },
+        {
+          "startDate": "2027-09-04",
+          "priceDkk": 9950,
+          "status": "Udsolgt",
+          "lastSeenRun": "8d994492-ec08-4a24-8404-14c1ebdb96a0",
+          "isArchived": false,
+          "rejseleder": null,
+          "flightOrigin": "København"
+        },
+        {
+          "startDate": "2027-09-18",
+          "priceDkk": 9950,
+          "status": "Udsolgt",
+          "lastSeenRun": "8d994492-ec08-4a24-8404-14c1ebdb96a0",
+          "isArchived": false,
+          "rejseleder": null,
+          "flightOrigin": "København"
+        },
+        {
+          "startDate": "2027-10-02",
+          "priceDkk": 9950,
+          "status": "Udsolgt",
+          "lastSeenRun": "8d994492-ec08-4a24-8404-14c1ebdb96a0",
+          "isArchived": false,
+          "rejseleder": null,
+          "flightOrigin": "København"
+        }
+      ],
+      "tierForPTMD": 3
+    },
+    {
+      "operator": "Kiplingtravel",
+      "holding": null,
+      "segment": null,
+      "tourName": "Toubkal sommerbestigning",
+      "tourSlug": "toubkal-sommerbestigning",
+      "url": "https://www.kiplingtravel.dk/rejser/afrika/marokko/toubkal-sommerbestigning",
+      "country": "",
+      "competesWith": "MATO",
+      "durationDays": 5,
+      "fromPrice": 8998,
+      "eligibilityNotes": "Extracted via Firecrawl JSON · 1 departures · duration 5 dage · from-pris 8998 kr.",
+      "mealsIncluded": 10,
+      "mealsDescription": "4 morgenmad · 3 frokost · 3 aftensmad",
+      "perDepAvg": 8998,
+      "departureCount": 1,
+      "departureCountTotal": 1,
+      "departures": [
+        {
+          "startDate": "2026-09-15",
+          "priceDkk": 8998,
+          "status": "Udsolgt",
+          "lastSeenRun": "8d994492-ec08-4a24-8404-14c1ebdb96a0",
+          "isArchived": false,
+          "rejseleder": "Bart Jordans",
+          "flightOrigin": "København"
+        }
+      ],
+      "tierForPTMD": 3
+    }
+  ]
+}

@@ -1,0 +1,86 @@
+RubyRejser — måltids-relevante afsnit
+URL: https://ruby-rejser.dk/vandreferie/frodige-madeira.html
+
+
+--- match: 'kulinariske' @ char 14201 ---
+ages/pixel.jpg)
+
+[Vandreeventyr i Dolomitterne med tog](https://ruby-rejser.dk/vandreferie/vandreeventyr-i-dolomitterne-med-tog.html)
+
+Tag med på en fantastisk vandreuge til Dolomitterne i Italien, der anses af mange for at være verdens smukkeste bjergkæde. Turen krydres med vinsmagning, cykelture, kulinariske oplevelser og meget mere.
+
+Fra 12.998,- DKK
+
+[Se rejsen her](https://ruby-rejser.dk/vandreferie/vandreeventyr-i-dolomitterne-med-tog.html)
+
+9 nætter![](https://ruby-rejser.dk/static/version20260507050936/frontend/Rubyrejser/theme/da_DK/Magefan_LazyLoad/images/pixel.jpg)
+
+[Sommerferie i Mayrhofen -
+
+--- match: 'kulinariske' @ char 36188 ---
+ages/pixel.jpg)
+
+[Vandreeventyr i Dolomitterne med tog](https://ruby-rejser.dk/vandreferie/vandreeventyr-i-dolomitterne-med-tog.html)
+
+Tag med på en fantastisk vandreuge til Dolomitterne i Italien, der anses af mange for at være verdens smukkeste bjergkæde. Turen krydres med vinsmagning, cykelture, kulinariske oplevelser og meget mere.
+
+Fra 12.998,- DKK
+
+[Se rejsen her](https://ruby-rejser.dk/vandreferie/vandreeventyr-i-dolomitterne-med-tog.html)
+
+9 nætter![](https://ruby-rejser.dk/static/version20260507050936/frontend/Rubyrejser/theme/da_DK/Magefan_LazyLoad/images/pixel.jpg)
+
+[Sommerferie i Mayrhofen -
+
+--- match: 'middag' @ char 47956 ---
+syd og fra øst til vest.
+
+Denne [vandreferie på Madeira](https://ruby-rejser.dk/vandreferie/vandreferie-pa-madeira) giver også rig mulighed for at opleve, hvad øen har at byde på smagsmæssigt. Vi har udvalgt 6 forskellige restauranter i Funchal, så vi hver aften tilbydes nye spændende retter. De 6 middage er naturligvis inkluderet i prisen.
+
+### Kort
+
+![down v arrow](https://ruby-rejser.dk/static/version20260507050936/frontend/Rubyrejser/theme/da_DK/Magefan_LazyLoad/images/pixel.jpg)![up v arrow](https://ruby-rejser.dk/static/version20260507050936/frontend/Rubyrejser/theme/da_DK/Magefan_LazyLoad/im
+
+--- match: 'middag' @ char 48876 ---
+n20260507050936/frontend/Rubyrejser/theme/da_DK/Magefan_LazyLoad/images/pixel.jpg)
+
+**Dag 1 - Afrejse**
+
+Flyrejse fra Danmark til Funchal på Madeira. Vi bliver hentet i Funchal Lufthavn og kører den korte tur ind til vores dejlige hotel i Funchal, som er vores base under hele turen. I løbet af eftermiddagen samles vi til et mindre informationsmøde, samt der vil være mulighed for en lille byvandring, for dem der har lyst.
+
+Om aftenen spiser vi aftensmad sammen på en nærliggende restaurant.
+
+**Dag 2 - Vandring fra landsbyen Prazeres****i den vestlige del af Madeira** _Aktiv vandretid: 3-4 timer, +350/
+
+--- match: 'aftensmad' @ char 50126 ---
+årn ligger her 290 meter over havets overflade med en fantastisk udsigt. På tilbagevejen mod Funchal stopper vi ved havklippen Cabo Girão, som har et direkte fald på 580 m. De modige kan gå ud på en udsigtsplatform af glas og se direkte ned gennem det klare vand til havbunden.
+
+Om aftenen spiser vi aftensmad sammen på en nærliggende restaurant.
+
+**Dag 3 - Vandring langs Levada do Rei på Madeiras nordkyst**
+
+_Aktiv vandretid: 3-4 timer, +230/-230 højdemeter, sværhedsgrad 2_
+
+I dag skal vi til nordkysten, nærmere bestemt São Jorge ved Santana - igen et frugtbart område, hvor bjergsiderne er skovklædte el
+
+--- match: 'aftensmad' @ char 51541 ---
+kningen dækket til med lilla klæde, så Jesus-figuren får maksimal opmærksomhed.
+
+På vej tilbage til hotellet gør vi et kort stop i Santana, der er kendt for sine stråtækte A-huse, der var de oprindelige boliger for farmere med opholdsrum for neden og soverum oppe under loftet.
+
+Om aftenen spiser vi aftensmad sammen på en ny restaurant.
+
+**Dag 4 - Fridag på egen hånd i hovedstaden Funchal i syd**
+
+Dagen er afsat til aktiviteter på egen hånd. Det kunne være en nærmere udforskning af Funchal med sine fine regeringsbygninger, den gamle domkirke eller de mange mindre kirker. Besøg det farverige marked Merca
+
+--- match: 'middag' @ char 52266 ---
+lentretur langs den nye havnepromenade eller betragt livet gå forbi på en af de mange caféer, mens du nyder den lokale Madeiravin. Tæt på byen findes den spændende botaniske have Jardim Botanico med planter fra hele verden samt Monte Palace tropiske have, som er en flot blanding af natur og kunst.
+
+Middag på egen hånd.
+
+**Dag 5 - Vandring på Madeiras højslette med lokalguide** _Aktiv vandretid: 3 timer, +160/-350 højdemeter, sværhedsgrad 3_
+
+Vi kører op på toppen af Madeira til den flade højslette Paul da Serra, som forsyner mange levadaer med vand. Landskabet og vegetationen her oppe midt på øen er
+
+... (mere fundet, men afkortet ved 4000 tegn) ...

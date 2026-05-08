@@ -1,0 +1,72 @@
+Vagabond — måltids-relevante afsnit
+URL: https://www.vagabondtours.dk/tours/faellestur-via-francigena-i-toscana-2/
+
+
+--- match: 'smagsoplevelser' @ char 48666 ---
+ke bekymre dig og logistik eller transport – alt er arrangeret, så du kan nyde vandreturen.
+
+- Oplev de to UNESCO-byer San Gimignano og Siena.
+- Toscanas charmerende borgbyer: Monteriggioni, Colle Val d’Elsa og Buonconvento.
+- Uforglemmelige landskaber i Val d’Orcia med cypresser og gyldne bakker
+- Smagsoplevelser fra Brunello-vin til Pienzas berømte Pecorino-ost
+- Alt er klaret – en fællestur med bagagetransport og dansk turleder.
+
+DAG 1: ANKOMST TIL SAN GIMIGNANO
+
+Efter en direkte flyvning fra København til Pisa, venter vores private bus og kører os gennem Toscana til den charmerende by San Gimignano. Byen
+
+--- match: 'morgenmad' @ char 49309 ---
+ddelalder-tårne, der rejser sig mod himlen som en ‘skyskraber-landsby’.
+
+Efter ankomsten til hotellet er der tid til at slappe af og nyde atmosfæren. Turlederen fortæller om de næste dage og de vandringer, der venter i de kommende dage. (-/-/-).
+
+DAG 2: FRA SAN GIMIGNANO TIL COLLE VAL D'ELSA
+
+Efter morgenmaden er vi klar til dagens vandring. Vi forlader San Gimignano og tager et sidste blik på de ikoniske tårne, før stien fører os nedad gennem det åbne, toskanske landskab.
+
+Ruten slynger sig gennem vinmarker, fredfyldte olivenlunde og over små bække. Et højdepunkt er et hyggeligt stop ved en gård, der
+
+--- match: 'aftensmad' @ char 50072 ---
+e strækker sig tilbage til 400-tallet f.Kr. Vi ankommer gennem de gamle byporte. Byen, der ligger på en bakke har tre områder: Borgo di Santa Caterina, Castello og den lave del kaldet il Piano. Oplev de gamle gader og det livlige torv. Vi tjekker ind på vores overnatningssted og om mødes til fælles aftensmad om aftenen. Dagens vandring er ca. 15 km. (M/-/A)
+
+DAG 3: FRA COLLE VAL D'ELSA TIL SIENA
+
+I dag skal vi vandre til den smukke bjergby Monteriggioni – her hentes vi (efter ca. 19 km) og køres til Siena, hvor vi skal overnatte.
+
+Vi begynder vandringen gennem det bølgende toskanske landskab med små ma
+
+--- match: 'middag' @ char 50844 ---
+jlig stigning gennem skove og langs landeveje.
+
+Belønningen venter i selve Monteriggioni, hvor vi kan nyde en velfortjent pause og slappe af på en café/bar – inden vi hentes og køres til vores mål for dagen: Den storslåede UNESCO-by Siena med dens charmerende plads, Piazza del Campo. Resten af eftermiddagen og aftenen er til fri disposition. Dagens vandring er ca. 19 km. (M/-/-)
+
+DAG 4: FRA SIENA TIL LUCIGNANO D'ARBIA
+
+Efter morgenmaden tager vi afsked med Siena og begynder vores vandring. Vi begiver os ud i det bølgende landskab i dalen Val d’Arbia. Vandringen følger Via Francígena gennem områder m
+
+--- match: 'aftensmad' @ char 51854 ---
+ring i byen Lucignano d’Arbia – en smuk, befæstet middelalderby med utroligt velbevaret arkitektur. Byen er ekndt for sin postkort-smukke slyngede vej, der er flankeret af cypresser. Her tjekker vi ind på vores overnatningssted efter en dag fyldt med historie og toskansk charme. Vi mødes til fælles aftensmad. Dagens vandring er ca. 17 km. (M/-/A)
+
+DAG 5: FRA LUCIGNANO D'ARBIA TIL BUONCONVENTO
+
+Dagens etape byder på en afslappet vandring gennem Toscanas mest ikoniske landskab. Vi forlader den charmerende landsby Lucignano d’Arbia – og går ad relative jævne stier mod Quinciano.
+
+Ruten fortsætter gennem e
+
+--- match: 'aftensmad' @ char 52713 ---
+over floden Arbia. Vi er nu klar til den sidste del af turen. Vi kommer til byen Buonconvento (der betyder ‘lykkelige by’), der modsat mange andre byer ligger på en slette. Vi samler kræfter – og er klar til at vandre op til vores overnatningssted, der ligger lidt uden for byen. Vi mødes til fælles aftensmad. Dagens vandring er ca. 17,5 km. (M/-/A)
+
+DAG 6: FRA BUONCONVENTO TIL SAN QUIRICO D'ORCIA
+
+Efter en velsmagende morgenmad forlader vi vores overnatningssted og vandrer direkte ud i en række af Toscanas mest berømte vinegne: Brunello di Montalcino. Her vandrer vi mellem de velholdte rækker af Sangvi
+
+--- match: 'middag' @ char 54531 ---
+egn for pilgrimme gennem hundrede af år. Herefter fortsætter vi ad Via Francígena mod den elegante renæssanceby Pienza, kendt for sin sublime ost, Pecorino. Turen slutter med en sidste, utrolig smuk vandring tilbage mod San Quirico, som en perfekt afslutning på en uforglemmelig vandretur. Vi spiser middag sammen om aftenen. Dagens vandring er ca. 15 km. (M/-/A)
+
+DAG 8: HJEMREJSE
+
+Vores vandreferie på Via Francígena er desværre slut. Efter morgenmaden i San Quirico og en sidste afsked med Toscanas smukke omgivelser, kører vi i vores private bus tilbage til lufthavnen i Pisa.
+
+Her går vi ombord på den
+
+... (mere fundet, men afkortet ved 4000 tegn) ...

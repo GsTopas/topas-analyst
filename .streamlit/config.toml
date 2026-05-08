@@ -1,0 +1,17 @@
+# Streamlit theme — matches the muted gray/blue palette from the static dashboard.
+# Streamlit's default look is busy; this settles it down.
+[theme]
+base = "light"
+primaryColor = "#2a3a5c"
+backgroundColor = "#fbfbfa"
+secondaryBackgroundColor = "#ffffff"
+textColor = "#1a1f2e"
+font = "sans serif"
+
+[server]
+# Helps with iframe-embedded usage if we ever need it
+enableXsrfProtection = true
+enableCORS = false
+
+[browser]
+gatherUsageStats = false

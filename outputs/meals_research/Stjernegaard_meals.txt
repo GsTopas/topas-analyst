@@ -1,0 +1,88 @@
+Stjernegaard — måltids-relevante afsnit
+URL: https://www.stjernegaard-rejser.dk/vietnam/rundrejser-vietnam/fra-nord-til-syd/priser-og-datoer/
+
+
+--- match: 'morgenmad' @ char 44425 ---
+bugten på luksusskibet Paradise Elegance i 2 dage
+  - Alle transporter som nævnt i program i egen bus
+  - **12 nætter fordelt således:**
+
+    \- 11 overnatninger på udvalgte turist- og førsteklasseshoteller
+
+    \- 1 nat i Halongbugten på luksusskibet Paradise Elegance i Deluxe-balkonkahyt
+  - 12 x morgenmad (11 morgenmad og 1 brunch på skibet i Halongbugten)
+  - 9 x frokost
+  - 6 x middag (5 middage og 1 "street food"-tur)
+  - Alle udflugter og entréer som nævnt i program
+  - Bagagehåndtering i Vietnam
+  - Drikkepenge til guider og chauffører
+  - Informationsmateriale
+  - Engelsktalende vietnamesisk g
+
+--- match: 'frokost' @ char 45128 ---
+hæmmede gæster og forudsætter et godt, normalt helbred samt normal bevægelighed
+
+- [ ] Udflugter - inkluderet i prisen
+
+
+
+
+  - Byvandring i Hanoi
+  - Historisk heldagsudflugt i Hanoi med besøg bl.a. ved Ho Chi Minhs mausoleum, Ensøjlepagoden, Litteraturens Tempel og det berygtede Hilton-fængsel
+  - Frokost på Restaurant KOTO, der fungerer som et projekt for byens dårligst stillede
+  - Cykelrickshawtur i byens snævre handelsgader
+  - "Street food"-tur i Hanoi
+  - Udflugt til landsbyen Duong Lam med vandretur i landsbyen og frokost hos lokal familie
+  - Hyggelig cykeltur i området omkring Duong Lam
+  -
+
+--- match: 'frokost' @ char 45356 ---
+nsøjlepagoden, Litteraturens Tempel og det berygtede Hilton-fængsel
+  - Frokost på Restaurant KOTO, der fungerer som et projekt for byens dårligst stillede
+  - Cykelrickshawtur i byens snævre handelsgader
+  - "Street food"-tur i Hanoi
+  - Udflugt til landsbyen Duong Lam med vandretur i landsbyen og frokost hos lokal familie
+  - Hyggelig cykeltur i området omkring Duong Lam
+  - Krydstogt på Paradise Elegance i Deluxe-balkonkahytter
+  - Sejltur i Halongbugten mellem smukke limstensøer og flydende landsbyer. Udflugter undervejs
+  - Besøg ved Citadellet (Den Forbudte Lilla By) i Hué
+  - Sejltur i Hué på
+
+--- match: 'drikkevarer' @ char 46742 ---
+- Gouda rejseforsikring – se pris og muligheder [her](https://www.stjernegaard-rejser.dk/om-os/forsikring-vaccination/ "Forsikring")
+  - Gouda årsafbestillingsforsikring – se priser [her](https://www.stjernegaard-rejser.dk/om-os/forsikring-vaccination/ "Forsikring")
+  - Personlige udgifter samt drikkevarer til maden
+  - Ekspeditionsgebyr kr. 295 pr. ordre
+
+- [ ] BEMÆRK: Tre-personer
+
+
+
+
+Ved booking af et tresengsværelse, får man ombord på Paradise Elegance (på cruiset) et dobbelt og et enkeltværelse, da de max kan tage 2 personer pr. kahyt.
+
+- [ ] BEMÆRK - strandforlængelse:
+
+
+
+
+At forlængelsen er på
+
+--- match: 'morgenmad' @ char 48287 ---
+Comfort Hotel
+
+
+
+
+![](https://www.stjernegaard-rejser.dk/media/0fhlnxdd/clarion-billede_120417.jpg?rmode=max&width=500&height=156)
+
+
+
+Start ferien med en nat på Clarion eller Comfort Hotel i Kastrup ved Københavns Lufthavn til en uhørt lav pris - fra kun kr. 1.295 pr. værelse pr. nat inkl. en skøn morgenmad for to personer. Prisen forudsætter, at vi har plads til vores aftalepris på ét af de to hoteller.
+
+
+
+[Se tilbuddet her ›](https://www.stjernegaard-rejser.dk/om-os/hvem-er-vi/start-ferien-med-en-nat-paa-clarion/ "Start ferien med en nat på Clarion")
+
+
+![vietnam - vietnam_rismark_farmer](https://www

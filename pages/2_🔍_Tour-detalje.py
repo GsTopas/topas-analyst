@@ -37,17 +37,36 @@ st.markdown(
 st.markdown("# 🔍 Tour-detalje")
 
 # ---------------------------------------------------------------------------
-# Load data
+# Load data — generér dashboard-payload fra Supabase ved hver page-load.
+#
+# Tidligere læste vi fra committed data/dashboard.json som var lavet af
+# scraper'en lokalt. Med Supabase som single source of truth bygger vi i
+# stedet payload'en direkte fra DB hver gang. @st.cache_data caches i 60s
+# så side-navigation ikke forsinkes; den bliver invalidatet automatisk
+# efter en scrape (eller manuelt via R-tasten).
 # ---------------------------------------------------------------------------
-JSON_PATH = Path("data/dashboard.json")
+import tempfile
+
+JSON_PATH = Path(tempfile.gettempdir()) / "topas_dashboard.json"
 
 
+@st.cache_data(ttl=60)
 def load_data() -> Optional[dict]:
-    if not JSON_PATH.exists():
-        return None
+    """Generér dashboard-payload fra Supabase. Cached 60s for hurtig nav."""
     try:
+        from topas_scraper.export import export as _export
+        _export(output=JSON_PATH)
         return json.loads(JSON_PATH.read_text(encoding="utf-8"))
-    except (json.JSONDecodeError, OSError):
+    except Exception as exc:  # noqa: BLE001
+        # Hvis export fejler (fx ingen scrape-runs endnu i Supabase),
+        # fall back til evt. committed dashboard.json som git-snapshot.
+        fallback = Path("data/dashboard.json")
+        if fallback.exists():
+            try:
+                return json.loads(fallback.read_text(encoding="utf-8"))
+            except (json.JSONDecodeError, OSError):
+                return None
+        st.error(f"Kunne ikke bygge dashboard fra Supabase: {exc}")
         return None
 
 
@@ -1512,4 +1531,5 @@ else:
                 *col_styles,
             ])
         )
+
         st.markdown(styled.to_html(escape=False), unsafe_allow_html=True)

@@ -28,16 +28,23 @@ Schema overview:
 from __future__ import annotations
 
 import json
-import sqlite3
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Optional
 
+from . import _pg_conn
 
-# Catalog DB lives next to the snapshots DB
+# Type-alias for læsbarhed — samme PgConnection som db.py bruger.
+Connection = _pg_conn.PgConnection
+
+
+# Catalog DB-stien bevares for kompatibilitet, men bruges ikke længere —
+# alle data ligger i Supabase nu.
 DEFAULT_CATALOG_DB_PATH = Path(__file__).resolve().parent.parent / "data" / "catalog.db"
 
 
+# Skemaet ligger i Supabase. SCHEMA bevares som dokumentation men kører ikke
+# fra app-koden; ændringer skal gøres centralt i Supabase via apply_migration.
 SCHEMA = """
 -- Operators we track. Pre-seeded; new entries added as we expand.
 CREATE TABLE IF NOT EXISTS operators (
@@ -230,54 +237,18 @@ CREATE TABLE IF NOT EXISTS pattern_observations (
 """
 
 
-def connect(db_path: Path | str = DEFAULT_CATALOG_DB_PATH) -> sqlite3.Connection:
-    """Open the catalog DB. Creates schema if missing."""
-    db_path = Path(db_path)
-    db_path.parent.mkdir(parents=True, exist_ok=True)
-    conn = sqlite3.connect(db_path)
-    conn.row_factory = sqlite3.Row
-    conn.executescript(SCHEMA)
-    _migrate_n8n_candidates(conn)
-    return conn
+def connect(db_path: Path | str = DEFAULT_CATALOG_DB_PATH) -> Connection:
+    """Åbn forbindelse til Supabase Postgres. db_path-argumentet ignoreres
+    (bevaret for kompatibilitet)."""
+    return _pg_conn.connect()
 
 
 def now_iso() -> str:
     return datetime.now(timezone.utc).isoformat(timespec="seconds")
 
 
-def _migrate_n8n_candidates(conn: sqlite3.Connection) -> None:
-    """Idempotent ALTERs for older catalog.db files."""
-    cols = {row[1] for row in conn.execute("PRAGMA table_info(n8n_candidates)").fetchall()}
-    if "departures_json" not in cols:
-        conn.execute("ALTER TABLE n8n_candidates ADD COLUMN departures_json TEXT")
-    if "has_guide" not in cols:
-        conn.execute("ALTER TABLE n8n_candidates ADD COLUMN has_guide INTEGER")
-    if "has_fixed_departures" not in cols:
-        conn.execute("ALTER TABLE n8n_candidates ADD COLUMN has_fixed_departures INTEGER")
-    if "tour_category" not in cols:
-        conn.execute("ALTER TABLE n8n_candidates ADD COLUMN tour_category TEXT")
-    # Ensure approved_competitor_targets exists (older catalog.db files won't have it)
-    conn.execute("""
-        CREATE TABLE IF NOT EXISTS approved_competitor_targets (
-            id                INTEGER PRIMARY KEY AUTOINCREMENT,
-            operator          TEXT NOT NULL,
-            tour_url          TEXT NOT NULL,
-            topas_tour_code   TEXT NOT NULL,
-            parser_key        TEXT NOT NULL,
-            tour_name         TEXT,
-            duration_days     INTEGER,
-            tour_category     TEXT,
-            approved_at       TEXT NOT NULL,
-            approved_by       TEXT,
-            decision_id       INTEGER,
-            UNIQUE (operator, tour_url, topas_tour_code)
-        )
-    """)
-    # Add tour_category column to existing approved_competitor_targets if missing
-    act_cols = {row[1] for row in conn.execute("PRAGMA table_info(approved_competitor_targets)").fetchall()}
-    if "tour_category" not in act_cols:
-        conn.execute("ALTER TABLE approved_competitor_targets ADD COLUMN tour_category TEXT")
-    conn.commit()
+# _migrate_n8n_candidates fjernet — alle migrations kører nu via Supabase
+# apply_migration centralt. App-koden migrerer ikke længere skemaet.
 
 
 # ---------------------------------------------------------------------------
@@ -285,7 +256,7 @@ def _migrate_n8n_candidates(conn: sqlite3.Connection) -> None:
 # ---------------------------------------------------------------------------
 
 def upsert_operator(
-    conn: sqlite3.Connection,
+    conn: Connection,
     operator: str,
     homepage_url: str,
     holding: Optional[str] = None,
@@ -313,7 +284,7 @@ def upsert_operator(
     conn.commit()
 
 
-def list_operators(conn: sqlite3.Connection) -> list[dict[str, Any]]:
+def list_operators(conn: Connection) -> list[dict[str, Any]]:
     rows = conn.execute("SELECT * FROM operators ORDER BY operator").fetchall()
     return [dict(r) for r in rows]
 
@@ -323,7 +294,7 @@ def list_operators(conn: sqlite3.Connection) -> list[dict[str, Any]]:
 # ---------------------------------------------------------------------------
 
 def upsert_catalog_tour(
-    conn: sqlite3.Connection,
+    conn: Connection,
     operator: str,
     tour_url: str,
     tour_slug: str,
@@ -346,7 +317,7 @@ def upsert_catalog_tour(
 
 
 def mark_tours_inactive(
-    conn: sqlite3.Connection,
+    conn: Connection,
     operator: str,
     seen_urls: list[str],
 ) -> int:
@@ -366,7 +337,7 @@ def mark_tours_inactive(
 
 
 def list_catalog_tours(
-    conn: sqlite3.Connection,
+    conn: Connection,
     operator: Optional[str] = None,
     active_only: bool = True,
 ) -> list[dict[str, Any]]:
@@ -386,7 +357,7 @@ def list_catalog_tours(
 # ---------------------------------------------------------------------------
 
 def upsert_extraction(
-    conn: sqlite3.Connection,
+    conn: Connection,
     operator: str,
     tour_url: str,
     content_hash: str,
@@ -426,7 +397,7 @@ def upsert_extraction(
     conn.commit()
 
 
-def get_extraction(conn: sqlite3.Connection, operator: str, tour_url: str) -> Optional[dict[str, Any]]:
+def get_extraction(conn: Connection, operator: str, tour_url: str) -> Optional[dict[str, Any]]:
     row = conn.execute(
         "SELECT * FROM tour_extractions WHERE operator=? AND tour_url=?",
         (operator, tour_url),
@@ -439,7 +410,7 @@ def get_extraction(conn: sqlite3.Connection, operator: str, tour_url: str) -> Op
 # ---------------------------------------------------------------------------
 
 def insert_classification(
-    conn: sqlite3.Connection,
+    conn: Connection,
     operator: str,
     tour_url: str,
     playbook_version: str,
@@ -458,6 +429,7 @@ def insert_classification(
             is_faellesrejse, tour_format, primary_activity, audience_segment, difficulty_norm,
             confidence, reasoning, raw_response, superseded
         ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0)
+        RETURNING id
         """,
         (
             operator, tour_url, now_iso(), playbook_version,
@@ -471,12 +443,13 @@ def insert_classification(
             json.dumps(verdict),
         ),
     )
+    new_id = cursor.lastrowid
     conn.commit()
-    return cursor.lastrowid
+    return new_id
 
 
 def get_active_classification(
-    conn: sqlite3.Connection,
+    conn: Connection,
     operator: str,
     tour_url: str,
 ) -> Optional[dict[str, Any]]:
@@ -496,7 +469,7 @@ def get_active_classification(
 # ---------------------------------------------------------------------------
 
 def log_review_decision(
-    conn: sqlite3.Connection,
+    conn: Connection,
     target_kind: str,           # 'classification' | 'match'
     target_id: int,
     action: str,                # 'approve' | 'reject' | 'override'
@@ -514,6 +487,7 @@ def log_review_decision(
             decided_at, target_kind, target_id, action,
             override_payload, reason, reviewer
         ) VALUES (?, ?, ?, ?, ?, ?, ?)
+        RETURNING id
         """,
         (
             now_iso(), target_kind, target_id, action,
@@ -521,12 +495,13 @@ def log_review_decision(
             reason, reviewer,
         ),
     )
+    new_id = cursor.lastrowid
     conn.commit()
-    return cursor.lastrowid
+    return new_id
 
 
 def fetch_recent_decisions(
-    conn: sqlite3.Connection,
+    conn: Connection,
     limit: int = 50,
     only_overrides: bool = False,
 ) -> list[dict[str, Any]]:
@@ -542,7 +517,7 @@ def fetch_recent_decisions(
 
 
 def fetch_decisions_for_target(
-    conn: sqlite3.Connection,
+    conn: Connection,
     target_kind: str,
     target_id: int,
 ) -> list[dict[str, Any]]:
@@ -563,7 +538,7 @@ def fetch_decisions_for_target(
 # ---------------------------------------------------------------------------
 
 def insert_pattern_observation(
-    conn: sqlite3.Connection,
+    conn: Connection,
     pattern_text: str,
     supporting_decision_ids: list[int],
     occurrence_count: int,
@@ -573,15 +548,17 @@ def insert_pattern_observation(
         INSERT INTO pattern_observations (
             observed_at, pattern_text, supporting_decision_ids, occurrence_count, status
         ) VALUES (?, ?, ?, ?, 'proposed')
+        RETURNING id
         """,
         (now_iso(), pattern_text, json.dumps(supporting_decision_ids), occurrence_count),
     )
+    new_id = cursor.lastrowid
     conn.commit()
-    return cursor.lastrowid
+    return new_id
 
 
 def list_pattern_observations(
-    conn: sqlite3.Connection,
+    conn: Connection,
     status: "Optional[str]" = None,
 ) -> list[dict[str, "Any"]]:
     sql = "SELECT * FROM pattern_observations"
@@ -594,7 +571,7 @@ def list_pattern_observations(
 
 
 def update_pattern_status(
-    conn: sqlite3.Connection,
+    conn: Connection,
     pattern_id: int,
     status: str,
 ) -> None:
@@ -618,7 +595,7 @@ def update_pattern_status(
 # n8n candidates — competitor screening rows pulled from n8n
 # ---------------------------------------------------------------------------
 
-def upsert_n8n_candidate(conn: sqlite3.Connection, row: dict) -> bool:
+def upsert_n8n_candidate(conn: Connection, row: dict) -> bool:
     """Insert or update one candidate from n8n. Returns True if newly inserted.
 
     `row` is a dict shaped like an n8n data table row (keys: id,
@@ -719,7 +696,7 @@ def _bool_to_int(v):
 
 
 def list_n8n_candidates_for_tour(
-    conn: sqlite3.Connection,
+    conn: Connection,
     topas_tour_code: str,
     only_unreviewed: bool = False,
 ) -> list[dict]:
@@ -762,7 +739,7 @@ def list_n8n_candidates_for_tour(
     return [dict(r) for r in rows]
 
 
-def list_n8n_tour_codes(conn: sqlite3.Connection) -> list[dict]:
+def list_n8n_tour_codes(conn: Connection) -> list[dict]:
     """List Topas tour-codes that have any n8n candidates, with counts of
     total / unreviewed candidates per tour. Used to populate review-page
     selector with badge."""
@@ -783,7 +760,7 @@ def list_n8n_tour_codes(conn: sqlite3.Connection) -> list[dict]:
     return [dict(r) for r in rows]
 
 
-def get_n8n_candidate_decision(conn: sqlite3.Connection, n8n_row_id: int):
+def get_n8n_candidate_decision(conn: Connection, n8n_row_id: int):
     """Return the latest review_decision for this candidate, if any."""
     row = conn.execute(
         """
@@ -797,7 +774,7 @@ def get_n8n_candidate_decision(conn: sqlite3.Connection, n8n_row_id: int):
 
 
 def get_decision_for_url(
-    conn: sqlite3.Connection,
+    conn: Connection,
     tour_url: str,
     topas_tour_code: str,
 ):
@@ -822,7 +799,7 @@ def get_decision_for_url(
     return dict(row) if row else None
 
 def list_latest_n8n_candidates_for_tour(
-    conn: sqlite3.Connection,
+    conn: Connection,
     topas_tour_code: str,
     only_unreviewed: bool = False,
 ) -> list[dict]:
@@ -883,22 +860,32 @@ def list_latest_n8n_candidates_for_tour(
     return [dict(r) for r in rows]
 
 
-def list_latest_n8n_tour_codes(conn: sqlite3.Connection) -> list[dict]:
+def list_latest_n8n_tour_codes(conn: Connection) -> list[dict]:
     """Like list_n8n_tour_codes but counts only the latest row per (domain, url).
     Mirrors list_latest_n8n_candidates_for_tour for consistent counts in UI.
 
     Unreviewed-tællingen bruger URL-baseret check (ikke n8n_row_id), så
-    re-screenings af tidligere afviste URLs ikke lyver om "pending"-tal."""
+    re-screenings af tidligere afviste URLs ikke lyver om "pending"-tal.
+
+    Postgres-strict-fix: splittet i to CTEs — først finder vi MAX(n8n_row_id)
+    pr. (topas_tour_code, competitor_domain, COALESCE(...)) gruppe; derefter
+    joiner vi tilbage for at hente topas_tour_code + tour_url. Det undgår
+    'must appear in GROUP BY clause'-fejlen i strict-mode SQL."""
     rows = conn.execute(
         """
-        WITH latest AS (
-            SELECT MAX(n8n_row_id) AS row_id, topas_tour_code, tour_url
+        WITH latest_ids AS (
+            SELECT MAX(n8n_row_id) AS row_id
             FROM n8n_candidates
             WHERE topas_tour_code IS NOT NULL AND topas_tour_code != ''
             GROUP BY
                 topas_tour_code,
                 competitor_domain,
                 COALESCE(NULLIF(tour_url, ''), '__no_match__')
+        ),
+        latest AS (
+            SELECT n.n8n_row_id AS row_id, n.topas_tour_code, n.tour_url
+            FROM n8n_candidates n
+            INNER JOIN latest_ids li ON li.row_id = n.n8n_row_id
         )
         SELECT
             l.topas_tour_code AS tour_code,
@@ -952,7 +939,7 @@ def parser_key_for_domain(domain: str) -> str:
 
 
 def list_approved_targets(
-    conn: sqlite3.Connection,
+    conn: Connection,
     topas_tour_code: Optional[str] = None,
 ) -> list[dict]:
     """Liste godkendte konkurrent-targets — bruges af scraper og UI.
@@ -982,7 +969,7 @@ def list_approved_targets(
 
 
 def upsert_approved_target(
-    conn: sqlite3.Connection,
+    conn: Connection,
     operator: str,
     tour_url: str,
     topas_tour_code: str,
@@ -1037,7 +1024,7 @@ def upsert_approved_target(
 
 
 def delete_approved_target(
-    conn: sqlite3.Connection,
+    conn: Connection,
     operator: str,
     tour_url: str,
     topas_tour_code: str,
@@ -1052,7 +1039,7 @@ def delete_approved_target(
 
 
 def update_approved_target_category(
-    conn: sqlite3.Connection,
+    conn: Connection,
     *,
     target_id: int,
     tour_category: str | None,

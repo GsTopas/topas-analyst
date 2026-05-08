@@ -13,13 +13,18 @@ computed automatically.
 from __future__ import annotations
 
 import json
-import sqlite3
 from pathlib import Path
-from typing import Optional
+from typing import Any, Optional
 
 from .config import DEFAULT_EXPORT_PATH, OPERATOR_META
 from .db import connect, fetch_tours, fetch_departures, latest_run_id, get_price_change, detect_status_anomaly
-from . import catalog_db
+from . import catalog_db, _pg_conn
+
+# Type-aliases bevarer kompatibilitet med tidligere Row / Connection
+# annotations uden at de skal opdateres mange steder. Runtime-typen er
+# PgConnection (fra _pg_conn) og dict (fra DictCursor).
+Connection = _pg_conn.PgConnection
+Row = dict
 
 
 def _approved_set() -> set[tuple[str, str]]:
@@ -119,7 +124,7 @@ def export(db_path: Optional[Path] = None, output: Optional[Path] = None) -> Pat
         """Returner started_at for row's last_seen_run, eller '' hvis ukendt."""
         return run_started.get(row["last_seen_run"] or "", "")
 
-    by_code: dict[str, sqlite3.Row] = {}
+    by_code: dict[str, Row] = {}
     for r in topas_rows_raw:
         code = r["tour_code"] or "UNKNOWN"
         existing = by_code.get(code)
@@ -133,7 +138,7 @@ def export(db_path: Optional[Path] = None, output: Optional[Path] = None) -> Pat
     # showing as duplicates in the UI. Keep the row with the freshest run
     # (by started_at, not UUID lexicographic).
     competitor_rows_all_raw = [r for r in rows if r["operator"] != "Topas"]
-    comp_seen: dict[tuple, sqlite3.Row] = {}
+    comp_seen: dict[tuple, Row] = {}
     for r in competitor_rows_all_raw:
         # Key on (url, competes_with) — same URL competing with same Topas tour
         # is by definition the same product, regardless of operator-name spelling.
@@ -293,10 +298,10 @@ def export(db_path: Optional[Path] = None, output: Optional[Path] = None) -> Pat
 
 
 def _departure_with_delta(
-    conn: sqlite3.Connection,
+    conn: Connection,
     operator: str,
     tour_slug: str,
-    d: sqlite3.Row,
+    d: Row,
     tour_run: str | None = None,
     fields: tuple[str, ...] = (),
     lookback_days: int = 7,
@@ -381,7 +386,7 @@ def _min_price(prices: list[Optional[int]]) -> Optional[int]:
     return min(valid) if valid else None
 
 
-def _select_anchor(competitor_rows: list[sqlite3.Row], tour_code: str) -> Optional[sqlite3.Row]:
+def _select_anchor(competitor_rows: list[Row], tour_code: str) -> Optional[Row]:
     """Pick the best Tier 1/2 competitor as anchor for this tour-code."""
     by_op = {r["operator"]: r for r in competitor_rows}
     preferred = ANCHOR_PREF_BY_TOUR.get(tour_code, [])
@@ -413,6 +418,6 @@ def _compute_flags(topas_deps: list, anchor_deps: list) -> dict:
     return flags
 
 
-def _run_started(conn: sqlite3.Connection, run_id: str) -> Optional[str]:
+def _run_started(conn: Connection, run_id: str) -> Optional[str]:
     row = conn.execute("SELECT started_at FROM scraper_runs WHERE run_id = ?", (run_id,)).fetchone()
     return row["started_at"] if row else None

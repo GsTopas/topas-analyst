@@ -16,15 +16,22 @@ the diff command compares run N against run N-1.
 
 from __future__ import annotations
 
-import sqlite3
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Iterable, Optional
+from typing import Any, Iterable, Optional
 from uuid import uuid4
 
 from .config import DEFAULT_DB_PATH
+from . import _pg_conn
+
+# Type-alias for læsbarhed — connect() returnerer en PgConnection-wrapper
+# der efterligner sqlite3.Connection's API.
+Connection = _pg_conn.PgConnection
 
 
+# Skemaet ligger i Supabase (kørt via apply_migration én gang). SCHEMA_SQL
+# bevares som reference / dokumentation, men eksekveres ikke længere på
+# connect — Supabase er sandheden.
 SCHEMA_SQL = """
 CREATE TABLE IF NOT EXISTS scraper_runs (
     run_id          TEXT PRIMARY KEY,
@@ -122,45 +129,18 @@ def _now_iso() -> str:
     return datetime.now(timezone.utc).isoformat(timespec="seconds")
 
 
-def connect(db_path: Optional[Path] = None) -> sqlite3.Connection:
-    """Open a connection and ensure schema exists."""
-    path = Path(db_path) if db_path else DEFAULT_DB_PATH
-    path.parent.mkdir(parents=True, exist_ok=True)
-    conn = sqlite3.connect(path)
-    conn.row_factory = sqlite3.Row
-    conn.executescript(SCHEMA_SQL)
-    _migrate_schema(conn)
-    conn.commit()
-    return conn
+def connect(db_path: Optional[Path] = None) -> Connection:
+    """Åbn forbindelse til Supabase Postgres. db_path-argumentet ignoreres
+    (bevaret for kompatibilitet med callers der historisk gav SQLite-sti)."""
+    return _pg_conn.connect()
 
 
-def _migrate_schema(conn: sqlite3.Connection) -> None:
-    """Apply incremental schema migrations for existing databases.
-
-    Each migration is idempotent — checks first, then alters if needed.
-    Add new migrations here as the schema evolves.
-    """
-    # Migration: add `competes_with` to tours (added when system became multi-tour).
-    cols = {row["name"] for row in conn.execute("PRAGMA table_info(tours)").fetchall()}
-    if "competes_with" not in cols and len(cols) > 0:
-        conn.execute("ALTER TABLE tours ADD COLUMN competes_with TEXT")
-        # Backfill: for Topas rows, competes_with = tour_code; for others, NULL
-        # (will be filled correctly on next scrape). Only attempt if both
-        # tour_code and operator columns exist (defensive vs partial schemas).
-        cols_after = {row["name"] for row in conn.execute("PRAGMA table_info(tours)").fetchall()}
-        if "tour_code" in cols_after and "operator" in cols_after:
-            conn.execute(
-                "UPDATE tours SET competes_with = tour_code WHERE operator = 'Topas'"
-            )
-    # Migration: add meals_included + meals_description columns to tours
-    cols = {row["name"] for row in conn.execute("PRAGMA table_info(tours)").fetchall()}
-    if "meals_included" not in cols and len(cols) > 0:
-        conn.execute("ALTER TABLE tours ADD COLUMN meals_included INTEGER")
-    if "meals_description" not in cols and len(cols) > 0:
-        conn.execute("ALTER TABLE tours ADD COLUMN meals_description TEXT")
+# _migrate_schema fjernet — alle migrations kører nu via Supabase
+# apply_migration ad hoc. Hvis skemaet skal ændres, gøres det centralt i
+# Supabase (én gang) i stedet for at hver app-instans selv migrerer.
 
 
-def start_run(conn: sqlite3.Connection, target_count: int) -> str:
+def start_run(conn: Connection, target_count: int) -> str:
     """Open a new scraper_run row and return the run_id."""
     run_id = str(uuid4())
     conn.execute(
@@ -171,7 +151,7 @@ def start_run(conn: sqlite3.Connection, target_count: int) -> str:
     return run_id
 
 
-def finish_run(conn: sqlite3.Connection, run_id: str, success_count: int, notes: str = "") -> None:
+def finish_run(conn: Connection, run_id: str, success_count: int, notes: str = "") -> None:
     conn.execute(
         "UPDATE scraper_runs SET finished_at = ?, success_count = ?, notes = ? WHERE run_id = ?",
         (_now_iso(), success_count, notes, run_id),
@@ -179,7 +159,7 @@ def finish_run(conn: sqlite3.Connection, run_id: str, success_count: int, notes:
     conn.commit()
 
 
-def upsert_tour(conn: sqlite3.Connection, tour: dict, run_id: str) -> None:
+def upsert_tour(conn: Connection, tour: dict, run_id: str) -> None:
     """Insert or replace a tour row keyed by (operator, tour_slug)."""
     conn.execute(
         """
@@ -219,7 +199,7 @@ def upsert_tour(conn: sqlite3.Connection, tour: dict, run_id: str) -> None:
 
 
 def replace_departures(
-    conn: sqlite3.Connection,
+    conn: Connection,
     operator: str,
     tour_slug: str,
     departures: Iterable[dict],
@@ -264,23 +244,23 @@ def replace_departures(
     return count
 
 
-def latest_run_id(conn: sqlite3.Connection) -> Optional[str]:
+def latest_run_id(conn: Connection) -> Optional[str]:
     row = conn.execute("SELECT run_id FROM scraper_runs ORDER BY started_at DESC LIMIT 1").fetchone()
     return row["run_id"] if row else None
 
 
-def previous_run_id(conn: sqlite3.Connection) -> Optional[str]:
+def previous_run_id(conn: Connection) -> Optional[str]:
     row = conn.execute("SELECT run_id FROM scraper_runs ORDER BY started_at DESC LIMIT 1 OFFSET 1").fetchone()
     return row["run_id"] if row else None
 
 
-def fetch_tours(conn: sqlite3.Connection, run_id: Optional[str] = None) -> list[sqlite3.Row]:
+def fetch_tours(conn: Connection, run_id: Optional[str] = None) -> list[dict]:
     if run_id:
         return conn.execute("SELECT * FROM tours WHERE last_seen_run = ?", (run_id,)).fetchall()
     return conn.execute("SELECT * FROM tours").fetchall()
 
 
-def fetch_departures(conn: sqlite3.Connection, operator: str, tour_slug: str) -> list[sqlite3.Row]:
+def fetch_departures(conn: Connection, operator: str, tour_slug: str) -> list[dict]:
     return conn.execute(
         "SELECT * FROM departures WHERE operator = ? AND tour_slug = ? ORDER BY start_date",
         (operator, tour_slug),
@@ -288,7 +268,7 @@ def fetch_departures(conn: sqlite3.Connection, operator: str, tour_slug: str) ->
 
 
 def detect_status_anomaly(
-    conn: sqlite3.Connection,
+    conn: Connection,
     operator: str,
     tour_slug: str,
     start_date: str,
@@ -379,7 +359,7 @@ def detect_status_anomaly(
 
 
 def get_price_change(
-    conn: sqlite3.Connection,
+    conn: Connection,
     operator: str,
     tour_slug: str,
     start_date: str,
@@ -456,7 +436,7 @@ def get_price_change(
     }
 
 
-def fetch_snapshot_for_run(conn: sqlite3.Connection, run_id: str) -> list[sqlite3.Row]:
+def fetch_snapshot_for_run(conn: Connection, run_id: str) -> list[dict]:
     return conn.execute(
         "SELECT * FROM snapshots WHERE run_id = ? ORDER BY operator, tour_slug, start_date",
         (run_id,),
@@ -467,7 +447,7 @@ def fetch_snapshot_for_run(conn: sqlite3.Connection, run_id: str) -> list[sqlite
 # Topas catalog
 # ---------------------------------------------------------------------------
 
-def upsert_topas_catalog(conn: sqlite3.Connection, tours: list[dict]) -> tuple[int, int, int]:
+def upsert_topas_catalog(conn: Connection, tours: list[dict]) -> tuple[int, int, int]:
     """Replace catalog with fresh data from a refresh.
 
     Strategy: full replace (truncate + insert), preserving discovered_at for
@@ -560,7 +540,7 @@ def upsert_topas_catalog(conn: sqlite3.Connection, tours: list[dict]) -> tuple[i
     return new_count, updated_count, removed_count
 
 
-def add_topas_catalog_entry(conn: sqlite3.Connection, tour: dict) -> str:
+def add_topas_catalog_entry(conn: Connection, tour: dict) -> str:
     """Insert or update a SINGLE catalog entry without touching the rest.
 
     Used by the "Tilføj ny tur" / "Re-scrape" workflows where we update one
@@ -646,7 +626,7 @@ def add_topas_catalog_entry(conn: sqlite3.Connection, tour: dict) -> str:
         return "new"
 
 
-def fetch_topas_catalog(conn: sqlite3.Connection) -> list[sqlite3.Row]:
+def fetch_topas_catalog(conn: Connection) -> list[dict]:
     """Return all catalog entries, sorted by country then tour_name."""
     return conn.execute(
         """

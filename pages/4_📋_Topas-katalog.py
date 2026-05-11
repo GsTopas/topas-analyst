@@ -13,6 +13,11 @@ data captured.
 from __future__ import annotations
 
 import streamlit as st
+
+# Password-gate — stopper page-rendering indtil korrekt adgangskode.
+from topas_scraper._auth import require_auth  # noqa: E402
+require_auth()
+
 import pandas as pd
 
 from topas_scraper.client import FirecrawlClient

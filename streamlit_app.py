@@ -28,6 +28,11 @@ st.set_page_config(
     initial_sidebar_state="expanded",
 )
 
+# Password-gate — stopper page-rendering indtil korrekt adgangskode.
+# Hvis APP_PASSWORD ikke er sat (lokalt dev), springes auth over.
+from topas_scraper._auth import require_auth  # noqa: E402
+require_auth()
+
 # ---------------------------------------------------------------------------
 # Header
 # ---------------------------------------------------------------------------

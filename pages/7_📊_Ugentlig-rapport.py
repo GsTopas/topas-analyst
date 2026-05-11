@@ -24,6 +24,11 @@ import streamlit as st
 
 st.set_page_config(page_title="Ugentlig rapport · Topas", page_icon="📊", layout="wide")
 
+# Password-gate — stopper page-rendering indtil korrekt adgangskode.
+from topas_scraper._auth import require_auth  # noqa: E402
+require_auth()
+
+
 st.markdown("# 📊 Ugentlig rapport")
 st.caption(
     "Hvad er ændret siden sidst? Sammenligner aktuelle snapshots med tidligere "

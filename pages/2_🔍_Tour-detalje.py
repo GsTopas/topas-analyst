@@ -23,6 +23,11 @@ from topas_scraper.runner import run_scrape_for_tour, run_scrape_all
 
 st.set_page_config(page_title="Tour-detalje · Topas", page_icon="🔍", layout="wide")
 
+# Password-gate — stopper page-rendering indtil korrekt adgangskode.
+from topas_scraper._auth import require_auth  # noqa: E402
+require_auth()
+
+
 # Smallere sidebar så tabellen får mere plads
 st.markdown(
     """
@@ -50,9 +55,10 @@ import tempfile
 JSON_PATH = Path(tempfile.gettempdir()) / "topas_dashboard.json"
 
 
-@st.cache_data(ttl=60)
+@st.cache_data(ttl=600)
 def load_data() -> Optional[dict]:
-    """Generér dashboard-payload fra Supabase. Cached 60s for hurtig nav."""
+    """Generér dashboard-payload fra Supabase. Cached 10 min for hurtig nav —
+    invalidates automatisk efter scrape (eller manuelt via R / 'Clear cache')."""
     try:
         from topas_scraper.export import export as _export
         _export(output=JSON_PATH)

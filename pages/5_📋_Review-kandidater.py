@@ -32,6 +32,11 @@ st.set_page_config(
     layout="wide",
 )
 
+# Password-gate — stopper page-rendering indtil korrekt adgangskode.
+from topas_scraper._auth import require_auth  # noqa: E402
+require_auth()
+
+
 from topas_scraper import catalog_db, n8n_client
 from topas_scraper.db import connect as connect_snapshots, fetch_topas_catalog
 

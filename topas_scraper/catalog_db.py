@@ -678,6 +678,123 @@ def upsert_n8n_candidate(conn: Connection, row: dict) -> bool:
     return existing is None
 
 
+def upsert_n8n_candidates_bulk(conn: Connection, rows: list[dict]) -> tuple[int, int]:
+    """Batch-upsert n8n-kandidater. Returnerer (new_count, total_processed).
+
+    Markant hurtigere end at kalde upsert_n8n_candidate() pr. række over
+    netværk, fordi:
+      1. Pre-fetcher ALLE eksisterende n8n_row_id's i én query
+      2. Springer rækker over hvor (n8n_row_id, searched_at) er uændret
+      3. Commits kun én gang ved slutningen (ikke per række)
+
+    Ved typisk 'Hent fra n8n'-kald hvor de fleste rækker allerede findes
+    uændret, reducerer det ~30s til ~1-2s.
+    """
+    if not rows:
+        return 0, 0
+
+    # 1) Pre-fetch eksisterende rækker: (id → searched_at) for fast skip-check
+    existing = {}
+    cur = conn.execute("SELECT n8n_row_id, searched_at FROM n8n_candidates")
+    for r in cur.fetchall():
+        existing[r["n8n_row_id"]] = r["searched_at"]
+
+    new_count = 0
+    processed = 0
+    to_upsert = []
+
+    for row in rows:
+        n8n_id = row.get("id")
+        if n8n_id is None:
+            continue
+        processed += 1
+
+        # Skip hvis vi allerede har rækken og searched_at er uændret
+        new_searched_at = row.get("searchedAt")
+        if n8n_id in existing and existing[n8n_id] == new_searched_at:
+            continue
+
+        # Mark som ny hvis ikke set før
+        if n8n_id not in existing:
+            new_count += 1
+
+        # Konvertér og forbered til upsert
+        has_match_val = row.get("hasMatch")
+        has_match_int = (
+            1 if has_match_val
+            else (0 if has_match_val is not None else None)
+        )
+        duration_val = row.get("durationDays")
+        try:
+            duration_int = int(duration_val) if duration_val is not None else None
+        except (TypeError, ValueError):
+            duration_int = None
+
+        to_upsert.append((
+            n8n_id,
+            row.get("competitorDomain"),
+            row.get("topasTourCode"),
+            row.get("searchCountry"),
+            row.get("searchRegion"),
+            has_match_int,
+            row.get("tourName"),
+            row.get("tourUrl"),
+            row.get("nextDeparture"),
+            row.get("price"),
+            duration_int,
+            row.get("matchConfidence"),
+            row.get("notes"),
+            new_searched_at,
+            row.get("createdAt"),
+            now_iso(),
+            row.get("departures"),
+            _bool_to_int(row.get("hasGuide")),
+            _bool_to_int(row.get("hasFixedDepartures")),
+            (row.get("tourCategory") or "").lower() or None,
+        ))
+
+    # 2) Batch-upsert kun de rækker der har ændringer
+    if to_upsert:
+        # psycopg2 understøtter executemany — pænere end at sløjfe execute()
+        cur2 = conn.cursor()
+        sql = """
+            INSERT INTO n8n_candidates (
+                n8n_row_id, competitor_domain, topas_tour_code,
+                search_country, search_region, has_match,
+                tour_name, tour_url, next_departure, price,
+                duration_days, match_confidence, notes,
+                searched_at, n8n_created_at, imported_at,
+                departures_json, has_guide, has_fixed_departures,
+                tour_category
+            ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+            ON CONFLICT(n8n_row_id) DO UPDATE SET
+                competitor_domain=excluded.competitor_domain,
+                topas_tour_code=excluded.topas_tour_code,
+                search_country=excluded.search_country,
+                search_region=excluded.search_region,
+                has_match=excluded.has_match,
+                tour_name=excluded.tour_name,
+                tour_url=excluded.tour_url,
+                next_departure=excluded.next_departure,
+                price=excluded.price,
+                duration_days=excluded.duration_days,
+                match_confidence=excluded.match_confidence,
+                notes=excluded.notes,
+                searched_at=excluded.searched_at,
+                n8n_created_at=excluded.n8n_created_at,
+                departures_json=excluded.departures_json,
+                has_guide=excluded.has_guide,
+                has_fixed_departures=excluded.has_fixed_departures,
+                tour_category=excluded.tour_category
+        """
+        cur2._cur.executemany(sql, to_upsert)
+        cur2.close()
+
+    # Én commit i stedet for én pr. række
+    conn.commit()
+    return new_count, processed
+
+
 def _bool_to_int(v):
     """Coerce truthy-ish values into 0/1/None for SQLite booleans."""
     if v is None or v == "":

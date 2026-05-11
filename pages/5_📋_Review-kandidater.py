@@ -143,16 +143,14 @@ with col_sync:
                 rows = None
 
         if rows is not None:
-            new_count = 0
-            for row in rows:
-                try:
-                    if catalog_db.upsert_n8n_candidate(conn, row):
-                        new_count += 1
-                except Exception as exc:  # noqa: BLE001
-                    st.warning(f"Kunne ikke importere row {row.get('id')}: {exc}")
-            st.success(
-                f"Hentede **{len(rows)}** rækker fra n8n — heraf **{new_count}** nye."
-            )
+            try:
+                new_count, processed = catalog_db.upsert_n8n_candidates_bulk(conn, rows)
+                st.success(
+                    f"Hentede **{len(rows)}** rækker fra n8n · "
+                    f"processeret **{processed}** · heraf **{new_count}** nye."
+                )
+            except Exception as exc:  # noqa: BLE001
+                st.error(f"Bulk-import fejlede: {exc}")
 
 with col_status:
     show_historical = st.toggle(

@@ -481,6 +481,9 @@ if scrape_clicked:
             if success == total:
                 status.update(label=done_label, state="complete")
                 st.success(f"Run `{run_id[:8]}` færdig — {success}/{total} URLs succeeded.")
+                # Invalider load_data()-cache så page rerun læser frisk fra Supabase
+                # i stedet for den 10-min cachede payload fra før scrape.
+                load_data.clear()
                 st.rerun()
             else:
                 status.update(label=f"⚠ Delvis succes ({success}/{total})", state="error")

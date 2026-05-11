@@ -116,7 +116,10 @@ class VisionExtractor:
         self,
         firecrawl_client: FirecrawlClient,
         anthropic_api_key: Optional[str] = None,
-        model: str = "claude-sonnet-4-20250514",
+        # Bemærk: Claude model-aliases ændres over tid. claude-sonnet-4-6 er
+        # den nuværende stabile alias der peger på Sonnet 4.6 (oktober 2025).
+        # Tidligere brugte vi "claude-sonnet-4-20250514" som blev deprecated.
+        model: str = "claude-sonnet-4-6",
     ):
         key = anthropic_api_key or os.environ.get("ANTHROPIC_API_KEY")
         if not key:
@@ -150,9 +153,14 @@ class VisionExtractor:
 
         Firecrawl's "screenshot" format runs Playwright internally — same as
         what a real browser would render. We get a base64-encoded PNG back.
+
+        Bemærk: Firecrawl SDK 4.x ændrede format-syntax. Tidligere brugte vi
+        "screenshot@fullPage" som streng; nu skal det være et dict-objekt.
+        Vi prøver dict-format først, falder tilbage til den gamle streng-form
+        hvis SDK'en er en endnu ældre version.
         """
         opts = {
-            "formats": ["screenshot@fullPage"],
+            "formats": [{"type": "screenshot", "fullPage": True}],
             "only_main_content": False,
             "wait_for": 4000,  # generous default — JS-heavy sites need time
             "timeout": 60000,

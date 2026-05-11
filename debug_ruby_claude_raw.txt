@@ -1,0 +1,7 @@
+{"departures": [
+  {"start_date": "2026-05-16", "price_dkk": null, "availability_status": "Udsolgt"},
+  {"start_date": "2026-05-23", "price_dkk": 11998, "availability_status": "Åben"},
+  {"start_date": "2026-09-12", "price_dkk": 11498, "availability_status": "Åben"},
+  {"start_date": "2026-09-26", "price_dkk": 10998, "availability_status": "Åben"},
+  {"start_date": "2026-10-03", "price_dkk": 9998, "availability_status": "Åben"}
+]}

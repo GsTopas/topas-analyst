@@ -191,7 +191,24 @@ def main():
             migrate_table(cur, CATALOG_DB, t, args.apply)
 
         if args.apply:
+            # Sync BIGSERIAL-sequences til MAX(id) — ellers fejler INSERTs uden
+            # eksplicit id med UniqueViolation fordi sequence-counter starter ved 1.
+            print("\nSync'er BIGSERIAL-sequences til MAX(id)...")
+            sequence_fixes = [
+                ("snapshots", "snapshot_id"),
+                ("tour_classifications", "id"),
+                ("match_proposals", "id"),
+                ("review_decisions", "id"),
+                ("approved_competitor_targets", "id"),
+                ("pattern_observations", "id"),
+            ]
+            for table, col in sequence_fixes:
+                cur.execute(
+                    f"SELECT setval(pg_get_serial_sequence('{table}', '{col}'), "
+                    f"COALESCE((SELECT MAX({col}) FROM {table}), 1), true)"
+                )
             conn.commit()
+            print(f"  {len(sequence_fixes)} sequences synced")
             print("\n✓ Færdig — alle data committed til Supabase.")
         else:
             print("\nDry-run færdig. Tilføj --apply for at skrive til Supabase.")

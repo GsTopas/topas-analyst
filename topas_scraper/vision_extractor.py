@@ -40,8 +40,8 @@ from .client import FirecrawlClient
 VISION_PROMPT = """You are looking at a screenshot of a Danish travel agency's departure-dates page.
 
 Extract EVERY visible departure into a JSON array. For each row, return:
-- start_date: ISO format YYYY-MM-DD (convert from Danish formats like "14. mar. 2027" or "29/10/2026")
-- price_dkk: integer in DKK, no thousands separators (e.g. "23.998 kr." → 23998, "kr. 24.990" → 24990)
+- start_date: ISO format YYYY-MM-DD
+- price_dkk: integer in DKK, no thousands separators
 - availability_status: one of EXACTLY these values:
     "Garanteret"      (afgang er garanteret/bekræftet)
     "Få pladser"      (få pladser tilbage / få pladser / "X pladser tilbage" where X <= 3)
@@ -49,19 +49,49 @@ Extract EVERY visible departure into a JSON array. For each row, return:
     "Afventer pris"   (date set but price not yet published)
     "Åben"            (default — booking is open, no special status)
 
+DANISH DATE FORMATS du kan møde — KONVERTÉR ALLE til YYYY-MM-DD:
+  "14. mar. 2027"                      → 2027-03-14
+  "29/10/2026"                         → 2026-10-29
+  "23.05.2026"                         → 2026-05-23   (vigtigt: dansk DD.MM.YYYY, ikke MM.DD)
+  "Startdato 16.05.2026"               → 2026-05-16   (prefix "Startdato" ignoreres)
+  "Uge 22: Startdato 23.05.2026"       → 2026-05-23   (uge-prefix ignoreres)
+  "16. maj 2026"                       → 2026-05-16
+  "Afrejse 14/03/2027"                 → 2027-03-14
+
+DANISH PRICE FORMATS — extract integer only:
+  "Fra 11.998,- DKK"                   → 11998
+  "23.998 kr."                         → 23998
+  "Pris fra 24.990"                    → 24990
+  "kr. 13.470"                         → 13470
+
+STATUS-DETECTION (when no price is shown but row exists):
+  "Udsolgt" på rækken                  → status="Udsolgt", price_dkk=null
+  "Få pladser" / "Få ledige"           → status="Få pladser"
+  "Garanteret afgang" / "Garanteret"   → status="Garanteret"
+  "Pris kommer snart" / no price       → status="Afventer pris", price_dkk=null
+  Ingen særstatus, kun pris            → status="Åben"
+
+Many Danish travel sites use accordion-style listings. EACH bar/row is a separate
+departure even if expanded data isn't visible. Look for repeating layout patterns
+with a date + week number + price (or "Udsolgt"-tag).
+
 Return ONLY valid JSON in this exact shape, no commentary, no markdown fences:
 
 {"departures": [
-  {"start_date": "2026-10-29", "price_dkk": 23998, "availability_status": "Åben"},
-  {"start_date": "2027-03-04", "price_dkk": 23998, "availability_status": "Garanteret"}
+  {"start_date": "2026-05-16", "price_dkk": null, "availability_status": "Udsolgt"},
+  {"start_date": "2026-05-23", "price_dkk": 11998, "availability_status": "Åben"},
+  {"start_date": "2026-09-12", "price_dkk": 11498, "availability_status": "Åben"}
 ]}
 
-If no departure table is visible, return: {"departures": []}
+If no departure rows are visible at all (page shows only intro/marketing text),
+return: {"departures": []}
 
 Important:
-- Include EVERY visible row, even if some columns look the same
+- Include EVERY visible row, including ones marked "Udsolgt"
+- If row has no price (Udsolgt or Afventer pris), set price_dkk to null but include the row
 - Convert Danish month abbreviations: jan/feb/mar/apr/maj/jun/jul/aug/sep/okt/nov/dec
-- Currency is always DKK; ignore any "kr." or "DKK" suffix when extracting the number
+- Currency is always DKK
+- Danish numeric date format DD.MM.YYYY is common — NOT MM.DD.YYYY (US format)
 """
 
 
@@ -212,9 +242,13 @@ class VisionExtractor:
         if not isinstance(raw_departures, list):
             return []
 
-        # Convert to standard departure dict format used by the rest of the system
+        # Convert to standard departure dict format used by the rest of the system.
+        # Accepterer null-pris for ikke-bookbare statuses (Udsolgt, Afventer pris) —
+        # vi vil stadig gemme rækken så Markeds-kalenderen kan vise demand-signaler
+        # selv uden pris (fx Ruby's "Uge 21: Udsolgt" uden synlig pris).
         result = []
         seen = set()
+        NO_PRICE_OK = {"Udsolgt", "Afventer pris"}
         for d in raw_departures:
             if not isinstance(d, dict):
                 continue
@@ -222,7 +256,11 @@ class VisionExtractor:
             price = self._normalize_price(d.get("price_dkk"))
             status = self._normalize_status(d.get("availability_status"))
 
-            if not iso_date or price is None:
+            # Skip kun hvis dato mangler. Pris-null tolereres for ikke-bookbare rækker.
+            if not iso_date:
+                continue
+            if price is None and status not in NO_PRICE_OK:
+                # Pris null + bookbar status er suspekt — skip for at undgå hallucination
                 continue
             if iso_date in seen:
                 continue

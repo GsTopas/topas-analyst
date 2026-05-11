@@ -82,7 +82,13 @@ SCRAPE_TIMEOUT_MS = 30_000
 # === Active targets — DB-backed (replaces hardcoded TARGETS for runtime) ===
 
 # Operators whose pages need Tier 3 vision fallback (JS-heavy or stubborn).
-PARSER_KEYS_NEEDING_VISION = {"topas", "albatros", "stjernegaard"}
+# Cost: ~$0.01-0.02 ekstra per scrape via Claude vision, men højere extraction-rate.
+PARSER_KEYS_NEEDING_VISION = {
+    "topas",         # Tung React + booking-widget
+    "albatros",      # React-rendered tabs, mange tour-variants
+    "stjernegaard",  # Måltider på /dagsprogram/-undersider
+    "ruby",          # Departures i accordion-dropdown der kun renderer ved click
+}
 
 
 def load_active_targets(tour_code: Optional[str] = None) -> list["TourTarget"]:

@@ -177,14 +177,22 @@ def _streamlit_cached_connect() -> PgConnection:
 
     conn = _cached()
 
-    # Defensive: hvis forbindelsen er død (fx Supabase lukkede idle session),
-    # ryd cache og åbn frisk. psycopg2 har conn.closed=0 hvis åben, !=0 hvis lukket.
+    # Aktiv health-check: psycopg2's conn.closed=0 selvom Supabase Transaction
+    # Pooler har lukket forbindelsen på serverside (vi opdager det først ved
+    # næste query med InterfaceError). Vi laver derfor en trivial SELECT 1
+    # som ping. Hvis den fejler, rydder vi cache og åbner frisk forbindelse.
+    # Cost: ~50ms per page-load mod Supabase. Acceptabelt for robusthed.
     try:
-        raw_conn = getattr(conn, "_conn", None)
-        if raw_conn is not None and getattr(raw_conn, "closed", 0) != 0:
+        cur = conn._conn.cursor()
+        cur.execute("SELECT 1")
+        cur.fetchone()
+        cur.close()
+    except (psycopg2.InterfaceError, psycopg2.OperationalError, psycopg2.DatabaseError):
+        # Død forbindelse — ryd cache, prøv frisk
+        try:
             _cached.clear()
-            conn = _cached()
-    except Exception:
-        pass
+        except Exception:
+            pass
+        conn = _cached()
 
     return conn

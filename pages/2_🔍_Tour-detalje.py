@@ -57,22 +57,30 @@ JSON_PATH = Path(tempfile.gettempdir()) / "topas_dashboard.json"
 
 @st.cache_data(ttl=600)
 def load_data() -> Optional[dict]:
-    """Generér dashboard-payload fra Supabase. Cached 10 min for hurtig nav —
-    invalidates automatisk efter scrape (eller manuelt via R / 'Clear cache')."""
+    """Generér dashboard-payload fra Supabase. Cached 10 min for hurtig nav."""
     try:
         from topas_scraper.export import export as _export
         _export(output=JSON_PATH)
         return json.loads(JSON_PATH.read_text(encoding="utf-8"))
     except Exception as exc:  # noqa: BLE001
-        # Hvis export fejler (fx ingen scrape-runs endnu i Supabase),
-        # fall back til evt. committed dashboard.json som git-snapshot.
+        # Vis fejlen eksplicit i UI'et — den gamle silent-fallback skjulte
+        # at appen læste forældede data fra committed dashboard.json.
+        st.error(
+            f"⚠ Export fra Supabase fejlede: `{type(exc).__name__}: {exc}`\n\n"
+            "Falder tilbage til committed `data/dashboard.json` som er en gammel "
+            "snapshot. Nye ture (fx FRCL) mangler. Send fejl-tracen til debugging."
+        )
+        import traceback  # noqa: PLC0415
+        with st.expander("Stack trace (debug)", expanded=False):
+            st.code(traceback.format_exc())
+
+        # Fall back til committed dashboard.json så app ikke crasher
         fallback = Path("data/dashboard.json")
         if fallback.exists():
             try:
                 return json.loads(fallback.read_text(encoding="utf-8"))
             except (json.JSONDecodeError, OSError):
                 return None
-        st.error(f"Kunne ikke bygge dashboard fra Supabase: {exc}")
         return None
 
 

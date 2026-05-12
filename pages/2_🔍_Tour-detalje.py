@@ -186,11 +186,21 @@ def _fetch_sitemap_urls(domain: str, country: str, keyword: str = "") -> list[st
             # Direkte sitemap (ikke index)
             all_urls = [u.text for u in root.findall(".//sm:url/sm:loc", ns)]
 
-        # Filter på land + valgfri keyword
+        # Filter på land + valgfri keyword.
+        # Keyword-syntax: AND splitter krav, OR splitter alternativer
+        # indenfor hvert krav. Precedence: OR > AND.
+        # Eksempler:
+        #   'Apulien'                          → 1 krav: [['apulien']]
+        #   'Apulien AND Cykling'              → 2 krav: [['apulien'], ['cykling']]
+        #   'Apulien AND Cykling OR Cykelferie' → [['apulien'], ['cykling','cykelferie']]
+        #   'Cykling OR Cykelferie AND Apulien' → [['cykling','cykelferie'], ['apulien']]
         country_lc = country.lower()
-        keyword_lc = keyword.lower() if keyword else ""
-        # Tjek om ét eller flere keywords (OR) — split på " OR "
-        keyword_terms = [k.strip().lower() for k in keyword.split(" OR ")] if keyword else []
+        and_groups: list[list[str]] = []
+        if keyword:
+            for grp in keyword.split(" AND "):
+                or_terms = [t.strip().lower() for t in grp.split(" OR ") if t.strip()]
+                if or_terms:
+                    and_groups.append(or_terms)
 
         filtered = []
         for url in all_urls:
@@ -199,9 +209,9 @@ def _fetch_sitemap_urls(domain: str, country: str, keyword: str = "") -> list[st
             url_lc = url.lower()
             if country_lc not in url_lc:
                 continue
-            if keyword_terms:
-                # Mindst ét keyword skal matche (OR-logic)
-                if not any(kw in url_lc for kw in keyword_terms):
+            # Hver AND-gruppe skal have mindst ét OR-term der matcher
+            if and_groups:
+                if not all(any(kw in url_lc for kw in grp) for grp in and_groups):
                     continue
             filtered.append(url)
 
@@ -611,8 +621,17 @@ with st.expander(
     with sc2:
         screen_region = st.text_input(
             "Region eller aktivitet (valgfri)",
-            placeholder="fx 'Madeira', 'cykling', 'Atlas-bjergene OR Toubkal'",
-            help="Geografisk region (fx 'Madeira') ELLER aktivitet (fx 'cykling', 'vandring'). Bruges som ekstra søgetermer. Adskil flere med ' OR '.",
+            placeholder="fx 'Madeira', 'Apulien AND Cykling OR Cykelferie'",
+            help=(
+                "Geografisk region eller aktivitet. Operatorer:\n"
+                "• `OR` mellem synonymer/alternativer (samme koncept)\n"
+                "• `AND` mellem forskellige krav (alle skal opfyldes)\n"
+                "Eksempler:\n"
+                "• `Madeira` — én region\n"
+                "• `Cykling OR Cykelferie` — enten/eller (synonymer)\n"
+                "• `Apulien AND Cykling OR Cykelferie` — Apulien OG en cykel-tur\n"
+                "Precedence: OR binder tættere end AND."
+            ),
             key=f"screen_region_{selected_tour_code}",
         )
 

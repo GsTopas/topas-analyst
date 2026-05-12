@@ -100,6 +100,13 @@ class PgConnection:
     - execute(sql, params) → PgCursor
     - commit() / close() / rollback()
     - row_factory-property bevares for kompatibilitet (no-op; vi bruger altid DictCursor)
+
+    NB: close() er bevidst en no-op. Forbindelser deles på tværs af Streamlit
+    reruns via @st.cache_resource — hvis kode kaldte conn.close() ville det
+    bryde cachen og fremtidige queries på den delte forbindelse ville fejle
+    med InterfaceError. Forbindelser lever cache-TTL ud (10 min), eller indtil
+    container restart. Scripts der har brug for at lukke eksplicit kan kalde
+    conn._conn.close() direkte.
     """
 
     def __init__(self, raw_conn):
@@ -119,7 +126,9 @@ class PgConnection:
         self._conn.rollback()
 
     def close(self):
-        self._conn.close()
+        # No-op. Se class-docstring. Forbindelser cached på tværs af
+        # Streamlit-reruns må ikke lukkes af pages-koden.
+        pass
 
     def cursor(self) -> PgCursor:
         return PgCursor(self._conn.cursor(cursor_factory=RealDictCursor))

@@ -137,9 +137,54 @@ class PgConnection:
         pass
 
 
-def connect(_db_path: Any = None) -> PgConnection:
-    """Åbn en Postgres-forbindelse til Supabase. db_path-argumentet
-    ignoreres (bevaret for kompatibilitet med eksisterende caller-kode
-    der bruger sqlite3.connect(path)-stil)."""
+def _new_connection() -> PgConnection:
+    """Åbner en frisk Postgres-forbindelse til Supabase. Bruges direkte
+    af scripts (migration, debug) der ikke kører i Streamlit."""
     raw = psycopg2.connect(_get_dsn())
     return PgConnection(raw)
+
+
+def connect(_db_path: Any = None) -> PgConnection:
+    """Få en Postgres-forbindelse til Supabase.
+
+    - Hvis vi kører i Streamlit-kontekst: returnér en cached forbindelse
+      delt på tværs af alle reruns i samme session. Sparer ~500ms-2s per
+      page-interaktion (TCP+TLS handshake til Supabase i Stockholm).
+    - Hvis vi er udenfor Streamlit (CLI, scripts): returnér en frisk forbindelse.
+
+    db_path-argumentet ignoreres (bevaret for kompatibilitet med
+    eksisterende caller-kode der bruger sqlite3.connect(path)-stil).
+    """
+    try:
+        import streamlit as st  # type: ignore  # noqa: PLC0415
+        # @st.cache_resource caches på tværs af reruns i samme session.
+        # ttl=600 = forbindelsen forfrisks hver 10. minut for at undgå
+        # stale connections (Supabase pooler timer typisk ud efter ~15 min idle).
+        return _streamlit_cached_connect()
+    except (ImportError, RuntimeError):
+        # Ikke i Streamlit, eller streamlit ikke installeret — frisk forbindelse
+        return _new_connection()
+
+
+def _streamlit_cached_connect() -> PgConnection:
+    """Returnér en forbindelse cached på Streamlit-session-niveau.
+    Importen af streamlit sker lazy så _pg_conn ikke har hard dependency på den."""
+    import streamlit as st  # noqa: PLC0415
+
+    @st.cache_resource(ttl=600, show_spinner=False)
+    def _cached() -> PgConnection:
+        return _new_connection()
+
+    conn = _cached()
+
+    # Defensive: hvis forbindelsen er død (fx Supabase lukkede idle session),
+    # ryd cache og åbn frisk. psycopg2 har conn.closed=0 hvis åben, !=0 hvis lukket.
+    try:
+        raw_conn = getattr(conn, "_conn", None)
+        if raw_conn is not None and getattr(raw_conn, "closed", 0) != 0:
+            _cached.clear()
+            conn = _cached()
+    except Exception:
+        pass
+
+    return conn

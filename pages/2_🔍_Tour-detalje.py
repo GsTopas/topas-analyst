@@ -140,9 +140,14 @@ _CATEGORY_LOOKUP = _category_by_url()
 # Tilføj nye operatører her efterhånden som vi bekræfter de har sitemaps.
 _SITEMAP_URLS = {
     "albatros.dk": "https://www.albatros.dk/sitemap.xml",
-    # Tilføj flere når bekræftet:
-    # "smilrejser.dk": "https://smilrejser.dk/sitemap.xml",
-    # "viktorsfarmor.dk": "https://www.viktorsfarmor.dk/sitemap.xml",
+    "gjoa.dk": "https://gjoa.dk/sitemap.xml",
+    "viktorsfarmor.dk": "https://www.viktorsfarmor.dk/sitemap.xml",
+    "stjernegaard-rejser.dk": "https://www.stjernegaard-rejser.dk/sitemap.xml",
+    "smilrejser.dk": "https://smilrejser.dk/sitemap.xml",
+    "ruby-rejser.dk": "https://ruby-rejser.dk/sitemap.xml",
+    # Tilføj flere efterhånden som vi bekræfter de har sitemap. Funktionen
+    # _fetch_sitemap_urls er defensiv — returnerer [] hvis sitemap ikke
+    # findes, så det er sikkert at tilføje speculativt.
 }
 
 

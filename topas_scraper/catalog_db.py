@@ -877,6 +877,84 @@ def list_n8n_tour_codes(conn: Connection) -> list[dict]:
     return [dict(r) for r in rows]
 
 
+def bulk_get_n8n_candidate_decisions(
+    conn: Connection,
+    candidates: list[dict],
+) -> dict[int, dict]:
+    """Bulk-fetch latest review_decision for hver kandidat i listen.
+
+    Returnerer dict {n8n_row_id → decision_dict}. Erstatter N+1-mønsteret
+    hvor get_n8n_candidate_decision + get_decision_for_url kaldes per kandidat
+    i Review-kandidater-renderen (markant hurtigere over netværk til Supabase).
+
+    Decision-lookup følger samme logik som de individuelle funktioner:
+      1. Find decision direkte på n8n_row_id (samme screening-run)
+      2. Find decision via URL-match (re-screening med nye row_ids)
+    """
+    if not candidates:
+        return {}
+
+    n8n_ids = [c["n8n_row_id"] for c in candidates if c.get("n8n_row_id") is not None]
+    # Set af (tour_url, topas_tour_code) til URL-baseret lookup som fallback
+    url_keys = {
+        (c.get("tour_url"), c.get("topas_tour_code"))
+        for c in candidates
+        if c.get("tour_url") and c.get("topas_tour_code")
+    }
+
+    decisions_by_id: dict[int, dict] = {}
+    decisions_by_url: dict[tuple, dict] = {}
+
+    # 1) Direkte n8n_row_id-baseret decisions (én query)
+    if n8n_ids:
+        placeholders = ",".join(["?"] * len(n8n_ids))
+        sql = f"""
+            SELECT * FROM review_decisions
+            WHERE target_kind='n8n_candidate'
+              AND target_id IN ({placeholders})
+            ORDER BY decided_at DESC
+        """
+        rows = conn.execute(sql, tuple(n8n_ids)).fetchall()
+        # Hver target_id kan have flere beslutninger (override/re-review).
+        # Behold kun den nyeste (rækkerne kommer DESC sorteret).
+        for r in rows:
+            tid = r["target_id"]
+            if tid not in decisions_by_id:
+                decisions_by_id[tid] = dict(r)
+
+    # 2) URL-baseret decisions: én query der joiner review_decisions med
+    #    n8n_candidates for at finde decisions på samme (url, tour_code)
+    if url_keys:
+        sql = """
+            SELECT d.*, c.tour_url, c.topas_tour_code
+            FROM review_decisions d
+            JOIN n8n_candidates c ON d.target_id = c.n8n_row_id
+            WHERE d.target_kind = 'n8n_candidate'
+              AND c.tour_url IS NOT NULL
+              AND c.tour_url != ''
+            ORDER BY d.decided_at DESC
+        """
+        rows = conn.execute(sql).fetchall()
+        for r in rows:
+            key = (r["tour_url"], r["topas_tour_code"])
+            if key in url_keys and key not in decisions_by_url:
+                decisions_by_url[key] = dict(r)
+
+    # Build resultat: per kandidat, foretræk direct-id-match, fallback URL-match
+    result: dict[int, dict] = {}
+    for c in candidates:
+        n8n_id = c.get("n8n_row_id")
+        if n8n_id is None:
+            continue
+        if n8n_id in decisions_by_id:
+            result[n8n_id] = decisions_by_id[n8n_id]
+            continue
+        url_key = (c.get("tour_url"), c.get("topas_tour_code"))
+        if url_key in decisions_by_url:
+            result[n8n_id] = decisions_by_url[url_key]
+    return result
+
+
 def get_n8n_candidate_decision(conn: Connection, n8n_row_id: int):
     """Return the latest review_decision for this candidate, if any."""
     row = conn.execute(

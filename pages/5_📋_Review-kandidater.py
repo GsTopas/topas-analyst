@@ -242,16 +242,13 @@ st.divider()
 # Per-candidate review UI
 # ---------------------------------------------------------------------------
 
+# Bulk-fetch alle decisions for de viste kandidater i ÉN query
+# (erstatter N+1-mønster med ~14 queries → 2 queries totalt).
+_bulk_decisions = catalog_db.bulk_get_n8n_candidate_decisions(conn, candidates)
+
 for cand in candidates:
     n8n_id = cand["n8n_row_id"]
-    # Tjek både direkte (samme n8n_row_id) OG URL-baseret (tidligere
-    # screening af samme URL). URL-check fanger re-screenings hvor n8n
-    # laver nye id'er for tidligere afviste/godkendte URLs.
-    decision = catalog_db.get_n8n_candidate_decision(conn, n8n_id)
-    if decision is None and cand.get("tour_url") and cand.get("topas_tour_code"):
-        decision = catalog_db.get_decision_for_url(
-            conn, cand["tour_url"], cand["topas_tour_code"],
-        )
+    decision = _bulk_decisions.get(n8n_id)
     decision_action = decision["action"] if decision else None
 
     with st.container(border=True):

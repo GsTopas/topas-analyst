@@ -1579,7 +1579,7 @@ else:
             badge_text = f"var {prev_state}"
             color = "#b54708"
         elif anomaly_type == "fast_sellout":
-            badge_text = "hurtigt udsolgt"
+            badge_text = "udsolgt"
             color = "#067647"
         else:
             badge_text = f"var {prev_state}"

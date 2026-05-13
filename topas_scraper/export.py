@@ -442,7 +442,7 @@ def _detect_status_anomaly_from_list(snapshots: list) -> Optional[dict]:
         return {
             "anomaly_type": "fast_sellout",
             "severity": "medium",
-            "label": "Hurtigt udsolgt (sprang 'Få pladser' over)",
+            "label": "Skiftet til Udsolgt",
             **base,
         }
     return None

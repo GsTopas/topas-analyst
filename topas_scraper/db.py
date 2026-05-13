@@ -351,7 +351,7 @@ def detect_status_anomaly(
         return {
             "anomaly_type": "fast_sellout",
             "severity": "medium",
-            "label": f"Hurtigt udsolgt (sprang 'Få pladser' over)",
+            "label": "Skiftet til Udsolgt",
             **base,
         }
 

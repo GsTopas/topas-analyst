@@ -15,6 +15,7 @@ from __future__ import annotations
 
 import json
 import os
+import tempfile
 from datetime import datetime, timedelta, date
 from pathlib import Path
 from typing import Optional
@@ -37,25 +38,45 @@ st.caption(
 )
 
 # ---------------------------------------------------------------------------
-# Data load
+# Data load — generér dashboard-payload fra Supabase ved hver page-load.
+#
+# Samme pattern som Tour-detalje: kør export() til /tmp og læs derfra. På den
+# måde afspejler rapporten altid den nyeste DB-state, uanset om brugeren har
+# været forbi Tour-detalje først. Cached i 10 min så rapporten loader hurtigt
+# ved gentagne page-views.
 # ---------------------------------------------------------------------------
 
-JSON_PATH = Path("data/dashboard.json")
+JSON_PATH = Path(tempfile.gettempdir()) / "topas_dashboard.json"
 
 
-@st.cache_data(ttl=10)
+@st.cache_data(ttl=600)
 def _load_dashboard() -> Optional[dict]:
-    if not JSON_PATH.exists():
-        return None
+    """Generér dashboard-payload fra Supabase. Cached 10 min for hurtig nav."""
     try:
+        from topas_scraper.export import export as _export  # noqa: PLC0415
+        _export(output=JSON_PATH)
         return json.loads(JSON_PATH.read_text(encoding="utf-8"))
-    except (json.JSONDecodeError, OSError):
+    except Exception as exc:  # noqa: BLE001
+        st.error(
+            f"⚠ Export fra Supabase fejlede: `{type(exc).__name__}: {exc}`\n\n"
+            "Falder tilbage til committed `data/dashboard.json` (kan være gammel)."
+        )
+        import traceback  # noqa: PLC0415
+        with st.expander("Stack trace (debug)", expanded=False):
+            st.code(traceback.format_exc())
+
+        fallback = Path("data/dashboard.json")
+        if fallback.exists():
+            try:
+                return json.loads(fallback.read_text(encoding="utf-8"))
+            except (json.JSONDecodeError, OSError):
+                return None
         return None
 
 
 data = _load_dashboard()
 if data is None:
-    st.warning("Ingen scraped data. Kør `python -m topas_scraper.cli scrape` lokalt først.")
+    st.warning("Ingen scraped data. Kør en scrape først via Tour-detalje-siden eller CLI.")
     st.stop()
 
 tours = data.get("tours", [])

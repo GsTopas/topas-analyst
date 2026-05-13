@@ -183,6 +183,7 @@ def _process_departures(operator: str, tour_code: str, tour_name: str, deps: lis
                     "current_state": anomaly.get("current_state"),
                     "previous_price": anomaly.get("previous_price_dkk"),
                     "current_price": anomaly.get("current_price_dkk"),
+                    "previous_observed_at": anomaly.get("previous_observed_at"),
                     "changed_at": anomaly.get("current_observed_at"),
                     "severity": anomaly.get("severity"),
                 })
@@ -263,30 +264,41 @@ if anomalies:
     st.markdown("## 🚨 Bemærkelsesværdige ændringer")
     for a in sorted(anomalies, key=lambda x: x.get("severity", "low") + x.get("changed_at", ""), reverse=True):
         sev_emoji = "🚨" if a["severity"] == "high" else "⚡"
-        type_label = {
-            "withdrawn": "Trukket fra salg",
-            "fast_sellout": "Hurtigt udsolgt",
-        }.get(a["type"], a["type"])
+        # Beregn tidsvindue mellem sidste observation af forrige status og nuværende
+        prev_obs_dt = _parse_iso(a.get("previous_observed_at"))
+        curr_obs_dt = _parse_iso(a.get("changed_at"))
+        if prev_obs_dt and curr_obs_dt:
+            window_days = (curr_obs_dt - prev_obs_dt).days
+        else:
+            window_days = None
+
         with st.container(border=True):
             cols = st.columns([3, 2, 2, 2])
             with cols[0]:
                 st.markdown(f"**{sev_emoji} {a['operator']}** · {a['tour_code']} · {a['tour_name']}")
                 start_dt = _parse_iso(a["start_date"])
-                st.caption(f"Afgang: **{_format_dk_date(start_dt)}** · {type_label}")
+                st.caption(f"Afgang: **{_format_dk_date(start_dt)}**")
             with cols[1]:
-                st.caption("Var")
+                st.caption(f"Var (sidst set {_format_dk_date(prev_obs_dt)})")
                 st.write(f"{a['previous_state']}")
                 if a.get("previous_price"):
                     st.caption(f"{a['previous_price']:,} kr.".replace(",", "."))
             with cols[2]:
-                st.caption("Blev til")
+                st.caption(f"Blev til (set {_format_dk_date(curr_obs_dt)})")
                 st.write(f"**{a.get('current_state') or '(forsvundet)'}**")
                 if a.get("current_price"):
                     st.caption(f"{a['current_price']:,} kr.".replace(",", "."))
             with cols[3]:
-                changed_dt = _parse_iso(a["changed_at"])
-                st.caption("Ændret")
-                st.write(_format_dk_date(changed_dt))
+                st.caption("Skift inden for")
+                if window_days is not None:
+                    if window_days == 0:
+                        st.write("**< 1 dag**")
+                    elif window_days == 1:
+                        st.write("**1 dag**")
+                    else:
+                        st.write(f"**{window_days} dage**")
+                else:
+                    st.write("—")
 
     st.divider()
 
@@ -403,4 +415,22 @@ if not (anomalies or price_changes or new_departures or vanished):
         "  - Tidsvinduet er for kort\n\n"
         "Prøv at vælge et længere vindue, eller kør `python -m topas_scraper.cli scrape` "
         "for at hente friske data."
+    )
+
+    st.divider()
+
+
+# ---------------------------------------------------------------------------
+# Empty state
+# ---------------------------------------------------------------------------
+
+if not (anomalies or price_changes or new_departures or vanished):
+    st.info(
+        "Ingen ændringer i vinduet. Det kan skyldes at:\n"
+        "  - Du har ikke kørt nye scrapes i perioden\n"
+        "  - Markedet er reelt roligt\n"
+        "  - Tidsvinduet er for kort\n\n"
+        "Prøv at vælge et længere vindue, eller kør en scrape fra Tour-detalje-siden."
+    )
+      "for at hente friske data."
     )

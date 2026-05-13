@@ -40,16 +40,18 @@ from .client import FirecrawlClient
 VISION_PROMPT = """You are looking at a screenshot of a Danish travel agency's departure-dates page.
 
 Extract:
-- tour_duration_days: total duration of the tour in DAYS (integer)
+- tour_duration_value: the integer shown next to a duration label (e.g. 8 for "8 dage", 7 for "7 nætter", 1 for "1 uge", 10 for "10-dages rejse")
+- tour_duration_unit: the exact unit word as written, lowercased. One of: "dage", "nætter", "uge", "uger", "days", "nights", "week", "weeks"
 - departures: array of every visible departure
 
-For tour_duration_days, look for text near departures or in the tour header:
-- "8 dage" / "8 days" → 8
-- "7 nætter" / "7 nights" → 8 (nights+1 for total days)
-- "varighed 7 nætter" → 8
-- "1 uge" / "1 week" → 7
-- "10-dages rejse" → 10
-If no duration is visible, set tour_duration_days to null.
+For tour_duration_value + tour_duration_unit, look in the tour header or near departures.
+DO NOT do the math yourself — just report the raw value and the unit. Examples:
+- "8 dage"             → value=8,  unit="dage"
+- "7 nætter"           → value=7,  unit="nætter"
+- "varighed 7 nætter"  → value=7,  unit="nætter"
+- "1 uge"              → value=1,  unit="uge"
+- "10-dages rejse"     → value=10, unit="dage"
+If no duration label is visible, set BOTH tour_duration_value and tour_duration_unit to null.
 
 For EACH departure row, return:
 - start_date: ISO format YYYY-MM-DD
@@ -89,14 +91,14 @@ with a date + week number + price (or "Udsolgt"-tag).
 
 Return ONLY valid JSON in this exact shape, no commentary, no markdown fences:
 
-{"tour_duration_days": 8, "departures": [
+{"tour_duration_value": 7, "tour_duration_unit": "nætter", "departures": [
   {"start_date": "2026-05-16", "price_dkk": null, "availability_status": "Udsolgt"},
   {"start_date": "2026-05-23", "price_dkk": 11998, "availability_status": "Åben"},
   {"start_date": "2026-09-12", "price_dkk": 11498, "availability_status": "Åben"}
 ]}
 
 If no departure rows are visible at all (page shows only intro/marketing text),
-return: {"tour_duration_days": null, "departures": []}
+return: {"tour_duration_value": null, "tour_duration_unit": null, "departures": []}
 
 Important:
 - Include EVERY visible row, including ones marked "Udsolgt"
@@ -262,11 +264,39 @@ class VisionExtractor:
             print(f"  Vision: JSON parse error: {e}\n  Raw: {raw[:200]}")
             return []
 
-        # Gem tour-level duration så caller kan opdatere tour_dict
-        tour_dur = data.get("tour_duration_days")
+        # Gem tour-level duration så caller kan opdatere tour_dict.
+        #
+        # Vi beder Claude returnere RÅ værdi + enhed (fx 7 + "nætter") og laver
+        # konverteringen deterministisk her i koden — Claude kan ikke pålideligt
+        # selv lave "+1" på nætter-tal, så vi flyttede arithmetikken ud af prompten.
+        # Bagudkompat: ældre prompts returnerede tour_duration_days direkte;
+        # respekter det hvis det stadig findes.
+        legacy_days = data.get("tour_duration_days")
         try:
-            if tour_dur is not None and int(tour_dur) > 0:
-                self.last_tour_duration_days = int(tour_dur)
+            if legacy_days is not None and int(legacy_days) > 0:
+                self.last_tour_duration_days = int(legacy_days)
+        except (TypeError, ValueError):
+            pass
+
+        raw_value = data.get("tour_duration_value")
+        raw_unit = data.get("tour_duration_unit")
+        try:
+            if raw_value is not None and raw_unit:
+                n = int(raw_value)
+                unit = str(raw_unit).strip().lower().rstrip(".")
+                # Konvertering: hvad operatøren skriver → totale rejsedage
+                #   nætter/nights → +1 (en 7-nætters rejse = 8 dage inkl. ankomst+afrejse)
+                #   dage/days     → uændret
+                #   uge/week      → ×7
+                #   uger/weeks    → ×7
+                if unit in ("nætter", "nights", "natter"):
+                    self.last_tour_duration_days = n + 1
+                elif unit in ("dage", "days"):
+                    self.last_tour_duration_days = n
+                elif unit in ("uge", "week"):
+                    self.last_tour_duration_days = n * 7
+                elif unit in ("uger", "weeks"):
+                    self.last_tour_duration_days = n * 7
         except (TypeError, ValueError):
             pass
 

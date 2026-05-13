@@ -39,7 +39,19 @@ from .client import FirecrawlClient
 
 VISION_PROMPT = """You are looking at a screenshot of a Danish travel agency's departure-dates page.
 
-Extract EVERY visible departure into a JSON array. For each row, return:
+Extract:
+- tour_duration_days: total duration of the tour in DAYS (integer)
+- departures: array of every visible departure
+
+For tour_duration_days, look for text near departures or in the tour header:
+- "8 dage" / "8 days" → 8
+- "7 nætter" / "7 nights" → 8 (nights+1 for total days)
+- "varighed 7 nætter" → 8
+- "1 uge" / "1 week" → 7
+- "10-dages rejse" → 10
+If no duration is visible, set tour_duration_days to null.
+
+For EACH departure row, return:
 - start_date: ISO format YYYY-MM-DD
 - price_dkk: integer in DKK, no thousands separators
 - availability_status: one of EXACTLY these values:
@@ -77,14 +89,14 @@ with a date + week number + price (or "Udsolgt"-tag).
 
 Return ONLY valid JSON in this exact shape, no commentary, no markdown fences:
 
-{"departures": [
+{"tour_duration_days": 8, "departures": [
   {"start_date": "2026-05-16", "price_dkk": null, "availability_status": "Udsolgt"},
   {"start_date": "2026-05-23", "price_dkk": 11998, "availability_status": "Åben"},
   {"start_date": "2026-09-12", "price_dkk": 11498, "availability_status": "Åben"}
 ]}
 
 If no departure rows are visible at all (page shows only intro/marketing text),
-return: {"departures": []}
+return: {"tour_duration_days": null, "departures": []}
 
 Important:
 - Include EVERY visible row, including ones marked "Udsolgt"
@@ -135,7 +147,11 @@ class VisionExtractor:
 
         Returns list of dicts with start_date, price_dkk, availability_status.
         Returns [] if no departures could be extracted (no error).
+
+        Side-effect: gemmer extracted tour_duration_days på self.last_tour_duration_days
+        så caller (runner.py) kan læse det og opdatere tour_dict["duration_days"].
         """
+        self.last_tour_duration_days: Optional[int] = None
         screenshot_b64 = self._capture_screenshot(url, scrape_overrides)
         if not screenshot_b64:
             return []
@@ -245,6 +261,14 @@ class VisionExtractor:
         except json.JSONDecodeError as e:
             print(f"  Vision: JSON parse error: {e}\n  Raw: {raw[:200]}")
             return []
+
+        # Gem tour-level duration så caller kan opdatere tour_dict
+        tour_dur = data.get("tour_duration_days")
+        try:
+            if tour_dur is not None and int(tour_dur) > 0:
+                self.last_tour_duration_days = int(tour_dur)
+        except (TypeError, ValueError):
+            pass
 
         raw_departures = data.get("departures", [])
         if not isinstance(raw_departures, list):

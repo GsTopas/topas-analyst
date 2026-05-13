@@ -157,6 +157,13 @@ def run_scrape(
                 emit(f"  ↳ Tier 1 returnerede 0 afgange — falder tilbage til Tier 3 (vision)")
             try:
                 vision_deps = vision.extract(target.url, target.scrape_overrides)
+
+                # Hvis vision fandt en tour-duration og T1 manglede den, brug den
+                vision_duration = getattr(vision, "last_tour_duration_days", None)
+                if vision_duration and not tour_dict.get("duration_days"):
+                    tour_dict["duration_days"] = vision_duration
+                    emit(f"  ↳ Tier 3: tour-duration sat til {vision_duration} dage")
+
                 if vision_deps:
                     # Merge T1 + T3 departures, dedup on start_date (T1 wins on conflict)
                     existing_dates = {d["start_date"] for d in departures}

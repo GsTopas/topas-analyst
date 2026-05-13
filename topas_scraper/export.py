@@ -516,6 +516,14 @@ def _departure_with_delta(
                 out["statusAnomaly"] = anomaly
         except Exception:  # noqa: BLE001
             pass
+        # firstSeen = ældste snapshot for denne afgang. Bruges af Ugentlig-rapport
+        # til at flagge afgange der er dukket op for nylig som "nye". snapshots-listen
+        # er sorted observed_at DESC, så sidste element er ældst.
+        try:
+            if snapshots:
+                out["firstSeen"] = snapshots[-1].get("observed_at")
+        except Exception:  # noqa: BLE001
+            pass
     else:
         # Fallback path: original DB-query opførsel (langsom, kun ved CLI scrape)
         try:

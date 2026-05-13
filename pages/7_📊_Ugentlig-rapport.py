@@ -203,6 +203,24 @@ def _process_departures(operator: str, tour_code: str, tour_name: str, deps: lis
                     "last_seen_run": d.get("lastSeenRun"),
                 })
 
+        # Nye afgange — første observation er inden for vinduet OG datoen er
+        # fremtidig. firstSeen sættes af export() ud fra ældste snapshot.
+        first_seen_str = d.get("firstSeen")
+        if first_seen_str and not d.get("isArchived"):
+            first_seen_dt = _parse_iso(first_seen_str)
+            today = datetime.utcnow()
+            is_future = start_dt is not None and start_dt > today
+            if first_seen_dt and first_seen_dt >= cutoff_dt and is_future:
+                new_departures.append({
+                    "operator": operator,
+                    "tour_code": tour_code,
+                    "tour_name": tour_name,
+                    "start_date": start_iso,
+                    "first_seen": first_seen_str,
+                    "current_status": d.get("status"),
+                    "current_price": d.get("priceDkk"),
+                })
+
 
 # Iterate Topas tours
 for t in tours:
@@ -224,13 +242,15 @@ for c in competitors:
 # Top-line metrics
 # ---------------------------------------------------------------------------
 
-m1, m2, m3, m4 = st.columns(4)
+m1, m2, m3, m4, m5 = st.columns(5)
 m1.metric("🚨 Bemærkelsesværdige", len(anomalies),
           help="Withdrawn fra salg eller hurtigt udsolgt — kræver opmærksomhed")
 m2.metric("Δ Pris-ændringer", len(price_changes))
-m3.metric("🗓️ Forsvundne afgange", len(vanished),
+m3.metric("🆕 Nye afgange", len(new_departures),
+          help="Afgange første gang set inden for tidsvinduet")
+m4.metric("🗓️ Fjernede afgange", len(vanished),
           help="Afgange der ikke længere er på operatørens side, men hvor datoen stadig er fremtidig")
-m4.metric("Total fund", len(anomalies) + len(price_changes) + len(vanished))
+m5.metric("Total fund", len(anomalies) + len(price_changes) + len(new_departures) + len(vanished))
 
 st.divider()
 
@@ -241,10 +261,6 @@ st.divider()
 
 if anomalies:
     st.markdown("## 🚨 Bemærkelsesværdige ændringer")
-    st.caption(
-        "Operatører der har trukket afgange fra salg eller hvor afgange er solgt ud "
-        "uden at have været i 'Få pladser'-fasen først."
-    )
     for a in sorted(anomalies, key=lambda x: x.get("severity", "low") + x.get("changed_at", ""), reverse=True):
         sev_emoji = "🚨" if a["severity"] == "high" else "⚡"
         type_label = {
@@ -323,11 +339,38 @@ if price_changes:
 
 
 # ---------------------------------------------------------------------------
-# 🗓️ Forsvundne afgange (kun fremtidige)
+# 🆕 Nye afgange (første gang set inden for tidsvinduet)
+# ---------------------------------------------------------------------------
+
+if new_departures:
+    st.markdown(f"## 🆕 Nye afgange ({len(new_departures)})")
+    st.caption(
+        "Afgange der ikke var i kataloget før vinduet startede — kan signalere at "
+        "operatøren har åbnet nye datoer eller en sæson."
+    )
+    df_new = pd.DataFrame([
+        {
+            "Operatør": n["operator"],
+            "Tur-kode": n["tour_code"],
+            "Tur": n["tour_name"][:60],
+            "Afgang": _format_dk_date(_parse_iso(n["start_date"])),
+            "Først set": _format_dk_date(_parse_iso(n["first_seen"])),
+            "Status": n.get("current_status") or "—",
+            "Pris": f"{n['current_price']:,} kr.".replace(",", ".") if n.get("current_price") else "—",
+        }
+        for n in sorted(new_departures, key=lambda x: x.get("first_seen", ""), reverse=True)
+    ])
+    st.dataframe(df_new, use_container_width=True, hide_index=True)
+
+    st.divider()
+
+
+# ---------------------------------------------------------------------------
+# 🗓️ Fjernede afgange (kun fremtidige)
 # ---------------------------------------------------------------------------
 
 if vanished:
-    st.markdown(f"## 🗓️ Forsvundne afgange ({len(vanished)})")
+    st.markdown(f"## 🗓️ Fjernede afgange ({len(vanished)})")
     st.caption(
         "Afgange der ikke længere er på operatørens side, men hvor datoen stadig "
         "er i fremtiden. Sandsynlig årsag: udsolgt eller annulleret."
@@ -352,7 +395,7 @@ if vanished:
 # Empty state
 # ---------------------------------------------------------------------------
 
-if not (anomalies or price_changes or vanished):
+if not (anomalies or price_changes or new_departures or vanished):
     st.info(
         "Ingen ændringer i vinduet. Det kan skyldes at:\n"
         "  - Du har ikke kørt nye scrapes i perioden\n"
@@ -360,4 +403,55 @@ if not (anomalies or price_changes or vanished):
         "  - Tidsvinduet er for kort\n\n"
         "Prøv at vælge et længere vindue, eller kør `python -m topas_scraper.cli scrape` "
         "for at hente friske data."
+    )
+seen"])),
+            "Status": n.get("current_status") or "—",
+            "Pris": f"{n['current_price']:,} kr.".replace(",", ".") if n.get("current_price") else "—",
+        }
+        for n in sorted(new_departures, key=lambda x: x.get("first_seen", ""), reverse=True)
+    ])
+    st.dataframe(df_new, use_container_width=True, hide_index=True)
+
+    st.divider()
+
+
+# ---------------------------------------------------------------------------
+# 🗓️ Fjernede afgange (kun fremtidige)
+# ---------------------------------------------------------------------------
+
+if vanished:
+    st.markdown(f"## 🗓️ Fjernede afgange ({len(vanished)})")
+    st.caption(
+        "Afgange der ikke længere er på operatørens side, men hvor datoen stadig "
+        "er i fremtiden. Sandsynlig årsag: udsolgt eller annulleret."
+    )
+    df_vanished = pd.DataFrame([
+        {
+            "Operatør": v["operator"],
+            "Tur-kode": v["tour_code"],
+            "Tur": v["tour_name"][:60],
+            "Afgang": _format_dk_date(_parse_iso(v["start_date"])),
+            "Sidst set som": v.get("last_status") or "—",
+            "Sidste pris": f"{v['last_price']:,} kr.".replace(",", ".") if v.get("last_price") else "—",
+        }
+        for v in sorted(vanished, key=lambda x: x.get("start_date", ""))
+    ])
+    st.dataframe(df_vanished, use_container_width=True, hide_index=True)
+
+    st.divider()
+
+
+# ---------------------------------------------------------------------------
+# Empty state
+# ---------------------------------------------------------------------------
+
+if not (anomalies or price_changes or new_departures or vanished):
+    st.info(
+        "Ingen ændringer i vinduet. Det kan skyldes at:\n"
+        "  - Du har ikke kørt nye scrapes i perioden\n"
+        "  - Markedet er reelt roligt\n"
+        "  - Tidsvinduet er for kort\n\n"
+        "Prøv at vælge et længere vindue, eller kør en scrape fra Tour-detalje-siden."
+    )
+      "for at hente friske data."
     )

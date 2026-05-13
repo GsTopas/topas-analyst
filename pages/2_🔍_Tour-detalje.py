@@ -1424,6 +1424,8 @@ for d in topas_deps:
         "_is_topas": True,
         "_delta": d.get("priceDelta"),
         "_delta_observed_at": d.get("priceDeltaObservedAt"),
+        "_delta_days_ago": d.get("priceDeltaDaysAgo"),
+        "_status_anomaly": d.get("statusAnomaly"),
         "Dato": format_dk_date(parsed),
         "Pris": d.get("priceDkk"),
         "Status": d.get("status", ""),
@@ -1457,6 +1459,8 @@ for comp in calendar_comps:
             "Pris": d.get("priceDkk"),
             "_delta": d.get("priceDelta"),
             "_delta_observed_at": d.get("priceDeltaObservedAt"),
+            "_delta_days_ago": d.get("priceDeltaDaysAgo"),
+            "_status_anomaly": d.get("statusAnomaly"),
             "Status": d.get("status", ""),
             "Måltider": _format_meals(comp),
             "Detaljer": " · ".join(details_bits),
@@ -1514,6 +1518,82 @@ else:
         except (TypeError, ValueError):
             return "—"
 
+    def _fmt_price_with_delta(price, delta, days_ago) -> str:
+        """Pris-cellen som HTML: 12.998 kr.  ↑ +500 (siden 7d).
+
+        - Prisstigning vises rødt (signalerer: konkurrent fjerner pres)
+        - Prisfald vises grønt (konkurrent reagerer på lavt salg)
+        - Ingen delta = ren pris uden badge
+        - Pris null (Udsolgt uden synlig pris) = '—'
+        """
+        # Format the base price
+        if price == "" or price is None:
+            price_html = "—"
+        else:
+            try:
+                price_html = f"{int(price):,} kr.".replace(",", ".")
+            except (TypeError, ValueError):
+                price_html = "—"
+
+        # No delta info? Just return the price
+        if delta is None or delta == 0:
+            return price_html
+
+        try:
+            delta_int = int(delta)
+        except (TypeError, ValueError):
+            return price_html
+
+        # Direction + color
+        if delta_int > 0:
+            arrow = "↑"
+            color = "#b54708"  # red-ish brown — stigning
+            sign = "+"
+        else:
+            arrow = "↓"
+            color = "#067647"  # green — fald
+            sign = ""
+
+        days_txt = f" · {int(days_ago)}d" if days_ago else ""
+        formatted_delta = f"{sign}{abs(delta_int):,}".replace(",", ".")
+        badge = (
+            f'<span style="display:inline-block; margin-left:6px; '
+            f'padding:1px 6px; font-size:11px; border-radius:8px; '
+            f'background:{color}1a; color:{color}; white-space:nowrap;" '
+            f'title="Pris-ændring vs. observation {int(days_ago) if days_ago else "?"} dage siden">'
+            f'{arrow} {formatted_delta}{days_txt}</span>'
+        )
+        return f"{price_html}{badge}"
+
+    def _fmt_status_with_anomaly(status, anomaly) -> str:
+        """Status-cellen som HTML. Tilføj 'var Åben' / 'fast sellout'-badge
+        hvis statusAnomaly er sat (afgangen har skiftet kategori fra forrige obs)."""
+        safe_status = _html.escape(status or "")
+        if not anomaly or not isinstance(anomaly, dict):
+            return safe_status
+
+        prev_state = anomaly.get("previous_state") or "?"
+        anomaly_type = anomaly.get("anomaly_type")
+
+        if anomaly_type == "withdrawn":
+            badge_text = f"var {prev_state}"
+            color = "#b54708"
+        elif anomaly_type == "fast_sellout":
+            badge_text = "hurtigt udsolgt"
+            color = "#067647"
+        else:
+            badge_text = f"var {prev_state}"
+            color = "#475467"
+
+        badge = (
+            f'<br><span style="display:inline-block; margin-top:2px; '
+            f'padding:1px 6px; font-size:10px; border-radius:8px; '
+            f'background:{color}1a; color:{color}; white-space:nowrap;" '
+            f'title="{_html.escape(anomaly.get("label") or "")}">'
+            f'{_html.escape(badge_text)}</span>'
+        )
+        return f"{safe_status}{badge}"
+
     for mk in months_seen:
         rows = by_month[mk]
         st.markdown(f"#### {_month_label(mk)} · {len(rows)} afgange")
@@ -1524,6 +1604,15 @@ else:
             row_dict = {c: r.get(c, "") for c in display_cols}
             # Erstat Tur-cellen med <a href> HTML
             row_dict["Tur"] = _tur_link_html(r.get("Tur", ""), r.get("_url", ""))
+            # Pris-cellen pre-rendres til HTML med delta-badge (formatter under .format()
+            # kan ikke se andre kolonner end Pris selv, så vi laver HTML'en her i loopet)
+            row_dict["Pris"] = _fmt_price_with_delta(
+                r.get("Pris"), r.get("_delta"), r.get("_delta_days_ago")
+            )
+            # Status-cellen pre-rendres med 'var Åben' / 'hurtigt udsolgt'-badge
+            row_dict["Status"] = _fmt_status_with_anomaly(
+                r.get("Status"), r.get("_status_anomaly")
+            )
             df_rows.append(row_dict)
         df = pd.DataFrame(df_rows, columns=display_cols)
 
@@ -1573,7 +1662,7 @@ else:
             df.style
             .apply(_style_row, axis=1)
             .apply(_style_status, axis=0)
-            .format({"Pris": _fmt_price_dk, "Dage": _fmt_days})
+            .format({"Dage": _fmt_days})
             .hide(axis="index")
             .set_table_styles([
                 {"selector": "table", "props": "border-collapse: collapse; width: 100%; max-width: 1500px; font-size: 14px; table-layout: fixed;"},

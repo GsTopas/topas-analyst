@@ -137,19 +137,60 @@ def _normalize_departures(raw: list) -> list[dict]:
         status = _normalize_status(item.get("availability_status"))
         flight_origin = _safe_str(item.get("flight_origin")) or "København"
         rejseleder = _safe_str(item.get("rejseleder_name"))
+        # end_date er valgfri — kun sites med synlige dato-intervaller (Gjøa)
+        # populerer det. Sites uden range har null her.
+        end_date = _safe_date_str(item.get("end_date"))
 
         out.append({
             "departure_code": None,
             "start_date": start_date,
-            "end_date": None,
+            "end_date": end_date,
             "price_dkk": price_dkk,
             "availability_status": status,
             "flight_origin": flight_origin,
             "rejseleder_name": rejseleder,
         })
 
+    # Post-processing: hvis LLM stadig har lavet duplikat-afgange hvor dato A's
+    # end_date matcher dato B's start_date (Gjøa-mønster), fjern dato B. Dette
+    # er en defensive merge der virker selvom LLM ignorerede schema-instruktionen
+    # og emittered begge dato-endepunkter som separate afgange.
+    out = _merge_range_duplicates(out)
     out.sort(key=lambda d: d["start_date"])
     return out
+
+
+def _merge_range_duplicates(departures: list[dict]) -> list[dict]:
+    """Fjern afgange hvor start_date matcher en anden afgangs end_date.
+
+    Gjøa-eksempel: LLM kan returnere både {start='2026-09-14', end='2026-09-21'}
+    OG {start='2026-09-21', end=null} for samme periode. Den anden er ikke en
+    rigtig afgang — det er bare slutdatoen tolket som start. Vi smider den væk.
+
+    Vi sammenligner pris OG status også — hvis 21. sep har samme pris og status
+    som 14. sep, er det højeste sandsynlighed for at det er duplikatet."""
+    if len(departures) < 2:
+        return departures
+
+    end_dates = {d["start_date"]: d for d in departures if d.get("end_date")}
+    keep: list[dict] = []
+    for dep in departures:
+        # Hvis denne afgangs start_date er end_date på en anden afgang med
+        # samme pris og status → drop som duplikat
+        is_duplicate = False
+        for ref in departures:
+            if ref is dep:
+                continue
+            if (
+                ref.get("end_date") == dep["start_date"]
+                and ref.get("price_dkk") == dep.get("price_dkk")
+                and ref.get("availability_status") == dep.get("availability_status")
+            ):
+                is_duplicate = True
+                break
+        if not is_duplicate:
+            keep.append(dep)
+    return keep
 
 
 def _detect_nights_in_markdown(md: str) -> Optional[int]:

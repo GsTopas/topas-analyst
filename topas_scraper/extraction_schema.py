@@ -86,7 +86,22 @@ TOUR_EXTRACTION_SCHEMA: dict = {
                         "description": (
                             "Departure date in ISO format YYYY-MM-DD. Convert from "
                             "common Danish formats: '14. mar. 2027' → '2027-03-14', "
-                            "'29/10/2026' → '2026-10-29', '04.03.2027' → '2027-03-04'."
+                            "'29/10/2026' → '2026-10-29', '04.03.2027' → '2027-03-04'. "
+                            "CRITICAL: many sites show afgange as date RANGES (e.g. "
+                            "'27. jun → 4. jul 2026' or '14. sep 2026 → 21. sep 2026' "
+                            "or 'Afrejseperiode 27. jun - 4. jul'). This is ONE departure, "
+                            "not two. Use the FIRST date (start) here and the second date "
+                            "(end) in end_date below. NEVER emit two separate entries for "
+                            "the same range."
+                        ),
+                    },
+                    "end_date": {
+                        "type": ["string", "null"],
+                        "description": (
+                            "Departure end-date in ISO format YYYY-MM-DD, if the page "
+                            "shows the range explicitly (e.g. 'Afrejseperiode 27. jun → "
+                            "4. jul 2026' → end_date='2026-07-04'). For sites that only "
+                            "show start-date (most operators), return null."
                         ),
                     },
                     "price_dkk": {

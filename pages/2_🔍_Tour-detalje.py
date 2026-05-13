@@ -1502,6 +1502,18 @@ else:
         except (TypeError, ValueError):
             return "—"
 
+    def _fmt_days(v) -> str:
+        """Vis dage som int (8 ikke 8.000000), '—' for None/NaN."""
+        if v is None or v == "":
+            return "—"
+        try:
+            import math  # noqa: PLC0415
+            if isinstance(v, float) and math.isnan(v):
+                return "—"
+            return str(int(v))
+        except (TypeError, ValueError):
+            return "—"
+
     for mk in months_seen:
         rows = by_month[mk]
         st.markdown(f"#### {_month_label(mk)} · {len(rows)} afgange")
@@ -1561,7 +1573,7 @@ else:
             df.style
             .apply(_style_row, axis=1)
             .apply(_style_status, axis=0)
-            .format({"Pris": _fmt_price_dk})
+            .format({"Pris": _fmt_price_dk, "Dage": _fmt_days})
             .hide(axis="index")
             .set_table_styles([
                 {"selector": "table", "props": "border-collapse: collapse; width: 100%; max-width: 1500px; font-size: 14px; table-layout: fixed;"},

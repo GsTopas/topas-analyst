@@ -193,10 +193,23 @@ def _tour_label(t: dict[str, Any]) -> str:
 tour_codes = [t["tour_code"] for t in tour_summary]
 tour_labels = {t["tour_code"]: _tour_label(t) for t in tour_summary}
 
+# Persist tour-valg på tværs af reruns: efter en review-beslutning kalder vi
+# st.rerun() for at opdatere badges/listen. Uden eksplicit key ville selectbox
+# defaulte tilbage til første tur. Vi holder fast i sidste valg via session_state
+# så head-of-agency kan reviewe alle kandidater for én tur i træk uden at
+# blive sendt tilbage til toppen af listen.
+_prev_choice = st.session_state.get("review_selected_tour")
+if _prev_choice in tour_codes:
+    _default_idx = tour_codes.index(_prev_choice)
+else:
+    _default_idx = 0
+
 selected_code = st.selectbox(
     "Vælg Topas-tur at reviewe",
     options=tour_codes,
     format_func=lambda c: tour_labels[c],
+    index=_default_idx,
+    key="review_selected_tour",
 )
 
 if not selected_code:
@@ -206,7 +219,11 @@ if not selected_code:
 # Candidates for selected tour
 # ---------------------------------------------------------------------------
 
-show_reviewed = st.toggle("Vis allerede reviewede", value=False)
+show_reviewed = st.toggle(
+    "Vis allerede reviewede",
+    value=False,
+    key="review_show_reviewed",
+)
 
 list_fn = (
     catalog_db.list_n8n_candidates_for_tour
@@ -390,6 +407,18 @@ for cand in candidates:
                         elif db_action == "reject":
                             removed = catalog_db.delete_approved_target(
                                 conn, operator, tour_url, topas_code,
+                            )
+                            removal_msg = (
+                                "→ fjernet fra scraper" if removed
+                                else ""
+                            )
+                            st.success(f"Beslutning gemt for kandidat #{n8n_id}. {removal_msg}".strip())
+                        else:
+                            st.success(f"Beslutning gemt for kandidat #{n8n_id}.")
+                    else:
+                        st.success(f"Beslutning gemt for kandidat #{n8n_id}.")
+                    st.rerun()
+                         conn, operator, tour_url, topas_code,
                             )
                             removal_msg = (
                                 "→ fjernet fra scraper" if removed

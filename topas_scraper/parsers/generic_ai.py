@@ -22,6 +22,7 @@ content — e.g. Albatros's React-heavy pages with anti-bot measures).
 
 from __future__ import annotations
 
+import re
 from typing import Any, Optional
 
 from .base import make_parsed_tour, ParsedTour
@@ -43,8 +44,35 @@ def parse(scrape, target) -> tuple[dict, list[dict]]:
     """
     extracted = scrape.extracted or {}
 
-    # Build the tour dict from extracted page data
+    # Build the tour dict from extracted page data.
+    #
+    # Duration: schema now has TWO fields — duration_days for sites that say
+    # "N dage", duration_nights for sites that say "N nætter" (Ruby Rejser
+    # is the canonical example). Convert nights→days here deterministically
+    # rather than trusting the LLM to do arithmetic. A 7-nætter tour = 8 dage
+    # (depart day 1, fly home day 8, with 7 nights in between).
     duration_days = _safe_int(extracted.get("duration_days"))
+    if duration_days is None:
+        nights = _safe_int(extracted.get("duration_nights"))
+        if nights is not None:
+            duration_days = nights + 1
+
+    # Defensive: even if the LLM ignored the schema instruction and put nights
+    # into duration_days, scan the raw markdown for explicit nights patterns.
+    # If we find "varighed N nætter" or "N nætter" with N matching what the LLM
+    # returned, we override with nights+1. This is how Ruby's site is written
+    # and the LLM has been observed to return the raw nights count there.
+    md = getattr(scrape, "markdown", None) or ""
+    if md:
+        nights_from_md = _detect_nights_in_markdown(md)
+        if nights_from_md is not None:
+            # If the LLM's duration_days IS the nights count, fix it up.
+            # If duration_days is None, populate from nights.
+            # If duration_days is already nights+1 (or something else sensible),
+            # leave it alone.
+            if duration_days is None or duration_days == nights_from_md:
+                duration_days = nights_from_md + 1
+
     from_price_dkk = _safe_int(extracted.get("from_price_dkk"))
 
     raw_departures = extracted.get("departures") or []
@@ -122,6 +150,30 @@ def _normalize_departures(raw: list) -> list[dict]:
 
     out.sort(key=lambda d: d["start_date"])
     return out
+
+
+def _detect_nights_in_markdown(md: str) -> Optional[int]:
+    """Scan markdown for 'varighed N nætter' or 'N nætter' / 'N nights'.
+
+    Returns the integer N if found, else None. Prefer 'varighed' anchor —
+    that's the headline duration. Bare 'N nætter' would catch room-stay
+    descriptions ('3 nætter på hotel') so we constrain to short numbers
+    (2-21 nights, the realistic range for guided tours).
+    """
+    # Anchored: "varighed 7 nætter" / "varighed 7 nights"
+    m = re.search(r"varighed\s+(\d{1,2})\s+(?:nætter|nights)", md, re.IGNORECASE)
+    if m:
+        n = int(m.group(1))
+        if 2 <= n <= 21:
+            return n
+    # Less specific: "7 nætter" appearing in a duration-like context
+    # (only trust if it appears near the top of the page or in a heading)
+    m = re.search(r"(?:^|\n)\s*#{1,6}\s+[^\n]*?(\d{1,2})\s+nætter", md, re.IGNORECASE)
+    if m:
+        n = int(m.group(1))
+        if 2 <= n <= 21:
+            return n
+    return None
 
 
 def _safe_int(value: Any) -> Optional[int]:

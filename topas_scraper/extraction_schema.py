@@ -34,10 +34,26 @@ TOUR_EXTRACTION_SCHEMA: dict = {
         "duration_days": {
             "type": ["integer", "null"],
             "description": (
-                "Total tour duration in days. Look for patterns like '14 dage', "
-                "'17 days', '14-dages rejse'. Return JUST the integer (e.g. 14, 17). "
+                "Total tour duration in DAYS — ONLY use this field if the page "
+                "expresses duration as days. Look for '14 dage', '17 days', "
+                "'14-dages rejse', '14-day tour'. Return JUST the integer (e.g. 14). "
                 "If multiple durations are mentioned (e.g. 'Vælg 12 eller 14 dage'), "
-                "return the PRIMARY/headline one. If not visible at all, return null."
+                "return the PRIMARY/headline one. "
+                "CRITICAL: if the page instead says 'N nætter' / 'N nights' / "
+                "'varighed N nætter', DO NOT populate this field — populate "
+                "duration_nights instead and leave duration_days null. "
+                "If neither is visible, return null."
+            ),
+        },
+        "duration_nights": {
+            "type": ["integer", "null"],
+            "description": (
+                "Total tour duration in NIGHTS — ONLY use this field if the page "
+                "expresses duration as nights (sleeping nights), e.g. 'varighed 7 "
+                "nætter', '7 nætter', '7 nights'. Return JUST the integer (e.g. 7). "
+                "Do NOT convert to days; the consuming code handles that. "
+                "If the page uses 'dage'/'days' instead, leave this null and populate "
+                "duration_days. If no duration is visible at all, return null."
             ),
         },
         "from_price_dkk": {

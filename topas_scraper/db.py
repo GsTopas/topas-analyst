@@ -387,16 +387,18 @@ def get_price_change(
     operator: str,
     tour_slug: str,
     start_date: str,
-    lookback_days: int = 90,
+    lookback_days: Optional[int] = None,
 ) -> Optional[dict]:
-    """Find seneste pris-ændring for én departure inden for lookback_days.
+    """Find seneste pris-ændring for én departure.
 
     Returnerer dict med keys: delta, previous_price, previous_observed_at,
     days_ago, current_price, current_observed_at.
     Returnerer None hvis ingen prior observation med anden pris findes.
 
     Logik: vi finder den nyeste observation, så scanner bagud efter den
-    seneste prior observation med en ANDEN pris (inden for lookback-vinduet).
+    seneste prior observation med en ANDEN pris. Som default ingen tids-
+    grænse — sæt lookback_days hvis kalder vil afgrænse (fx automatisk
+    screening: lookback_days=7 for ugentlig job).
     """
     from datetime import datetime, timedelta  # noqa: PLC0415
 
@@ -423,7 +425,7 @@ def get_price_change(
     except (ValueError, AttributeError):
         return None
 
-    cutoff = latest_dt - timedelta(days=lookback_days)
+    cutoff = latest_dt - timedelta(days=lookback_days) if lookback_days else None
 
     previous = None
     for r in rows[1:]:
@@ -433,7 +435,7 @@ def get_price_change(
             r_dt = datetime.fromisoformat(r["observed_at"].replace("Z", "+00:00").replace("+00:00", ""))
         except ValueError:
             continue
-        if r_dt < cutoff:
+        if cutoff is not None and r_dt < cutoff:
             break
         if r["price_dkk"] != latest_price:
             previous = r

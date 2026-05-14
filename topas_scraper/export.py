@@ -334,16 +334,16 @@ def _prefetch_snapshots(conn: Connection) -> dict:
     Erstatter ~500 individuelle queries (get_price_change + detect_status_anomaly
     per departure) med 1 stor query → markant hurtigere load_data().
 
-    Filtrerer til de seneste 180 dage. priceDelta-logikken bruger 7 dages
-    lookback, så 180 dage giver rigeligt headroom og undgår at læse hele
-    snapshot-historikken efterhånden som tabellen vokser monotont over tid.
+    Ingen tidsfilter — Markeds-kalender skal kunne vise pris-ændringer
+    uanset alder (en tur kan ligge 6+ måneder ude i fremtiden og prisen
+    kan ændres på enhver tid). Hvis snapshots-tabellen vokser >100k rækker
+    bliver dette dyrt; så kan vi genindføre et tidsfilter.
     """
     rows = conn.execute(
         """
         SELECT operator, tour_slug, start_date, price_dkk,
                availability_status, observed_at, run_id
         FROM snapshots
-        WHERE observed_at >= (NOW() - INTERVAL '180 days')::text
         ORDER BY observed_at DESC
         """
     ).fetchall()
@@ -380,14 +380,13 @@ def _prefetch_departures(conn: Connection) -> dict:
     return out
 
 
-def _get_price_change_from_list(snapshots: list, lookback_days: int = 90) -> Optional[dict]:
+def _get_price_change_from_list(snapshots: list, lookback_days: Optional[int] = None) -> Optional[dict]:
     """Pris-ændring beregnet fra præ-fetchet snapshots-liste.
 
-    Finder den seneste prior observation med en ANDEN pris end den nuværende,
-    inden for lookback_days-vinduet. Tidligere version krævede prior obs at
-    være mindst N dage gammel, hvilket skjulte pris-ændringer der opstod
-    inden for første uge af en afgangs liv (fx 9970 → 9470 over 6 dage blev
-    aldrig registreret med lookback=7).
+    Finder den seneste prior observation med en ANDEN pris end den nuværende.
+    Som default ingen tids-grænse — enhver historisk pris-ændring vises
+    uanset alder. Sæt lookback_days hvis en kalder vil afgrænse vinduet
+    (fx fremtidig automatisk screening: lookback_days=7 for ugentlig job).
     """
     from datetime import datetime, timedelta  # noqa: PLC0415
 
@@ -405,7 +404,7 @@ def _get_price_change_from_list(snapshots: list, lookback_days: int = 90) -> Opt
     except (ValueError, AttributeError):
         return None
 
-    cutoff = latest_dt - timedelta(days=lookback_days)
+    cutoff = latest_dt - timedelta(days=lookback_days) if lookback_days else None
     previous = None
     for s in valid[1:]:
         obs = s.get("observed_at")
@@ -415,8 +414,7 @@ def _get_price_change_from_list(snapshots: list, lookback_days: int = 90) -> Opt
             s_dt = datetime.fromisoformat(obs.replace("Z", "+00:00").replace("+00:00", ""))
         except ValueError:
             continue
-        if s_dt < cutoff:
-            # Forbi lookback-vinduet — stop
+        if cutoff is not None and s_dt < cutoff:
             break
         if s["price_dkk"] != latest_price:
             previous = s
@@ -504,7 +502,7 @@ def _departure_with_delta(
     d: Row,
     tour_run: str | None = None,
     fields: tuple[str, ...] = (),
-    lookback_days: int = 90,
+    lookback_days: Optional[int] = None,
 ) -> dict:
     """Build departure dict with priceDelta info, archive-flag, and status-anomaly.
 

@@ -18,7 +18,7 @@ from pathlib import Path
 from typing import Any, Optional
 
 from .config import DEFAULT_EXPORT_PATH, OPERATOR_META
-from .db import connect, fetch_tours, fetch_departures, latest_run_id, get_price_change, detect_status_anomaly
+from .db import connect, fetch_tours, latest_run_id, get_price_change, detect_status_anomaly
 from . import catalog_db, _pg_conn
 
 log = logging.getLogger(__name__)
@@ -170,12 +170,16 @@ def export(db_path: Optional[Path] = None, output: Optional[Path] = None) -> Pat
         # Fallback: hvis catalog.db er tom/utilgængelig, vis alt
         competitor_rows_all = list(comp_seen.values())
 
-    # Prefetch ALLE snapshots i én query for at undgå N+1 problem.
-    # _departure_with_delta læser fra _SNAPSHOTS_CACHE i stedet for at lave
-    # 500+ individuelle queries til snapshots-tabellen. Markant hurtigere
-    # over netværk (~5-10s → ~1-2s for cold-load).
+    # Prefetch ALLE snapshots og departures i 2 queries for at undgå N+1.
+    # _departure_with_delta læser fra _SNAPSHOTS_CACHE; departures-cache
+    # bruges direkte i loopene nedenfor. Markant hurtigere over netværk
+    # (~7-13s → ~1-2s for cold-load).
     global _SNAPSHOTS_CACHE
     _SNAPSHOTS_CACHE = _prefetch_snapshots(conn)
+    dep_cache = _prefetch_departures(conn)
+
+    def _get_deps(operator: str, tour_slug: str) -> list[dict]:
+        return dep_cache.get((operator, tour_slug), [])
 
     tour_records = []
     competitor_records = []
@@ -201,7 +205,7 @@ def export(db_path: Optional[Path] = None, output: Optional[Path] = None) -> Pat
         # filter for display, but the data stays preserved for time-series
         # analysis (sellout patterns, price evolution, etc.).
         topas_run = topas_row["last_seen_run"]
-        topas_deps = list(fetch_departures(conn, "Topas", topas_row["tour_slug"]))
+        topas_deps = _get_deps("Topas", topas_row["tour_slug"])
         # Active subset used for metrics only — gamle priser skal ikke
         # skævvride aktuelle gennemsnit/min.
         topas_deps_active = [d for d in topas_deps if d["last_seen_run"] == topas_run]
@@ -216,7 +220,7 @@ def export(db_path: Optional[Path] = None, output: Optional[Path] = None) -> Pat
             # holder denne filtreret til kun aktive afgange. Den fulde liste
             # eksporteres separat via competitor_records nedenfor.
             anchor_deps = [
-                d for d in fetch_departures(conn, anchor["operator"], anchor["tour_slug"])
+                d for d in _get_deps(anchor["operator"], anchor["tour_slug"])
                 if d["last_seen_run"] == anchor_run
             ]
             anchor_per_dep_avg = _avg_price([d["price_dkk"] for d in anchor_deps])
@@ -273,7 +277,7 @@ def export(db_path: Optional[Path] = None, output: Optional[Path] = None) -> Pat
         for r in comps_for_tour:
             r_run = r["last_seen_run"]
             # KEEP ALL — historiske afgange bevares med isArchived-flag
-            deps = list(fetch_departures(conn, r["operator"], r["tour_slug"]))
+            deps = _get_deps(r["operator"], r["tour_slug"])
             deps_active = [d for d in deps if d["last_seen_run"] == r_run]
             meta = OPERATOR_META.get(r["operator"], {})
             competitor_records.append({
@@ -323,18 +327,23 @@ _SNAPSHOTS_CACHE: dict = {}
 
 
 def _prefetch_snapshots(conn: Connection) -> dict:
-    """Hent ALLE snapshots fra DB i én query. Returner dict keyed på
+    """Hent snapshots fra DB i én query. Returner dict keyed på
     (operator, tour_slug, start_date) → list af snapshot-rækker sorteret
     efter observed_at DESC.
 
     Erstatter ~500 individuelle queries (get_price_change + detect_status_anomaly
     per departure) med 1 stor query → markant hurtigere load_data().
+
+    Filtrerer til de seneste 180 dage. priceDelta-logikken bruger 7 dages
+    lookback, så 180 dage giver rigeligt headroom og undgår at læse hele
+    snapshot-historikken efterhånden som tabellen vokser monotont over tid.
     """
     rows = conn.execute(
         """
         SELECT operator, tour_slug, start_date, price_dkk,
                availability_status, observed_at, run_id
         FROM snapshots
+        WHERE observed_at >= (NOW() - INTERVAL '180 days')::text
         ORDER BY observed_at DESC
         """
     ).fetchall()
@@ -347,6 +356,27 @@ def _prefetch_snapshots(conn: Connection) -> dict:
             "observed_at": r["observed_at"],
             "run_id": r["run_id"],
         })
+    return out
+
+
+def _prefetch_departures(conn: Connection) -> dict:
+    """Hent ALLE departures i én query. Returner dict keyed på
+    (operator, tour_slug) → list af departure-dicts sorteret efter start_date.
+
+    Eliminerer N+1: før blev fetch_departures kaldt 1 gang pr. tour (~89 RTT
+    cold-load mod Supabase i Stockholm = 7-13s). Nu: 1 query, group i Python.
+    Selecter alle kolonner så det matcher fetch_departures-output.
+    """
+    rows = conn.execute(
+        """
+        SELECT * FROM departures
+        ORDER BY operator, tour_slug, start_date
+        """
+    ).fetchall()
+    out: dict = {}
+    for r in rows:
+        key = (r["operator"], r["tour_slug"])
+        out.setdefault(key, []).append(dict(r))
     return out
 
 

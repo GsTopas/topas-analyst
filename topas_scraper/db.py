@@ -21,6 +21,8 @@ from pathlib import Path
 from typing import Any, Iterable, Optional
 from uuid import uuid4
 
+from psycopg2.extras import execute_values
+
 from .config import DEFAULT_DB_PATH
 from . import _pg_conn
 
@@ -205,43 +207,65 @@ def replace_departures(
     departures: Iterable[dict],
     run_id: str,
 ) -> int:
-    """Replace all departures for this tour and append snapshots."""
-    # Wipe existing departure rows for this tour — current state only.
-    conn.execute(
-        "DELETE FROM departures WHERE operator = ? AND tour_slug = ?",
-        (operator, tour_slug),
-    )
-    count = 0
+    """Replace all departures for this tour and append snapshots.
+
+    Bruger execute_values (psycopg2.extras) til batch-insert af både
+    departures og snapshots i én roundtrip hver. Tidligere kørte koden
+    2N individuelle INSERTs per scrape gennem PgBouncer Transaction Pooler;
+    den åbne transaktion var derudover sårbar over for idle-in-transaction
+    timeouts.
+    """
+    deps = list(departures)
     now = _now_iso()
-    for dep in departures:
-        conn.execute(
-            """
-            INSERT INTO departures (
-                operator, tour_slug, departure_code, start_date, end_date,
-                price_dkk, availability_status, flight_origin, rejseleder_name, last_seen_run
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-            """,
-            (
-                operator, tour_slug, dep.get("departure_code"),
-                dep["start_date"], dep.get("end_date"),
-                dep.get("price_dkk"), dep.get("availability_status"),
-                dep.get("flight_origin"), dep.get("rejseleder_name"), run_id,
-            ),
+
+    raw_cur = conn._conn.cursor()
+    try:
+        # Wipe existing departure rows for this tour — current state only.
+        raw_cur.execute(
+            "DELETE FROM departures WHERE operator = %s AND tour_slug = %s",
+            (operator, tour_slug),
         )
-        # Always also snapshot — append-only history
-        conn.execute(
-            """
-            INSERT INTO snapshots (run_id, operator, tour_slug, start_date, price_dkk, availability_status, observed_at)
-            VALUES (?, ?, ?, ?, ?, ?, ?)
-            """,
-            (
-                run_id, operator, tour_slug, dep["start_date"],
-                dep.get("price_dkk"), dep.get("availability_status"), now,
-            ),
-        )
-        count += 1
+
+        if deps:
+            dep_rows = [
+                (
+                    operator, tour_slug, dep.get("departure_code"),
+                    dep["start_date"], dep.get("end_date"),
+                    dep.get("price_dkk"), dep.get("availability_status"),
+                    dep.get("flight_origin"), dep.get("rejseleder_name"), run_id,
+                )
+                for dep in deps
+            ]
+            execute_values(
+                raw_cur,
+                """
+                INSERT INTO departures (
+                    operator, tour_slug, departure_code, start_date, end_date,
+                    price_dkk, availability_status, flight_origin, rejseleder_name, last_seen_run
+                ) VALUES %s
+                """,
+                dep_rows,
+            )
+            snap_rows = [
+                (
+                    run_id, operator, tour_slug, dep["start_date"],
+                    dep.get("price_dkk"), dep.get("availability_status"), now,
+                )
+                for dep in deps
+            ]
+            execute_values(
+                raw_cur,
+                """
+                INSERT INTO snapshots (run_id, operator, tour_slug, start_date, price_dkk, availability_status, observed_at)
+                VALUES %s
+                """,
+                snap_rows,
+            )
+    finally:
+        raw_cur.close()
+
     conn.commit()
-    return count
+    return len(deps)
 
 
 def latest_run_id(conn: Connection) -> Optional[str]:

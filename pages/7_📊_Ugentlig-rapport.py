@@ -413,24 +413,7 @@ if not (anomalies or price_changes or new_departures or vanished):
         "  - Du har ikke kørt nye scrapes i perioden\n"
         "  - Markedet er reelt roligt\n"
         "  - Tidsvinduet er for kort\n\n"
-        "Prøv at vælge et længere vindue, eller kør `python -m topas_scraper.cli scrape` "
-        "for at hente friske data."
+        "Prøv at vælge et længere vindue, eller kør en scrape fra Tour-detalje-siden."
     )
 
     st.divider()
-
-
-# ---------------------------------------------------------------------------
-# Empty state
-# ---------------------------------------------------------------------------
-
-if not (anomalies or price_changes or new_departures or vanished):
-    st.info(
-        "Ingen ændringer i vinduet. Det kan skyldes at:\n"
-        "  - Du har ikke kørt nye scrapes i perioden\n"
-        "  - Markedet er reelt roligt\n"
-        "  - Tidsvinduet er for kort\n\n"
-        "Prøv at vælge et længere vindue, eller kør en scrape fra Tour-detalje-siden."
-    )
-      "for at hente friske data."
-    )

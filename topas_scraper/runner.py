@@ -74,172 +74,178 @@ def run_scrape(
 
     db = db_path or str(DEFAULT_DB_PATH)
     conn = connect(db)
-    run_id = start_run(conn, target_count=len(targets))
-    emit(f"Run {run_id[:8]} startet — scraper {len(targets)} URLs (LLM-extraction)")
+    try:
+        run_id = start_run(conn, target_count=len(targets))
+        emit(f"Run {run_id[:8]} startet — scraper {len(targets)} URLs (LLM-extraction)")
 
-    success = 0
-    for i, target in enumerate(targets, 1):
-        emit(f"[{i}/{len(targets)}] {target.operator}...")
-        # Tier 1: Firecrawl with LLM-driven structured extraction via schema
-        result = client.scrape(
-            target.url,
-            overrides=target.scrape_overrides,
-            schema=TOUR_EXTRACTION_SCHEMA,
-        )
+        success = 0
+        for i, target in enumerate(targets, 1):
+            emit(f"[{i}/{len(targets)}] {target.operator}...")
+            # Tier 1: Firecrawl with LLM-driven structured extraction via schema
+            result = client.scrape(
+                target.url,
+                overrides=target.scrape_overrides,
+                schema=TOUR_EXTRACTION_SCHEMA,
+            )
 
-        if not result.success:
-            emit(f"[{i}/{len(targets)}] {target.operator} ✗ {result.error or 'no content'}")
-            continue
+            if not result.success:
+                emit(f"[{i}/{len(targets)}] {target.operator} ✗ {result.error or 'no content'}")
+                continue
 
-        parser = PARSERS.get(target.parser_key)
-        if not parser:
-            emit(f"[{i}/{len(targets)}] {target.operator} ✗ no parser")
-            continue
+            parser = PARSERS.get(target.parser_key)
+            if not parser:
+                emit(f"[{i}/{len(targets)}] {target.operator} ✗ no parser")
+                continue
 
-        try:
-            tour_dict, departures = parser(result, target)
-        except Exception as e:
-            emit(f"[{i}/{len(targets)}] {target.operator} ✗ parse error: {e}")
-            continue
-
-        # ---- Sitemap-variant discovery (replicates the n8n-agent technique) ----
-        # For operators that expose departures as URL-variants in their sitemap
-        # (Albatros), fetch the sitemap and extract every variant URL matching
-        # this product. The variant param embeds the date — so we can construct
-        # a complete departures list even when Firecrawl JSON only sees one
-        # departure on the rendered page.
-        if target.operator in OPERATOR_VARIANT_PATTERNS:
             try:
-                variants = discover_variants(
-                    target.operator,
-                    target.url,
-                    client.scrape,
-                )
-                if variants:
-                    before = len(departures)
-                    departures = merge_variants_into_departures(
-                        departures,
-                        variants,
-                        from_price_dkk=tour_dict.get("from_price_dkk"),
-                    )
-                    added = len(departures) - before
-                    if added > 0:
-                        emit(
-                            f"  ↳ Sitemap fandt {len(variants)} variant-URLs "
-                            f"({added} nye afgange tilføjet)"
-                        )
-                        # Update eligibility note to reflect the merge
-                        tour_dict["eligibility_notes"] = (
-                            f"Tier 1 + sitemap-variants · {len(departures)} departures "
-                            f"({added} from sitemap, rest from page)."
-                        )
+                tour_dict, departures = parser(result, target)
             except Exception as e:
-                emit(f"  ↳ Sitemap-discovery fejlede: {e}")
+                emit(f"[{i}/{len(targets)}] {target.operator} ✗ parse error: {e}")
+                continue
 
-        # ---- Tier 3 fallback: invoke Claude vision ----
-        # Two trigger conditions:
-        #   1. Tier 1 returned 0 departures (classic fallback)
-        #   2. Tier 1 returned a "thin" result for an operator known to
-        #      undersell departures via LLM extraction (e.g. Albatros's
-        #      React-rendered tabs). For these, vision often finds rows
-        #      Tier 1 missed. We merge results, dedup on date.
-        tier_used = "T1"
-        thin_result = (
-            target.vision_fallback
-            and vision is not None
-            and len(departures) < 3  # heuristic: fewer than 3 deps for a typical tour is suspicious
-            and target.operator == "Albatros Travel"  # for now, only Albatros has this issue
-        )
-        if (not departures or thin_result) and target.vision_fallback and vision is not None:
-            if departures:
-                emit(f"  ↳ Tier 1 fandt {len(departures)} afgange — kører Tier 3 (vision) for at fange resten")
-            else:
-                emit(f"  ↳ Tier 1 returnerede 0 afgange — falder tilbage til Tier 3 (vision)")
-            try:
-                vision_deps = vision.extract(target.url, target.scrape_overrides)
-
-                # Hvis vision fandt en tour-duration og T1 manglede den, brug den
-                vision_duration = getattr(vision, "last_tour_duration_days", None)
-                if vision_duration and not tour_dict.get("duration_days"):
-                    tour_dict["duration_days"] = vision_duration
-                    emit(f"  ↳ Tier 3: tour-duration sat til {vision_duration} dage")
-
-                if vision_deps:
-                    # Merge T1 + T3 departures, dedup on start_date (T1 wins on conflict)
-                    existing_dates = {d["start_date"] for d in departures}
-                    merged = list(departures)
-                    added = 0
-                    for vd in vision_deps:
-                        if vd["start_date"] not in existing_dates:
-                            merged.append(vd)
-                            existing_dates.add(vd["start_date"])
-                            added += 1
-                    merged.sort(key=lambda d: d["start_date"])
-                    if added > 0 or not departures:
-                        departures = merged
-                        tier_used = "T3" if not departures else "T1+T3"
-                        if not departures:
-                            tour_dict["eligibility_notes"] = (
-                                f"Extracted via Tier 3 vision (Firecrawl JSON returned 0). "
-                                f"{len(vision_deps)} departures recovered."
-                            )
-                        emit(f"  ↳ Tier 3: tilføjede {added} nye afgange (total: {len(merged)})")
-                    else:
-                        emit(f"  ↳ Tier 3: ingen nye afgange (T1 fangede alt)")
-                else:
-                    emit(f"  ↳ Tier 3: ingen afgange fundet — siden er muligvis tom")
-            except Exception as e:
-                emit(f"  ↳ Tier 3 fejlede: {e}")
-
-        # Extract meals info from scraped markdown (best-effort, never raises).
-        # Pass URL så operator-detection kan vælge den rigtige extractor.
-        try:
-            from .meals import extract_meals
-            md = (result.markdown or "") if hasattr(result, "markdown") else ""
-
-            # Stjernegaard's måltider ligger ikke på hoved-tour-siden — de er
-            # på /dagsprogram/-undersiden som bullet-points per dag. Hent den
-            # ekstra side og concat markdown'en så meals-extractor kan tælle
-            # bullets korrekt.
-            if md and "stjernegaard-rejser.dk" in target.url:
-                dp_url = target.url.rstrip("/") + "/dagsprogram/"
+            # ---- Sitemap-variant discovery (replicates the n8n-agent technique) ----
+            # For operators that expose departures as URL-variants in their sitemap
+            # (Albatros), fetch the sitemap and extract every variant URL matching
+            # this product. The variant param embeds the date — so we can construct
+            # a complete departures list even when Firecrawl JSON only sees one
+            # departure on the rendered page.
+            if target.operator in OPERATOR_VARIANT_PATTERNS:
                 try:
-                    dp_result = client.scrape(dp_url)
-                    if dp_result.success and getattr(dp_result, "markdown", None):
-                        md = md + "\n\n" + dp_result.markdown
-                        emit(f"  ↳ stjernegaard: dagsprogram hentet ({len(dp_result.markdown)} chars)")
+                    variants = discover_variants(
+                        target.operator,
+                        target.url,
+                        client.scrape,
+                    )
+                    if variants:
+                        before = len(departures)
+                        departures = merge_variants_into_departures(
+                            departures,
+                            variants,
+                            from_price_dkk=tour_dict.get("from_price_dkk"),
+                        )
+                        added = len(departures) - before
+                        if added > 0:
+                            emit(
+                                f"  ↳ Sitemap fandt {len(variants)} variant-URLs "
+                                f"({added} nye afgange tilføjet)"
+                            )
+                            # Update eligibility note to reflect the merge
+                            tour_dict["eligibility_notes"] = (
+                                f"Tier 1 + sitemap-variants · {len(departures)} departures "
+                                f"({added} from sitemap, rest from page)."
+                            )
                 except Exception as e:
-                    emit(f"  ↳ stjernegaard: dagsprogram fetch fejlede: {e}")
+                    emit(f"  ↳ Sitemap-discovery fejlede: {e}")
 
-            if md:
-                meals = extract_meals(md, url=target.url)
-                if meals.get("mealsCount") is not None:
-                    tour_dict["meals_included"] = meals["mealsCount"]
-                if meals.get("mealsSummary"):
-                    tour_dict["meals_description"] = meals["mealsSummary"]
-                method = meals.get("extractionMethod", "?")
-                emit(f"  ↳ meals: {meals.get('mealsCount')} ({method})")
-        except Exception as exc:
-            emit(f"  ↳ meals extraction skipped: {exc}")
+            # ---- Tier 3 fallback: invoke Claude vision ----
+            # Two trigger conditions:
+            #   1. Tier 1 returned 0 departures (classic fallback)
+            #   2. Tier 1 returned a "thin" result for an operator known to
+            #      undersell departures via LLM extraction (e.g. Albatros's
+            #      React-rendered tabs). For these, vision often finds rows
+            #      Tier 1 missed. We merge results, dedup on date.
+            tier_used = "T1"
+            thin_result = (
+                target.vision_fallback
+                and vision is not None
+                and len(departures) < 3  # heuristic: fewer than 3 deps for a typical tour is suspicious
+                and target.operator == "Albatros Travel"  # for now, only Albatros has this issue
+            )
+            if (not departures or thin_result) and target.vision_fallback and vision is not None:
+                if departures:
+                    emit(f"  ↳ Tier 1 fandt {len(departures)} afgange — kører Tier 3 (vision) for at fange resten")
+                else:
+                    emit(f"  ↳ Tier 1 returnerede 0 afgange — falder tilbage til Tier 3 (vision)")
+                try:
+                    vision_deps = vision.extract(target.url, target.scrape_overrides)
 
-        upsert_tour(conn, tour_dict, run_id)
-        dep_count = replace_departures(conn, target.operator, tour_dict["tour_slug"], departures, run_id)
-        success += 1
-        from_str = (
-            f"fra {tour_dict.get('from_price_dkk')} kr."
-            if tour_dict.get("from_price_dkk") else "no fra-pris"
-        )
-        emit(f"[{i}/{len(targets)}] {target.operator} ✓ [{tier_used}] {dep_count} afgange · {from_str}")
+                    # Hvis vision fandt en tour-duration og T1 manglede den, brug den
+                    vision_duration = getattr(vision, "last_tour_duration_days", None)
+                    if vision_duration and not tour_dict.get("duration_days"):
+                        tour_dict["duration_days"] = vision_duration
+                        emit(f"  ↳ Tier 3: tour-duration sat til {vision_duration} dage")
 
-    finish_run(conn, run_id, success)
-    emit(f"{success}/{len(targets)} succeeded")
+                    if vision_deps:
+                        # Merge T1 + T3 departures, dedup on start_date (T1 wins on conflict)
+                        existing_dates = {d["start_date"] for d in departures}
+                        merged = list(departures)
+                        added = 0
+                        for vd in vision_deps:
+                            if vd["start_date"] not in existing_dates:
+                                merged.append(vd)
+                                existing_dates.add(vd["start_date"])
+                                added += 1
+                        merged.sort(key=lambda d: d["start_date"])
+                        if added > 0 or not departures:
+                            departures = merged
+                            tier_used = "T3" if not departures else "T1+T3"
+                            if not departures:
+                                tour_dict["eligibility_notes"] = (
+                                    f"Extracted via Tier 3 vision (Firecrawl JSON returned 0). "
+                                    f"{len(vision_deps)} departures recovered."
+                                )
+                            emit(f"  ↳ Tier 3: tilføjede {added} nye afgange (total: {len(merged)})")
+                        else:
+                            emit(f"  ↳ Tier 3: ingen nye afgange (T1 fangede alt)")
+                    else:
+                        emit(f"  ↳ Tier 3: ingen afgange fundet — siden er muligvis tom")
+                except Exception as e:
+                    emit(f"  ↳ Tier 3 fejlede: {e}")
 
-    # Re-export JSON only if at least one target succeeded
-    if success > 0:
-        out = export(db)
-        emit(f"Eksporteret dashboard JSON → {out}")
+            # Extract meals info from scraped markdown (best-effort, never raises).
+            # Pass URL så operator-detection kan vælge den rigtige extractor.
+            try:
+                from .meals import extract_meals
+                md = (result.markdown or "") if hasattr(result, "markdown") else ""
 
-    return run_id, success, len(targets)
+                # Stjernegaard's måltider ligger ikke på hoved-tour-siden — de er
+                # på /dagsprogram/-undersiden som bullet-points per dag. Hent den
+                # ekstra side og concat markdown'en så meals-extractor kan tælle
+                # bullets korrekt.
+                if md and "stjernegaard-rejser.dk" in target.url:
+                    dp_url = target.url.rstrip("/") + "/dagsprogram/"
+                    try:
+                        dp_result = client.scrape(dp_url)
+                        if dp_result.success and getattr(dp_result, "markdown", None):
+                            md = md + "\n\n" + dp_result.markdown
+                            emit(f"  ↳ stjernegaard: dagsprogram hentet ({len(dp_result.markdown)} chars)")
+                    except Exception as e:
+                        emit(f"  ↳ stjernegaard: dagsprogram fetch fejlede: {e}")
+
+                if md:
+                    meals = extract_meals(md, url=target.url)
+                    if meals.get("mealsCount") is not None:
+                        tour_dict["meals_included"] = meals["mealsCount"]
+                    if meals.get("mealsSummary"):
+                        tour_dict["meals_description"] = meals["mealsSummary"]
+                    method = meals.get("extractionMethod", "?")
+                    emit(f"  ↳ meals: {meals.get('mealsCount')} ({method})")
+            except Exception as exc:
+                emit(f"  ↳ meals extraction skipped: {exc}")
+
+            upsert_tour(conn, tour_dict, run_id)
+            dep_count = replace_departures(conn, target.operator, tour_dict["tour_slug"], departures, run_id)
+            success += 1
+            from_str = (
+                f"fra {tour_dict.get('from_price_dkk')} kr."
+                if tour_dict.get("from_price_dkk") else "no fra-pris"
+            )
+            emit(f"[{i}/{len(targets)}] {target.operator} ✓ [{tier_used}] {dep_count} afgange · {from_str}")
+
+        finish_run(conn, run_id, success)
+        emit(f"{success}/{len(targets)} succeeded")
+
+        # Re-export JSON only if at least one target succeeded
+        if success > 0:
+            out = export(db)
+            emit(f"Eksporteret dashboard JSON → {out}")
+
+        return run_id, success, len(targets)
+    finally:
+        try:
+            conn.close()
+        except Exception:
+            pass
 
 
 def run_scrape_for_tour(

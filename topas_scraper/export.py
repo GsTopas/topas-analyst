@@ -585,8 +585,14 @@ def _compute_flags(topas_deps: list, anchor_deps: list) -> dict:
     }
     if anchor_deps:
         flags["competitorSellout"] = any(d["availability_status"] == "Udsolgt" for d in anchor_deps)
-        topas_priced = [(d["start_date"], d["price_dkk"]) for d in topas_deps if d["price_dkk"]]
-        anchor_priced = [(d["start_date"], d["price_dkk"]) for d in anchor_deps if d["price_dkk"]]
+        topas_priced = sorted(
+            [(d["start_date"], d["price_dkk"]) for d in topas_deps if d["price_dkk"]],
+            key=lambda x: x[0],
+        )
+        anchor_priced = sorted(
+            [(d["start_date"], d["price_dkk"]) for d in anchor_deps if d["price_dkk"]],
+            key=lambda x: x[0],
+        )
         if len(topas_priced) >= 2 and len(anchor_priced) >= 2:
             t_slope = topas_priced[-1][1] - topas_priced[0][1]
             a_slope = anchor_priced[-1][1] - anchor_priced[0][1]

@@ -12,6 +12,8 @@ data captured.
 
 from __future__ import annotations
 
+import os
+
 import streamlit as st
 
 # Password-gate — stopper page-rendering indtil korrekt adgangskode.
@@ -115,8 +117,10 @@ with tab_refresh:
                     msg += f" · {removed_count} stale fjernet"
                 st.success(msg)
             except Exception as e:
-                status.update(label=f"Fejl: {e}", state="error")
-                st.exception(e)
+                status.update(label=f"Fejl ({type(e).__name__})", state="error")
+                st.error(f"Fejl ({type(e).__name__}). Tjek server-logs.")
+                if os.getenv("APP_DEBUG"):
+                    st.exception(e)
                 st.stop()
 
 
@@ -181,8 +185,10 @@ with tab_add:
                         )
                     st.info("Refresh siden for at se den i tabellen nedenfor.")
                 except Exception as e:
-                    status.update(label=f"Fejl: {e}", state="error")
-                    st.exception(e)
+                    status.update(label=f"Fejl ({type(e).__name__})", state="error")
+                    st.error(f"Fejl ({type(e).__name__}). Tjek server-logs.")
+                    if os.getenv("APP_DEBUG"):
+                        st.exception(e)
 
 
 # ---------------------------------------------------------------------------

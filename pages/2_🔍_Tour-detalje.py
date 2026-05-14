@@ -70,9 +70,12 @@ def load_data() -> Optional[dict]:
             "Falder tilbage til committed `data/dashboard.json` som er en gammel "
             "snapshot. Nye ture (fx FRCL) mangler. Send fejl-tracen til debugging."
         )
-        import traceback  # noqa: PLC0415
-        with st.expander("Stack trace (debug)", expanded=False):
-            st.code(traceback.format_exc())
+        # Vis kun fuld trace lokalt (APP_DEBUG=1) — i prod kan tracen indeholde
+        # DSN-fragmenter eller credentials hvis exception-strengen lækker dem.
+        if os.getenv("APP_DEBUG"):
+            import traceback  # noqa: PLC0415
+            with st.expander("Stack trace (debug)", expanded=False):
+                st.code(traceback.format_exc())
 
         # Fall back til committed dashboard.json så app ikke crasher
         fallback = Path("data/dashboard.json")
@@ -518,8 +521,10 @@ if scrape_clicked:
             status.update(label=f"✗ Scrape fejlede: {e}", state="error")
             st.error(str(e))
         except Exception as e:
-            status.update(label=f"✗ Uventet fejl: {e}", state="error")
-            st.exception(e)
+            status.update(label=f"✗ Uventet fejl: {type(e).__name__}", state="error")
+            st.error(f"Uventet fejl ({type(e).__name__}). Tjek server-logs for detaljer.")
+            if os.getenv("APP_DEBUG"):
+                st.exception(e)
 
 # ---------------------------------------------------------------------------
 # Tour header — always shown, uses catalog data (works for all 49 tours,

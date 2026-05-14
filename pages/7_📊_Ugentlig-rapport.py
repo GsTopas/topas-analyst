@@ -58,12 +58,15 @@ def _load_dashboard() -> Optional[dict]:
         return json.loads(JSON_PATH.read_text(encoding="utf-8"))
     except Exception as exc:  # noqa: BLE001
         st.error(
-            f"⚠ Export fra Supabase fejlede: `{type(exc).__name__}: {exc}`\n\n"
-            "Falder tilbage til committed `data/dashboard.json` (kan være gammel)."
+            f"⚠ Export fra Supabase fejlede ({type(exc).__name__}). "
+            "Falder tilbage til committed `data/dashboard.json` (kan være gammel). "
+            "Tjek server-logs for detaljer."
         )
-        import traceback  # noqa: PLC0415
-        with st.expander("Stack trace (debug)", expanded=False):
-            st.code(traceback.format_exc())
+        # Vis kun fuld trace lokalt — kan lække DSN-fragmenter i prod.
+        if os.getenv("APP_DEBUG"):
+            import traceback  # noqa: PLC0415
+            with st.expander("Stack trace (debug)", expanded=False):
+                st.code(traceback.format_exc())
 
         fallback = Path("data/dashboard.json")
         if fallback.exists():

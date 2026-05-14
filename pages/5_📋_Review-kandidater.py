@@ -418,15 +418,3 @@ for cand in candidates:
                     else:
                         st.success(f"Beslutning gemt for kandidat #{n8n_id}.")
                     st.rerun()
-                         conn, operator, tour_url, topas_code,
-                            )
-                            removal_msg = (
-                                "→ fjernet fra scraper" if removed
-                                else ""
-                            )
-                            st.success(f"Beslutning gemt for kandidat #{n8n_id}. {removal_msg}".strip())
-                        else:
-                            st.success(f"Beslutning gemt for kandidat #{n8n_id}.")
-                    else:
-                        st.success(f"Beslutning gemt for kandidat #{n8n_id}.")
-                    st.rerun()

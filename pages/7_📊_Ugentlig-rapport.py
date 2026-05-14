@@ -147,7 +147,24 @@ anomalies: list[dict] = []        # withdrawn / fast_sellout markeret af export
 tour_name_by_code = {t.get("code"): t.get("name") for t in tours if t.get("code")}
 
 
+def _tour_existed_before_window(deps: list[dict]) -> bool:
+    """Returnerer True hvis vi har data for denne tour fra FØR window-cutoff.
+
+    Bruges til "Nye afgange"-detection: en afgang er kun "ny" hvis touren
+    selv har eksisteret i vores katalog længere end vinduet. Ellers fanger
+    vi falske-positive fra helt nyligt scrapede tours hvor ALLE afgange
+    har firstSeen inden for vinduet bare fordi tour-data først blev hentet
+    da.
+    """
+    for d in deps:
+        fs = _parse_iso(d.get("firstSeen"))
+        if fs is not None and fs < cutoff_dt:
+            return True
+    return False
+
+
 def _process_departures(operator: str, tour_code: str, tour_name: str, deps: list[dict]) -> None:
+    tour_existed = _tour_existed_before_window(deps)
     for d in deps:
         start_iso = d.get("startDate")
         start_dt = _parse_iso(start_iso) if start_iso else None
@@ -207,10 +224,12 @@ def _process_departures(operator: str, tour_code: str, tour_name: str, deps: lis
                     "last_seen_run": d.get("lastSeenRun"),
                 })
 
-        # Nye afgange — første observation er inden for vinduet OG datoen er
-        # fremtidig. firstSeen sættes af export() ud fra ældste snapshot.
+        # Nye afgange — afgang dukket op INDEN FOR vinduet for en tour der
+        # allerede eksisterede FØR vinduet. Hvis touren selv er ny i vinduet,
+        # skipper vi (ellers tæller vi 117 "nye afgange" hvergang vi første
+        # gang scraper en konkurrent — ikke det Gorm vil have).
         first_seen_str = d.get("firstSeen")
-        if first_seen_str and not d.get("isArchived"):
+        if first_seen_str and not d.get("isArchived") and tour_existed:
             first_seen_dt = _parse_iso(first_seen_str)
             today = datetime.utcnow()
             is_future = start_dt is not None and start_dt > today
@@ -251,7 +270,7 @@ m1.metric("🚨 Bemærkelsesværdige", len(anomalies),
           help="Withdrawn fra salg eller hurtigt udsolgt — kræver opmærksomhed")
 m2.metric("Δ Pris-ændringer", len(price_changes))
 m3.metric("🆕 Nye afgange", len(new_departures),
-          help="Afgange første gang set inden for tidsvinduet")
+          help="Nye afgange i tours vi allerede havde data om før vinduet — fx en ekstra afgang åbnet for salg")
 m4.metric("🗓️ Fjernede afgange", len(vanished),
           help="Afgange der ikke længere er på operatørens side, men hvor datoen stadig er fremtidig")
 m5.metric("Total fund", len(anomalies) + len(price_changes) + len(new_departures) + len(vanished))
@@ -271,9 +290,24 @@ if anomalies:
         prev_obs_dt = _parse_iso(a.get("previous_observed_at"))
         curr_obs_dt = _parse_iso(a.get("changed_at"))
         if prev_obs_dt and curr_obs_dt:
-            window_days = (curr_obs_dt - prev_obs_dt).days
+            delta = curr_obs_dt - prev_obs_dt
+            window_seconds = int(delta.total_seconds())
+            window_days = delta.days
+            same_day = prev_obs_dt.date() == curr_obs_dt.date()
         else:
+            window_seconds = None
             window_days = None
+            same_day = False
+
+        # Når begge observationer er samme dag, vis klokkeslæt i stedet for
+        # bare datoen — ellers ser det forvirrende ud at se "13. maj 2026"
+        # i begge kolonner.
+        def _fmt_obs(dt):
+            if dt is None:
+                return "—"
+            if same_day:
+                return f"{dt.strftime('%H:%M')}, {_format_dk_date(dt)}"
+            return _format_dk_date(dt)
 
         with st.container(border=True):
             cols = st.columns([3, 2, 2, 2])
@@ -282,26 +316,27 @@ if anomalies:
                 start_dt = _parse_iso(a["start_date"])
                 st.caption(f"Afgang: **{_format_dk_date(start_dt)}**")
             with cols[1]:
-                st.caption(f"Var (sidst set {_format_dk_date(prev_obs_dt)})")
+                st.caption(f"Var (sidst set {_fmt_obs(prev_obs_dt)})")
                 st.write(f"{a['previous_state']}")
                 if a.get("previous_price"):
                     st.caption(f"{a['previous_price']:,} kr.".replace(",", "."))
             with cols[2]:
-                st.caption(f"Blev til (set {_format_dk_date(curr_obs_dt)})")
+                st.caption(f"Blev til (set {_fmt_obs(curr_obs_dt)})")
                 st.write(f"**{a.get('current_state') or '(forsvundet)'}**")
                 if a.get("current_price"):
                     st.caption(f"{a['current_price']:,} kr.".replace(",", "."))
             with cols[3]:
                 st.caption("Skift inden for")
-                if window_days is not None:
-                    if window_days == 0:
-                        st.write("**< 1 dag**")
-                    elif window_days == 1:
-                        st.write("**1 dag**")
-                    else:
-                        st.write(f"**{window_days} dage**")
-                else:
+                if window_seconds is None:
                     st.write("—")
+                elif window_seconds < 3600:
+                    st.write(f"**{window_seconds // 60} min**")
+                elif window_seconds < 86400:
+                    st.write(f"**{window_seconds // 3600} timer**")
+                elif window_days == 1:
+                    st.write("**1 dag**")
+                else:
+                    st.write(f"**{window_days} dage**")
 
     st.divider()
 
@@ -360,8 +395,10 @@ if price_changes:
 if new_departures:
     st.markdown(f"## 🆕 Nye afgange ({len(new_departures)})")
     st.caption(
-        "Afgange der ikke var i kataloget før vinduet startede — kan signalere at "
-        "operatøren har åbnet nye datoer eller en sæson."
+        "Afgange der er dukket op i vinduet for tours vi allerede tracker — "
+        "fx operatøren har åbnet en ekstra dato eller en ny sæson. "
+        "Tours scraped første gang i vinduet er ekskluderet (alle deres "
+        "afgange ville være 'nye' ellers)."
     )
     df_new = pd.DataFrame([
         {

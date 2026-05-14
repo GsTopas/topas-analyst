@@ -1560,9 +1560,13 @@ else:
 
         formatted_delta = f"{sign}{abs(delta_int):,}".replace(",", ".")
         days_txt = ""
-        if days_ago:
+        days_title = "?"
+        if days_ago is not None:
             try:
-                days_txt = f' <span style="opacity:0.7;">· {int(days_ago)}d</span>'
+                days_int = int(days_ago)
+                days_label = "<1d" if days_int == 0 else f"{days_int}d"
+                days_txt = f' <span style="opacity:0.7;">· {days_label}</span>'
+                days_title = str(days_int)
             except (TypeError, ValueError):
                 pass
 
@@ -1570,7 +1574,7 @@ else:
             f'<span style="display:inline-block; '
             f'padding:2px 8px; font-size:12px; border-radius:8px; '
             f'background:{color}1a; color:{color}; white-space:nowrap; font-weight:600;" '
-            f'title="Pris-ændring vs. observation {int(days_ago) if days_ago else "?"} dage siden">'
+            f'title="Pris-ændring vs. observation {days_title} dage siden">'
             f'{arrow} {formatted_delta}{days_txt}</span>'
         )
 

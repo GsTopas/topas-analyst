@@ -27,12 +27,15 @@ from __future__ import annotations
 
 import base64
 import json
+import logging
 import os
 import re
 from datetime import date
 from typing import Optional
 
 from anthropic import Anthropic
+
+log = logging.getLogger(__name__)
 
 from .client import FirecrawlClient
 
@@ -205,9 +208,9 @@ class VisionExtractor:
                     return base64.b64encode(resp.read()).decode("ascii")
             # Already base64?
             return screenshot
-        except Exception as e:
-            # Don't crash the whole scrape if vision fallback fails — just return empty
-            print(f"  Vision: screenshot capture failed for {url}: {e}")
+        except Exception:
+            # Don't crash the whole scrape if vision fallback fails — just return None
+            log.exception("vision: screenshot capture failed for %s", url)
             return None
 
     def _call_claude_vision(self, screenshot_b64: str) -> Optional[str]:
@@ -237,8 +240,8 @@ class VisionExtractor:
                 if hasattr(block, "text")
             ]
             return "\n".join(text_blocks) if text_blocks else None
-        except Exception as e:
-            print(f"  Vision: Claude API call failed: {e}")
+        except Exception:
+            log.exception("vision: Claude API call failed")
             return None
 
     def _parse_response(self, raw: str) -> list[dict]:
@@ -255,13 +258,13 @@ class VisionExtractor:
         # Find the JSON object — Claude sometimes adds prose despite instructions
         match = re.search(r"\{[\s\S]*\}", cleaned)
         if not match:
-            print(f"  Vision: no JSON found in response: {raw[:200]}")
+            log.warning("vision: no JSON found in response: %s", raw[:200])
             return []
 
         try:
             data = json.loads(match.group(0))
-        except json.JSONDecodeError as e:
-            print(f"  Vision: JSON parse error: {e}\n  Raw: {raw[:200]}")
+        except json.JSONDecodeError:
+            log.exception("vision: JSON parse error. Raw: %s", raw[:200])
             return []
 
         # Gem tour-level duration så caller kan opdatere tour_dict.

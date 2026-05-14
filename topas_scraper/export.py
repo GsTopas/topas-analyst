@@ -13,12 +13,15 @@ computed automatically.
 from __future__ import annotations
 
 import json
+import logging
 from pathlib import Path
 from typing import Any, Optional
 
 from .config import DEFAULT_EXPORT_PATH, OPERATOR_META
 from .db import connect, fetch_tours, fetch_departures, latest_run_id, get_price_change, detect_status_anomaly
 from . import catalog_db, _pg_conn
+
+log = logging.getLogger(__name__)
 
 # Type-aliases bevarer kompatibilitet med tidligere Row / Connection
 # annotations uden at de skal opdateres mange steder. Runtime-typen er
@@ -30,14 +33,21 @@ Row = dict
 def _approved_set() -> set[tuple[str, str]]:
     """Return set of (url, topas_tour_code) for currently approved competitors.
     Used to filter out historical tours from operators no longer approved.
-    Returns empty set if catalog.db doesn't exist yet."""
+
+    Tidligere blev fejl her sluget med return set(), men det gjorde UI'et MERE
+    støjende (alle historiske tours blev vist) ved transient catalog-fejl. Vi
+    rejser i stedet — caller kan vælge at vise st.error og bede brugeren prøve
+    igen i stedet for at vise misvisende data.
+    """
+    cat = catalog_db.connect()
     try:
-        cat = catalog_db.connect()
         rows = catalog_db.list_approved_targets(cat)
-        cat.close()
-        return {(r["tour_url"], r["topas_tour_code"]) for r in rows if r.get("tour_url") and r.get("topas_tour_code")}
-    except Exception:
-        return set()
+    finally:
+        try:
+            cat.close()
+        except Exception:
+            pass
+    return {(r["tour_url"], r["topas_tour_code"]) for r in rows if r.get("tour_url") and r.get("topas_tour_code")}
 
 
 # Tier classification per Topas tour-code → operator → tier.
@@ -508,22 +518,22 @@ def _departure_with_delta(
                 out["priceDeltaPrevious"] = change["previous_price"]
                 out["priceDeltaObservedAt"] = change["previous_observed_at"]
                 out["priceDeltaDaysAgo"] = change["days_ago"]
-        except Exception:  # noqa: BLE001
-            pass
+        except Exception:
+            log.exception("priceDelta-beregning fejlede for %s/%s/%s", operator, tour_slug, d["start_date"])
         try:
             anomaly = _detect_status_anomaly_from_list(snapshots)
             if anomaly:
                 out["statusAnomaly"] = anomaly
-        except Exception:  # noqa: BLE001
-            pass
+        except Exception:
+            log.exception("statusAnomaly-beregning fejlede for %s/%s/%s", operator, tour_slug, d["start_date"])
         # firstSeen = ældste snapshot for denne afgang. Bruges af Ugentlig-rapport
         # til at flagge afgange der er dukket op for nylig som "nye". snapshots-listen
         # er sorted observed_at DESC, så sidste element er ældst.
         try:
             if snapshots:
                 out["firstSeen"] = snapshots[-1].get("observed_at")
-        except Exception:  # noqa: BLE001
-            pass
+        except Exception:
+            log.exception("firstSeen-lookup fejlede for %s/%s/%s", operator, tour_slug, d["start_date"])
     else:
         # Fallback path: original DB-query opførsel (langsom, kun ved CLI scrape)
         try:
@@ -539,8 +549,8 @@ def _departure_with_delta(
                 out["priceDeltaPrevious"] = change["previous_price"]
                 out["priceDeltaObservedAt"] = change["previous_observed_at"]
                 out["priceDeltaDaysAgo"] = change["days_ago"]
-        except Exception:  # noqa: BLE001
-            pass
+        except Exception:
+            log.exception("priceDelta-DB-query fejlede for %s/%s/%s", operator, tour_slug, d["start_date"])
         try:
             anomaly = detect_status_anomaly(
                 conn,
@@ -550,8 +560,8 @@ def _departure_with_delta(
             )
             if anomaly:
                 out["statusAnomaly"] = anomaly
-        except Exception:  # noqa: BLE001
-            pass
+        except Exception:
+            log.exception("statusAnomaly-DB-query fejlede for %s/%s/%s", operator, tour_slug, d["start_date"])
 
     return out
 

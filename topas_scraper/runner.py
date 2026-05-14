@@ -224,13 +224,24 @@ def run_scrape(
                 emit(f"  ↳ meals extraction skipped: {exc}")
 
             upsert_tour(conn, tour_dict, run_id)
-            dep_count = replace_departures(conn, target.operator, tour_dict["tour_slug"], departures, run_id)
+            # Guard mod degraded scrape: hvis vi ikke fandt nogen afgange men
+            # tour-siden faktisk havde data (from_price_dkk blev udtrukket),
+            # er det sandsynligvis en parser/vision-fejl — IKKE en reel "tom
+            # afgangsliste". Skip DELETE+INSERT så historikken bevares.
+            if not departures and tour_dict.get("from_price_dkk"):
+                emit(f"  ↳ ⚠ degraded scrape: 0 afgange men fra-pris fundet — behold eksisterende DB-rækker")
+                dep_count = 0
+                degraded = True
+            else:
+                dep_count = replace_departures(conn, target.operator, tour_dict["tour_slug"], departures, run_id)
+                degraded = False
             success += 1
             from_str = (
                 f"fra {tour_dict.get('from_price_dkk')} kr."
                 if tour_dict.get("from_price_dkk") else "no fra-pris"
             )
-            emit(f"[{i}/{len(targets)}] {target.operator} ✓ [{tier_used}] {dep_count} afgange · {from_str}")
+            tier_marker = f"[{tier_used}-DEGRADED]" if degraded else f"[{tier_used}]"
+            emit(f"[{i}/{len(targets)}] {target.operator} ✓ {tier_marker} {dep_count} afgange · {from_str}")
 
         finish_run(conn, run_id, success)
         emit(f"{success}/{len(targets)} succeeded")

@@ -125,16 +125,19 @@ def _normalize_departures(raw: list) -> list[dict]:
 
         start_date = _safe_date_str(item.get("start_date"))
         price_dkk = _safe_int(item.get("price_dkk"))
-        if not start_date or price_dkk is None:
-            # Required fields missing — skip this row. The LLM sometimes returns
-            # placeholder rows for "Afventer pris" that we want to filter out.
+        status = _normalize_status(item.get("availability_status"))
+        if not start_date:
+            continue
+        # Tillad null-pris for Udsolgt/Afventer pris — det er legitime states
+        # hvor pris ikke vises. Vision-extractor gør allerede dette; uden samme
+        # logik her får T1-operatører asymmetrisk DB (Udsolgt-rækker forsvinder
+        # → "Skiftet til Udsolgt"-anomaly kan aldrig triggers).
+        if price_dkk is None and status not in {"Udsolgt", "Afventer pris"}:
             continue
 
         if start_date in seen_dates:
             continue
         seen_dates.add(start_date)
-
-        status = _normalize_status(item.get("availability_status"))
         flight_origin = _safe_str(item.get("flight_origin")) or "København"
         rejseleder = _safe_str(item.get("rejseleder_name"))
         # end_date er valgfri — kun sites med synlige dato-intervaller (Gjøa)

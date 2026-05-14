@@ -172,7 +172,9 @@ def _process_departures(operator: str, tour_code: str, tour_name: str, deps: lis
         # but keep them for price/status delta tracking.
 
         # Pris-ændring (har vi priceDelta-data?)
-        if d.get("priceDelta") is not None:
+        # Topas's egne pris-ændringer udelades — rapporten handler om markedet
+        # (konkurrenter), og Gorm kender allerede sine egne pris-skift.
+        if operator != "Topas" and d.get("priceDelta") is not None:
             obs_at = _parse_iso(d.get("priceDeltaObservedAt"))
             if obs_at and obs_at >= cutoff_dt:
                 price_changes.append({

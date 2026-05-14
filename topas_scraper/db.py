@@ -387,18 +387,16 @@ def get_price_change(
     operator: str,
     tour_slug: str,
     start_date: str,
-    lookback_days: int = 7,
+    lookback_days: int = 90,
 ) -> Optional[dict]:
-    """Find pris-ændring for én departure siden en observation der er mindst
-    `lookback_days` ældre end den seneste.
+    """Find seneste pris-ændring for én departure inden for lookback_days.
 
     Returnerer dict med keys: delta, previous_price, previous_observed_at,
     days_ago, current_price, current_observed_at.
-    Returnerer None hvis der ikke findes en kvalificerende prior observation.
+    Returnerer None hvis ingen prior observation med anden pris findes.
 
-    Logik: vi finder den nyeste observation, så finder vi den seneste tidligere
-    observation der er ≥ lookback_days ældre. Vi sammenligner deres priser.
-    Hvis tour først blev set for nylig (< lookback_days siden), returneres None.
+    Logik: vi finder den nyeste observation, så scanner bagud efter den
+    seneste prior observation med en ANDEN pris (inden for lookback-vinduet).
     """
     from datetime import datetime, timedelta  # noqa: PLC0415
 
@@ -427,7 +425,6 @@ def get_price_change(
 
     cutoff = latest_dt - timedelta(days=lookback_days)
 
-    # Find rows der er ældre end cutoff
     previous = None
     for r in rows[1:]:
         if not r["observed_at"]:
@@ -436,7 +433,9 @@ def get_price_change(
             r_dt = datetime.fromisoformat(r["observed_at"].replace("Z", "+00:00").replace("+00:00", ""))
         except ValueError:
             continue
-        if r_dt <= cutoff:
+        if r_dt < cutoff:
+            break
+        if r["price_dkk"] != latest_price:
             previous = r
             break
 

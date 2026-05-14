@@ -1493,7 +1493,7 @@ else:
     # Streamlit's st.dataframe + LinkColumn understøtter ikke per-række display-tekst,
     # så vi går vejen via pandas Styler.to_html() + st.markdown(unsafe_allow_html=True).
     import html as _html  # noqa: PLC0415
-    display_cols = ["Operatør", "Tur", "Kategori", "Dage", "Dato", "Pris", "Status", "Måltider", "Detaljer"]
+    display_cols = ["Operatør", "Tur", "Kategori", "Dage", "Dato", "Pris", "Δ Pris", "Status", "Måltider", "Detaljer"]
 
     def _tur_link_html(name: str, url: str) -> str:
         """Lav Tur-cellen til en klikbar <a>. Hvis ingen URL, vis bare navnet."""
@@ -1527,77 +1527,52 @@ else:
         """Pris-cellen som HTML: 12.998 kr.  ↑ +500 (siden 7d).
 
         - Prisstigning vises rødt (signalerer: konkurrent fjerner pres)
-        - Prisfald vises grønt (konkurrent reagerer på lavt salg)
-        - Ingen delta = ren pris uden badge
         - Pris null (Udsolgt uden synlig pris) = '—'
         """
         # Format the base price
         if price == "" or price is None:
-            price_html = "—"
-        else:
-            try:
-                price_html = f"{int(price):,} kr.".replace(",", ".")
-            except (TypeError, ValueError):
-                price_html = "—"
+            return "—"
+        try:
+            return f"{int(price):,} kr.".replace(",", ".")
+        except (TypeError, ValueError):
+            return "—"
 
-        # No delta info? Just return the price
-        if delta is None or delta == 0:
-            return price_html
-
+    def _fmt_delta_cell(delta, days_ago) -> str:
+        """Δ Pris-cellen som HTML. Pris-stigninger vises orange-røde,
+        pris-fald grønne. Ingen ændring → '—'."""
+        if delta is None:
+            return "—"
         try:
             delta_int = int(delta)
         except (TypeError, ValueError):
-            return price_html
+            return "—"
+        if delta_int == 0:
+            return "—"
 
-        # Direction + color
         if delta_int > 0:
             arrow = "↑"
-            color = "#b54708"  # red-ish brown — stigning
+            color = "#b54708"   # orange-rød = stigning
             sign = "+"
         else:
             arrow = "↓"
-            color = "#067647"  # green — fald
+            color = "#067647"   # grøn = fald
             sign = ""
 
-        days_txt = f" · {int(days_ago)}d" if days_ago else ""
         formatted_delta = f"{sign}{abs(delta_int):,}".replace(",", ".")
-        badge = (
-            f'<span style="display:inline-block; margin-left:6px; '
-            f'padding:1px 6px; font-size:11px; border-radius:8px; '
-            f'background:{color}1a; color:{color}; white-space:nowrap;" '
+        days_txt = ""
+        if days_ago:
+            try:
+                days_txt = f' <span style="opacity:0.7;">· {int(days_ago)}d</span>'
+            except (TypeError, ValueError):
+                pass
+
+        return (
+            f'<span style="display:inline-block; '
+            f'padding:2px 8px; font-size:12px; border-radius:8px; '
+            f'background:{color}1a; color:{color}; white-space:nowrap; font-weight:600;" '
             f'title="Pris-ændring vs. observation {int(days_ago) if days_ago else "?"} dage siden">'
             f'{arrow} {formatted_delta}{days_txt}</span>'
         )
-        return f"{price_html}{badge}"
-
-    def _fmt_status_with_anomaly(status, anomaly) -> str:
-        """Status-cellen som HTML. Tilføj 'var Åben' / 'fast sellout'-badge
-        hvis statusAnomaly er sat (afgangen har skiftet kategori fra forrige obs)."""
-        safe_status = _html.escape(status or "")
-        if not anomaly or not isinstance(anomaly, dict):
-            return safe_status
-
-        prev_state = anomaly.get("previous_state") or "?"
-        anomaly_type = anomaly.get("anomaly_type")
-
-        if anomaly_type == "withdrawn":
-            badge_text = f"var {prev_state}"
-            color = "#b54708"
-        elif anomaly_type == "fast_sellout":
-            badge_text = "udsolgt"
-            color = "#067647"
-        else:
-            badge_text = f"var {prev_state}"
-            color = "#475467"
-
-        badge = (
-            f'<br><span style="display:inline-block; margin-top:2px; '
-            f'padding:1px 6px; font-size:10px; border-radius:8px; '
-            f'background:{color}1a; color:{color}; white-space:nowrap;" '
-            f'title="{_html.escape(anomaly.get("label") or "")}">'
-            f'{_html.escape(badge_text)}</span>'
-        )
-        return f"{safe_status}{badge}"
 
     for mk in months_seen:
         rows = by_month[mk]
@@ -1609,14 +1584,11 @@ else:
             row_dict = {c: r.get(c, "") for c in display_cols}
             # Erstat Tur-cellen med <a href> HTML
             row_dict["Tur"] = _tur_link_html(r.get("Tur", ""), r.get("_url", ""))
-            # Pris-cellen pre-rendres til HTML med delta-badge (formatter under .format()
-            # kan ikke se andre kolonner end Pris selv, så vi laver HTML'en her i loopet)
             row_dict["Pris"] = _fmt_price_with_delta(
                 r.get("Pris"), r.get("_delta"), r.get("_delta_days_ago")
             )
-            # Status-cellen pre-rendres med 'var Åben' / 'hurtigt udsolgt'-badge
-            row_dict["Status"] = _fmt_status_with_anomaly(
-                r.get("Status"), r.get("_status_anomaly")
+            row_dict["Δ Pris"] = _fmt_delta_cell(
+                r.get("_delta"), r.get("_delta_days_ago")
             )
             df_rows.append(row_dict)
         df = pd.DataFrame(df_rows, columns=display_cols)
@@ -1634,19 +1606,21 @@ else:
         # på tværs (alle juni-rækker står på linje med alle juli-rækker etc.).
         # Dage/Pris er højre-justeret som standard for tal-kolonner.
         col_widths = {
-            "Operatør": "11%",
-            "Tur": "23%",
-            "Kategori": "9%",
-            "Dage": "5%",
-            "Dato": "10%",
-            "Pris": "9%",
+            "Operatør": "10%",
+            "Tur": "20%",
+            "Kategori": "8%",
+            "Dage": "4%",
+            "Dato": "9%",
+            "Pris": "8%",
+            "Δ Pris": "9%",
             "Status": "9%",
-            "Måltider": "16%",
+            "Måltider": "15%",
             "Detaljer": "8%",
         }
         col_aligns = {
             "Dage": "right",
             "Pris": "right",
+            "Δ Pris": "center",
             "Dato": "left",
             "Status": "center",
         }

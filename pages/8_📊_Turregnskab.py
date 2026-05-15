@@ -290,24 +290,43 @@ def _render_detail_view(df_in: pd.DataFrame, month_nums: list[int]) -> None:
 
 
 def _render_summary_view(df_in: pd.DataFrame, month_nums: list[int]) -> None:
-    """Maaneds-overblik: én række pr. kategori + total pr. måned, ingen tur-detaljer."""
+    """Maaneds-overblik: én række pr. kategori + Opl/Res + TOTAL.
+    YTD-tal vises som separate metric-bokse under tabellen."""
     rows = []
-    for cat in CATEGORY_ORDER:
+
+    # TOPAS-row, men EXKLUSIV Opl/Res (de splittes ud i sin egen raekke)
+    topas_row = {"Kategori": "TOPAS (ture)"}
+    for m_num in month_nums:
+        month_name = MONTH_ORDER[m_num - 1]
+        g = df_in[(df_in["month_num"] == m_num) &
+                  (df_in["tour_code"].apply(_categorize) == "TOPAS") &
+                  (~df_in["tour_code"].isin(SPECIAL_CODES))]
+        topas_row[month_name] = g["db_budget_diff"].sum() if not g.empty else 0
+    rows.append(topas_row)
+
+    # Greenland + Vietnam (urørt fra før)
+    for cat in ["GREENLAND BY TOPAS", "VIETNAM BY TOPAS"]:
         row = {"Kategori": cat}
         for m_num in month_nums:
             month_name = MONTH_ORDER[m_num - 1]
             g = df_in[(df_in["month_num"] == m_num) &
                       (df_in["tour_code"].apply(_categorize) == cat)]
             row[month_name] = g["db_budget_diff"].sum() if not g.empty else 0
-        row["YTD"] = sum(row[MONTH_ORDER[m - 1]] for m in month_nums)
         rows.append(row)
+
+    # Oplæring/Research-row (split fra TOPAS)
+    opl_row = {"Kategori": "Oplæring / Research"}
+    for m_num in month_nums:
+        month_name = MONTH_ORDER[m_num - 1]
+        g = df_in[(df_in["month_num"] == m_num) & df_in["tour_code"].isin(SPECIAL_CODES)]
+        opl_row[month_name] = g["db_budget_diff"].sum() if not g.empty else 0
+    rows.append(opl_row)
 
     # Grand total
     total_row = {"Kategori": "TOTAL"}
     for m_num in month_nums:
         month_name = MONTH_ORDER[m_num - 1]
         total_row[month_name] = df_in[df_in["month_num"] == m_num]["db_budget_diff"].sum()
-    total_row["YTD"] = sum(total_row[MONTH_ORDER[m - 1]] for m in month_nums)
     rows.append(total_row)
 
     summary = pd.DataFrame(rows)
@@ -318,13 +337,17 @@ def _render_summary_view(df_in: pd.DataFrame, month_nums: list[int]) -> None:
         return _fmt_kr(v)
 
     def _color(row: pd.Series) -> list[str]:
-        is_total = row["Kategori"] == "TOTAL"
+        cat = row["Kategori"]
+        is_total = cat == "TOTAL"
+        is_opl = cat == "Oplæring / Research"
         styles: list[str] = []
         for col, val in row.items():
             if col == "Kategori":
                 if is_total:
                     s = ("background-color:#fff4e6; color:#7c2d12; "
                          "font-weight:800; font-size:1.05rem;")
+                elif is_opl:
+                    s = "font-weight:600; font-style:italic; color:#475569;"
                 else:
                     s = "font-weight:700; color:#1e3a5f;"
             else:
@@ -338,6 +361,8 @@ def _render_summary_view(df_in: pd.DataFrame, month_nums: list[int]) -> None:
                         s = "color:#1e8449; font-weight:500;"
                     else:
                         s = "color:#94a3b8;"
+                    if is_opl:
+                        s += " font-style:italic;"
                 else:
                     s = ""
             styles.append(s)
@@ -345,7 +370,26 @@ def _render_summary_view(df_in: pd.DataFrame, month_nums: list[int]) -> None:
 
     fmt_cols = {col: _fmt_cell for col in summary.columns if col != "Kategori"}
     styled = summary.style.format(fmt_cols).apply(_color, axis=1)
-    st.dataframe(styled, use_container_width=True, hide_index=True, height=200)
+    st.dataframe(styled, use_container_width=True, hide_index=True, height=215)
+
+    # === YTD-bokse under tabellen ===
+    st.markdown("###### YTD (akkumuleret 2026)")
+    topas_tour_ytd = sum(topas_row[MONTH_ORDER[m - 1]] for m in month_nums)
+    gbt_ytd = sum(rows[1][MONTH_ORDER[m - 1]] for m in month_nums)
+    vbt_ytd = sum(rows[2][MONTH_ORDER[m - 1]] for m in month_nums)
+    opl_ytd = sum(opl_row[MONTH_ORDER[m - 1]] for m in month_nums)
+    grand_ytd = sum(total_row[MONTH_ORDER[m - 1]] for m in month_nums)
+
+    def _signed(v: float) -> str:
+        sign = "+" if v >= 0 else "-"
+        return f"{sign}{_fmt_kr(abs(v))} kr."
+
+    c1, c2, c3, c4, c5 = st.columns(5)
+    c1.metric("TOPAS (ture)", _signed(topas_tour_ytd))
+    c2.metric("GREENLAND BY TOPAS", _signed(gbt_ytd))
+    c3.metric("VIETNAM BY TOPAS", _signed(vbt_ytd))
+    c4.metric("Oplæring / Research", _signed(opl_ytd))
+    c5.metric("TOTAL", _signed(grand_ytd))
 
 
 def _render_comparison_view(df_in: pd.DataFrame, month_nums: list[int]) -> None:

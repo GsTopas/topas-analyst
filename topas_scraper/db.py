@@ -424,7 +424,7 @@ def get_price_change(
 
     rows = conn.execute(
         """
-        SELECT price_dkk, observed_at
+        SELECT price_dkk, observed_at, availability_status
         FROM snapshots
         WHERE operator=? AND tour_slug=? AND start_date=?
           AND price_dkk IS NOT NULL
@@ -445,6 +445,11 @@ def get_price_change(
     except (ValueError, AttributeError):
         return None
 
+    # Udsolgt-guard: skip hvis nuværende status er Udsolgt (kunden kan ikke købe,
+    # så prisjusteringen er ikke et reelt konkurrence-signal).
+    if (latest["availability_status"] or "").strip().lower() == "udsolgt":
+        return None
+
     cutoff = latest_dt - timedelta(days=lookback_days) if lookback_days else None
 
     previous = None
@@ -462,6 +467,10 @@ def get_price_change(
             break
 
     if previous is None:
+        return None
+
+    # Udsolgt-guard del 2: skip hvis tidligere observation var Udsolgt.
+    if (previous["availability_status"] or "").strip().lower() == "udsolgt":
         return None
 
     delta = latest_price - previous["price_dkk"]

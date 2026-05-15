@@ -387,6 +387,11 @@ def _get_price_change_from_list(snapshots: list, lookback_days: Optional[int] = 
     Som default ingen tids-grænse — enhver historisk pris-ændring vises
     uanset alder. Sæt lookback_days hvis en kalder vil afgrænse vinduet
     (fx fremtidig automatisk screening: lookback_days=7 for ugentlig job).
+
+    Filtrér ud: hvis enten den nuværende ELLER den tidligere observation har
+    status 'Udsolgt', regnes pris-ændringen ikke som en reel markeds-ændring
+    — kunden kan alligevel ikke købe, så operatørens prisjusteringer på et
+    udsolgt produkt er kosmetiske, ikke konkurrence-mæssige signaler.
     """
     from datetime import datetime, timedelta  # noqa: PLC0415
 
@@ -402,6 +407,11 @@ def _get_price_change_from_list(snapshots: list, lookback_days: Optional[int] = 
             latest_observed.replace("Z", "+00:00").replace("+00:00", "")
         )
     except (ValueError, AttributeError):
+        return None
+
+    # Udsolgt-guard: skip hvis nuværende observation er Udsolgt.
+    latest_status = (latest.get("availability_status") or "").strip().lower()
+    if latest_status == "udsolgt":
         return None
 
     cutoff = latest_dt - timedelta(days=lookback_days) if lookback_days else None
@@ -420,6 +430,11 @@ def _get_price_change_from_list(snapshots: list, lookback_days: Optional[int] = 
             previous = s
             break
     if previous is None:
+        return None
+
+    # Udsolgt-guard (del 2): skip hvis tidligere observation var Udsolgt.
+    prev_status = (previous.get("availability_status") or "").strip().lower()
+    if prev_status == "udsolgt":
         return None
 
     delta = latest_price - previous["price_dkk"]

@@ -231,12 +231,24 @@ df = pd.DataFrame(
     [dict(row) for row in catalog_rows]
 )
 
+# Berigning: hvilke tour-koder har vi Topas-scraped-data for?
+# Det gør at vi kan skelne mellem "scraped uden konkurrenter" og "helt unsetup".
+try:
+    _scraped_rows = conn.execute(
+        "SELECT DISTINCT tour_code FROM tours WHERE operator='Topas' AND tour_code IS NOT NULL"
+    ).fetchall()
+    scraped_codes = {r["tour_code"] for r in _scraped_rows}
+except Exception:
+    scraped_codes = set()
+df["is_scraped"] = df["tour_code"].apply(lambda c: 1 if c in scraped_codes else 0)
+
 # ---------------------------------------------------------------------------
 # Top-line metrics
 # ---------------------------------------------------------------------------
 
 mapped = int(df["has_competitor_mapping"].sum())
-unmapped = len(df) - mapped
+scraped_only = int(((df["has_competitor_mapping"] == 0) & (df["is_scraped"] == 1)).sum())
+unsetup = len(df) - mapped - scraped_only
 
 # Total approved competitor URLs på tværs af alle tours (kan være >1 pr tour-kode)
 try:
@@ -247,9 +259,9 @@ except Exception:
 
 m1, m2, m3, m4 = st.columns(4)
 m1.metric("Topas-ture i katalog", len(df))
-m2.metric("Med konkurrent-mapping", mapped, help="Antal Topas-ture med mindst én godkendt konkurrent i Supabase")
-m3.metric("Mangler mapping", unmapped, help="Ture i katalog uden konkurrent-mapping endnu — kør screening fra Tour-detalje")
-m4.metric("Godkendte konkurrent-URLs", approved_total, help="Total antal godkendte konkurrent-targets på tværs af alle tours")
+m2.metric("✅ Klar (med konkurrenter)", mapped, help="Topas-ture scraped + har mindst én godkendt konkurrent — fuld pris-sammenligning mulig")
+m3.metric("🔵 Scraped, mangler konkurrenter", scraped_only, help="Tour er scraped (Topas-data hentes ugentligt) men ingen godkendte konkurrenter endnu — kør screening fra Tour-detalje")
+m4.metric("⚠️ Helt unsetup", unsetup, help="Hverken scraped eller mapped — start med screening fra Tour-detalje")
 
 
 # ---------------------------------------------------------------------------
@@ -267,8 +279,8 @@ with f1:
 
 with f2:
     mapping_filter = st.radio(
-        "Mapping-status",
-        ["Alle", "Med mapping", "Mangler mapping"],
+        "Status",
+        ["Alle", "✅ Klar", "🔵 Mangler konkurrenter", "⚠️ Unsetup"],
         horizontal=True,
     )
 
@@ -280,10 +292,12 @@ with f3:
 filtered = df.copy()
 if country_filter != "Alle":
     filtered = filtered[filtered["country"] == country_filter]
-if mapping_filter == "Med mapping":
+if mapping_filter == "✅ Klar":
     filtered = filtered[filtered["has_competitor_mapping"] == 1]
-elif mapping_filter == "Mangler mapping":
-    filtered = filtered[filtered["has_competitor_mapping"] == 0]
+elif mapping_filter == "🔵 Mangler konkurrenter":
+    filtered = filtered[(filtered["has_competitor_mapping"] == 0) & (filtered["is_scraped"] == 1)]
+elif mapping_filter == "⚠️ Unsetup":
+    filtered = filtered[(filtered["has_competitor_mapping"] == 0) & (filtered["is_scraped"] == 0)]
 if search:
     s = search.lower()
     mask = (
@@ -301,9 +315,16 @@ if search:
 if filtered.empty:
     st.info("Ingen ture matcher filteret.")
 else:
-    # Add a status icon column
+    # Add a status icon column — 3-state:
+    #   ✅ = scraped + has approved competitors (full setup)
+    #   🔵 = scraped but no approved competitors (Topas-data only)
+    #   ⚠️ = neither scraped nor mapped
     def _status_icon(row):
-        return "✅" if row["has_competitor_mapping"] == 1 else "⚠️"
+        if row["has_competitor_mapping"] == 1:
+            return "✅"
+        if row.get("is_scraped") == 1:
+            return "🔵"
+        return "⚠️"
 
     display_df = filtered.copy()
     display_df["Status"] = display_df.apply(_status_icon, axis=1)
@@ -334,8 +355,9 @@ else:
 
     st.caption(
         f"{len(filtered)} ture vist (af {len(df)} i katalogen). "
-        f"✅ = mindst én godkendt konkurrent (i Supabase) · "
-        f"⚠️ = mangler godkendte konkurrenter — kør screening fra Tour-detalje"
+        f"✅ = klar (scraped + konkurrenter) · "
+        f"🔵 = scraped, mangler konkurrenter · "
+        f"⚠️ = helt unsetup (kør screening fra Tour-detalje)"
     )
 
 
@@ -343,8 +365,9 @@ else:
 # Footer: next steps for unmapped tours
 # ---------------------------------------------------------------------------
 
-if unmapped > 0:
-    with st.expander(f"📝 {unmapped} ture mangler konkurrent-mapping — næste skridt"):
+_total_missing = scraped_only + unsetup
+if _total_missing > 0:
+    with st.expander(f"📝 {_total_missing} ture mangler konkurrent-mapping — næste skridt"):
         st.markdown("""
         Hver tur uden ✅ mangler godkendte konkurrenter i Supabase. Workflow:
 

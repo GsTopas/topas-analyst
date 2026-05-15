@@ -424,6 +424,8 @@ class VisionExtractor:
             return "Få pladser"
         if "afvent" in s or "pending" in s:
             return "Afventer pris"
+        if "ledig" in s or "available" in s or "open" in s:
+            return "Åben"
         return "Åben"
 
 

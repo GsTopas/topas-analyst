@@ -139,15 +139,21 @@ TOUR_EXTRACTION_SCHEMA: dict = {
                             "'Få pladser' = ONLY when explicitly labelled 'Få pladser' OR "
                             "a small number 'X pladser' / 'X pladser tilbage' where X is 1-3 "
                             "(no plus sign). "
-                            "'Udsolgt' = sold out / fully booked / 'UDSOLGT'. "
+                            "'Udsolgt' = sold out / fully booked / 'UDSOLGT' — ONLY when the "
+                            "page explicitly says the departure is sold out. NEVER guess "
+                            "'Udsolgt' from missing status text or visual cues you can't read. "
                             "'Afventer pris' = date set but price not yet published / "
                             "'Pris kommer snart' / 'Afventer pris'. "
                             "'Åben' = default — booking is open with no scarcity signal. "
+                            "Map ALL of these to 'Åben': 'Ledig' (Viktors Farmor), 'Plads' "
+                            "(without a small number qualifier), 'Bestil', 'Book nu', or no "
+                            "status word at all next to the date/price. "
                             "CRITICAL: '+N pladser' (with a plus sign, e.g. '+8 pladser', "
                             "'+10 pladser') means 'AT LEAST N spots available' — this is "
                             "Smilrejser's way of indicating Åben / plenty of availability. "
                             "Map '+N pladser' to 'Åben', NEVER to 'Få pladser'. "
-                            "If you can't tell, default to 'Åben'."
+                            "DEFAULT RULE: If unsure, choose 'Åben'. NEVER default to "
+                            "'Udsolgt' — that requires explicit sold-out text on the page."
                         ),
                     },
                     "rejseleder_name": {

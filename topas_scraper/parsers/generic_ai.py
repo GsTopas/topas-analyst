@@ -303,4 +303,6 @@ def _normalize_status(value: Any) -> str:
         return "Få pladser"
     if "afvent" in s or "pending" in s or "tbd" in s:
         return "Afventer pris"
+    if "ledig" in s or "available" in s or "open" in s or "bestil" in s or "book nu" in s:
+        return "Åben"
     return "Åben"

@@ -53,6 +53,59 @@ TARGETS: list[TourTarget] = []
 
 
 
+# === Domain → canonical operator display-name ===
+# Bruges af load_active_targets() til at gå fra catalog.db's operator-feltet
+# (typisk "viktorsfarmor.dk") til det navn vi gemmer i departures.operator.
+# Skal holde sig synkroniseret med OPERATOR_META-nøglerne nedenfor.
+_DOMAIN_TO_OPERATOR = {
+    "viktorsfarmor.dk":       "Viktors Farmor",
+    "viktorsfarmor":          "Viktors Farmor",
+    "smilrejser.dk":          "Smilrejser",
+    "smilrejser":             "Smilrejser",
+    "stjernegaard.dk":        "Stjernegaard Rejser",
+    "stjernegaard":           "Stjernegaard Rejser",
+    "stjernegaardrejser":     "Stjernegaard Rejser",
+    "stjernegaard-rejser":    "Stjernegaard Rejser",
+    "jysk-rejsebureau.dk":    "Jysk Rejsebureau",
+    "jyskrejsebureau.dk":     "Jysk Rejsebureau",
+    "jysk-rejsebureau":       "Jysk Rejsebureau",
+    "jyskrejsebureau":        "Jysk Rejsebureau",
+    "rubyrejser.dk":          "Ruby Rejser",
+    "ruby-rejser.dk":         "Ruby Rejser",
+    "rubyrejser":             "Ruby Rejser",
+    "ruby-rejser":            "Ruby Rejser",
+    "albatros-travel.dk":     "Albatros Travel",
+    "albatros.dk":            "Albatros Travel",
+    "albatrostravel.dk":      "Albatros Travel",
+    "albatros":               "Albatros Travel",
+    "albatrostravel":         "Albatros Travel",
+    "albatros-travel":        "Albatros Travel",
+    "besttravel.dk":          "Best Travel",
+    "best-travel.dk":         "Best Travel",
+    "besttravel":             "Best Travel",
+    "best-travel":            "Best Travel",
+    "nillesgislev.dk":        "Nilles & Gislev",
+    "nilles-gislev.dk":       "Nilles & Gislev",
+    "nillesgislev":           "Nilles & Gislev",
+    "gjoatours.dk":           "Gjøa Tours",
+    "gjoa.dk":                "Gjøa Tours",
+    "gjoa":                   "Gjøa Tours",
+    "gjoatours":              "Gjøa Tours",
+    "kiplingtravel.dk":       "Kipling Travel",
+    "kipling-travel.dk":      "Kipling Travel",
+    "kiplingtravel":          "Kipling Travel",
+    "kipling-travel":         "Kipling Travel",
+    "vagabondtours.dk":       "Vagabond Tours",
+    "vagabond-tours.dk":      "Vagabond Tours",
+    "vagabondtours":          "Vagabond Tours",
+    "vagabond-tours":         "Vagabond Tours",
+    "fyrholt.dk":             "Fyrholt Rejser",
+    "fyrholtrejser.dk":       "Fyrholt Rejser",
+    "fyrholt":                "Fyrholt Rejser",
+    "fyrholtrejser":          "Fyrholt Rejser",
+}
+
+
 # === Operator metadata — taxonomy.md §2.11 ===
 OPERATOR_META = {
     "Topas":              {"holding": None,                   "segment": "Aktive grupperejser"},
@@ -138,10 +191,14 @@ def load_active_targets(tour_code: Optional[str] = None) -> list["TourTarget"]:
     for a in approved:
         parser_key = a.get("parser_key") or "generic_ai"
         operator_label = a.get("operator") or ""
-        # Title-case the operator label for display (smilrejser.dk -> Smilrejser)
-        if operator_label.endswith(".dk"):
-            operator_label = operator_label[:-3]
-        operator_label = operator_label.replace("-", " ").title().replace(" ", "")
+        # Domain → canonical display name. Falls back to title-case for unknown
+        # domains. Eksplicit mapping er nødvendig fordi naive title-case ville
+        # smelte "viktors farmor" sammen til "Viktorsfarmor" og forårsage
+        # dobbelt-operator-rows i DB (jf. Viktorsfarmor vs Viktors Farmor bug).
+        operator_label = _DOMAIN_TO_OPERATOR.get(
+            operator_label.lower(),
+            operator_label.replace(".dk", "").replace("-", " ").title(),
+        )
         targets.append(TourTarget(
             operator=operator_label or a["operator"],
             parser_key=parser_key,

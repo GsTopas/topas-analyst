@@ -196,6 +196,12 @@ for m_num in months_with_data:
     sign = "+" if total >= 0 else "-"
     header = f"{month_name}  ·  {sign}{_fmt_kr(abs(total))} kr."
 
+    # Tilfoej Oplaering+Research-diff i parentes (hvis der er data)
+    opl_res = g[g["tour_code"].isin(SPECIAL_CODES)]["db_budget_diff"].sum()
+    if not g[g["tour_code"].isin(SPECIAL_CODES)].empty:
+        or_sign = "+" if opl_res >= 0 else "-"
+        header += f"  (Opl/Res: {or_sign}{_fmt_kr(abs(opl_res))} kr.)"
+
     rows = month_rows[m_num]
     tour_col = [t for (t, _) in rows] + [""] * (max_rows - len(rows))
     diff_col = [d for (_, d) in rows] + [""] * (max_rows - len(rows))

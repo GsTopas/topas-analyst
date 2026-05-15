@@ -87,7 +87,7 @@ st.divider()
 
 
 # === Filter-bar ===
-col1, col2, col3 = st.columns(3)
+col1, _ = st.columns([1, 3])
 with col1:
     tour_prefix = st.text_input(
         "Filtrer turkoder (prefix)",
@@ -95,105 +95,70 @@ with col1:
         placeholder="fx ESMV, NOSS, IVXX ...",
         help="Vis kun turkoder der starter med denne tekst. Tom = alle."
     )
-with col2:
-    only_realiseret = st.checkbox(
-        "Kun realiserede ture",
-        value=True,
-        help="Kun rækker hvor Realiseret DB er populeret (kilde-filter er allerede aktivt — denne option er en ekstra spærre)."
-    )
-with col3:
-    show_pivot = st.radio(
-        "Visning",
-        options=["Per måned (pivot)", "Flad tabel"],
-        index=0,
-        horizontal=True,
-    )
 
-
-# Apply filtre
+# Apply filter
 df_filt = df.copy()
 if tour_prefix.strip():
     df_filt = df_filt[df_filt["tour_code"].str.startswith(tour_prefix.strip().upper(), na=False)]
-if only_realiseret:
-    df_filt = df_filt[df_filt["realiseret_db"].notna()]
 
 
-# === Pr. måneds-total ===
-st.markdown("### Total DB-forskel pr. måned")
-monthly = (
-    df_filt.groupby(["month_num", "month"], as_index=False)["db_budget_diff"]
-    .sum()
-    .sort_values("month_num")
+# === Side-om-side maaned-kolonner ===
+# For hver maaned: én kolonne med turkoder + én med DB-budget forskel.
+# Maaneder har forskelligt antal raekker → pad med tomme strenge saa de
+# kan flettes i én tabel.
+
+months_with_data = sorted(
+    df_filt["month_num"].dropna().unique().tolist()
 )
-monthly["Total"] = monthly["db_budget_diff"].apply(
-    lambda v: f"{v:,.0f} kr.".replace(",", ".") if pd.notna(v) else "—"
-)
-monthly_display = monthly[["month", "Total"]].rename(columns={"month": "Måned"})
-st.dataframe(monthly_display, use_container_width=True, hide_index=True)
 
-st.divider()
+if not months_with_data:
+    st.info("Ingen rækker matcher dit filter.")
+    st.stop()
+
+# Find længste maaned for at vide hvor mange raekker tabellen skal have
+month_groups: dict[int, pd.DataFrame] = {}
+for m_num in months_with_data:
+    g = df_filt[df_filt["month_num"] == m_num].sort_values("homecoming_date").reset_index(drop=True)
+    month_groups[m_num] = g
+
+max_rows = max(len(g) for g in month_groups.values())
 
 
-# === Detalje-tabel ===
-if show_pivot.startswith("Per måned"):
-    st.markdown("### Pivot — turkode × måned")
-    st.caption("Celleværdier = DB-forskel ift. budget i kr. Blank = turen er ikke i den måned.")
+def _fmt_kr(v) -> str:
+    if pd.isna(v) or v is None or v == "":
+        return ""
+    try:
+        return f"{int(round(float(v))):,}".replace(",", ".")
+    except (ValueError, TypeError):
+        return ""
 
-    pivot = df_filt.pivot_table(
-        index="tour_code",
-        columns="month_num",
-        values="db_budget_diff",
-        aggfunc="sum",
-    )
 
-    # Omdøb kolonner til måneds-navne
-    pivot.columns = [MONTH_ORDER[c - 1] for c in pivot.columns]
-    # Sortér kolonner i kalender-rækkefølge
-    pivot = pivot.reindex(columns=[m for m in MONTH_ORDER if m in pivot.columns])
+# Byg DataFrame med MultiIndex-kolonner: (Maaned, Tur) og (Maaned, "DB budget forskel")
+columns = []
+data: dict[tuple, list] = {}
+for m_num in months_with_data:
+    month_name = MONTH_ORDER[m_num - 1]
+    g = month_groups[m_num]
+    tour_col = list(g["tour_code"]) + [""] * (max_rows - len(g))
+    diff_col = [_fmt_kr(v) for v in g["db_budget_diff"]] + [""] * (max_rows - len(g))
+    data[(month_name, "Tur")] = tour_col
+    data[(month_name, "DB budget forskel")] = diff_col
+    columns.append((month_name, "Tur"))
+    columns.append((month_name, "DB budget forskel"))
 
-    # Tilføj sum-kolonne pr. tur
-    pivot["Total"] = pivot.sum(axis=1, min_count=1)
-    pivot = pivot.sort_values("Total", ascending=False)
+table = pd.DataFrame(data, columns=pd.MultiIndex.from_tuples(columns))
 
-    # Format som kr.
-    def _fmt(v):
-        if pd.isna(v):
-            return ""
-        return f"{v:,.0f}".replace(",", ".")
+# Total-raekke: sum af db_budget_diff pr. maaned
+total_row: dict[tuple, str] = {}
+for m_num in months_with_data:
+    month_name = MONTH_ORDER[m_num - 1]
+    total = month_groups[m_num]["db_budget_diff"].sum()
+    total_row[(month_name, "Tur")] = "Total"
+    total_row[(month_name, "DB budget forskel")] = _fmt_kr(total)
 
-    st.dataframe(
-        pivot.style.format(_fmt).background_gradient(
-            cmap="RdYlGn",
-            subset=[c for c in pivot.columns if c != "Total"],
-            vmin=-50000, vmax=50000,
-        ),
-        use_container_width=True,
-    )
+table.loc[len(table)] = pd.Series(total_row)
 
-else:
-    st.markdown("### Alle rækker")
-    df_display = df_filt.copy()
-    df_display["Hjemkomst"] = pd.to_datetime(df_display["homecoming_date"], errors="coerce").dt.strftime("%d. %b %Y")
-    df_display["Budget DB"] = df_display["budget_db"].apply(
-        lambda v: f"{v:,.0f}".replace(",", ".") if pd.notna(v) else "—"
-    )
-    df_display["Realiseret DB"] = df_display["realiseret_db"].apply(
-        lambda v: f"{v:,.0f}".replace(",", ".") if pd.notna(v) else "—"
-    )
-    df_display["Δ DB"] = df_display["db_budget_diff"].apply(
-        lambda v: f"{v:+,.0f}".replace(",", ".") if pd.notna(v) else "—"
-    )
-    df_display["Δ Pax"] = df_display["pax_diff"]
-    df_display["Δ DG"] = df_display["dg_diff"].apply(
-        lambda v: f"{v:+.1f}".replace(".", ",") if pd.notna(v) else "—"
-    )
-
-    st.dataframe(
-        df_display[["month", "tour_code", "Hjemkomst", "Budget DB", "Realiseret DB", "Δ DB", "Δ Pax", "Δ DG"]]
-        .rename(columns={"month": "Måned", "tour_code": "Turkode"}),
-        use_container_width=True,
-        hide_index=True,
-    )
+st.dataframe(table, use_container_width=True, hide_index=True)
 
 
 with st.expander("ℹ Hvor kommer data fra?"):

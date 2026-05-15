@@ -1,12 +1,12 @@
 """
-Forecasting — DB-budget-forskel pr. tur pr. måned.
+Turregnskab — DB-afvigelse ift. budget pr. tur pr. måned.
 
 Læser data fra Supabase-tabellen `tour_pl_forecast` der populeres dagligt
 af scripts/sync_forecast.ps1 fra K:\\OFFICE\\Operations\\Turregnskab\\
 Opfølgning\\Turomkostninger 2026.xls.
 
 Vis: matrix med turkode som række, måned som kolonne, DB-forskel som celle.
-Plus pr. måneds-total og grand-total.
+Plus pr. måneds-total og grand-total (YTD).
 """
 from __future__ import annotations
 
@@ -17,7 +17,7 @@ from datetime import datetime, timezone
 import pandas as pd
 import streamlit as st
 
-st.set_page_config(page_title="Forecasting · Topas", page_icon="📈", layout="wide")
+st.set_page_config(page_title="Turregnskab · Topas", page_icon="📊", layout="wide")
 
 # Password-gate
 from topas_scraper._auth import require_auth  # noqa: E402
@@ -79,7 +79,7 @@ available_months_names = [MONTH_ORDER[m - 1] for m in available_months_num]
 col_title, col_total, col_months = st.columns([1.3, 1, 3])
 with col_title:
     st.markdown(
-        f"### 📈 Forecasting  \n"
+        f"### 📊 Turregnskab  \n"
         f"<span style='color:#888;font-size:0.85em'>Synced {sync_label} · "
         f"{len(df)} rækker</span>",
         unsafe_allow_html=True,
@@ -87,7 +87,7 @@ with col_title:
 with col_total:
     st.markdown(
         f"<div style='text-align:right;'>"
-        f"<span style='color:#888;font-size:0.85em'>Total ift. budget</span><br>"
+        f"<span style='color:#888;font-size:0.85em'>DB-afvigelse 2026 (YTD)</span><br>"
         f"<span style='font-size:1.5em;font-weight:600'>{grand_total_str} kr.</span>"
         f"</div>",
         unsafe_allow_html=True,

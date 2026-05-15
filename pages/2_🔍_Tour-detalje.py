@@ -692,11 +692,18 @@ with st.expander(
                 _sitemap_hints_py[domain] = sm_urls
 
         with st.status("🐍 Screening via Python...", expanded=True) as status:
+            # Vigtigt: workers er ikke i Streamlit's main-thread context, så
+            # _emit må IKKE kalde status.update fra worker-threads (NoSessionContext).
+            # Vi buffrer beskeder i en thread-safe list og viser dem efter
+            # screen_competitors returnerer. Caller ser stadig live status via
+            # at status-container'en er åben i UI.
+            import threading as _thr  # noqa: PLC0415
             log_lines: list[str] = []
+            log_lock = _thr.Lock()
 
             def _emit(msg: str) -> None:
-                log_lines.append(msg)
-                status.update(label=msg)
+                with log_lock:
+                    log_lines.append(msg)
 
             try:
                 _domains = [COMPETITOR_DOMAINS[o] for o in selected_ops]

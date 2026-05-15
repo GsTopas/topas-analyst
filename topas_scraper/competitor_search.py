@@ -262,7 +262,12 @@ def _firecrawl_scrape_markdown(url: str, api_key: str) -> Optional[str]:
             log.warning("Firecrawl scrape fejlede for %s: HTTP %d", url, r.status_code)
             return None
         payload = r.json().get("data") or {}
-        return (payload.get("markdown") or "")[:50000]
+        # Cap pr-side markdown til 8000 chars (~2000 tokens) for at holde os
+        # under Claude's 200k token-limit ved op til 25 pages per competitor.
+        # Selv 25 * 8000 = 200k chars (~50k tokens) + prompt + per-page-headers
+        # = ~55k tokens total. Godt under 200k limit med headroom til lange
+        # Topas-keywords.
+        return (payload.get("markdown") or "")[:8000]
     except Exception:
         log.exception("Firecrawl scrape exception for %s", url)
         return None
@@ -273,7 +278,13 @@ def _firecrawl_scrape_markdown(url: str, api_key: str) -> Optional[str]:
 # ---------------------------------------------------------------------------
 
 def _build_search_blob(ctx: ScreeningContext, pages: list[dict]) -> str:
-    """Bygger den tekst-blob Claude analyserer. Matcher n8n's Format Analysis Input."""
+    """Bygger den tekst-blob Claude analyserer. Matcher n8n's Format Analysis Input.
+
+    Hard cap på blob-størrelse for at sikre vi aldrig overstiger Claude's
+    200k token limit. ~600k chars ≈ 150k tokens er sikkert headroom uanset
+    page-count og pr-side størrelse."""
+    MAX_BLOB_CHARS = 600_000
+
     blob = f"Competitor domain: {ctx.competitor_domain}\n"
     blob += f"Searching for: guided group tour to {ctx.search_country}"
     if ctx.search_region:
@@ -283,6 +294,9 @@ def _build_search_blob(ctx: ScreeningContext, pages: list[dict]) -> str:
         blob += "(No pages scraped for this competitor — Firecrawl Search returned 0 URLs.)"
         return blob
     for i, p in enumerate(pages, 1):
+        if len(blob) >= MAX_BLOB_CHARS:
+            blob += f"\n--- (truncated: {len(pages) - i + 1} more pages omitted — blob hit {MAX_BLOB_CHARS} char limit) ---\n"
+            break
         blob += f"--- Page {i} ---\n"
         blob += f"URL: {p.get('url', '')}\n"
         blob += f"Title: {p.get('title', '')}\n"

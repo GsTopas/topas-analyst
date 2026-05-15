@@ -653,21 +653,86 @@ with st.expander(
     )
 
     can_send = bool(screen_country and selected_ops)
-    if st.button(
-        f"🔍 Send screening til n8n ({len(selected_ops)} konkurrenter)",
+
+    # Topas-tour duration som reference (delt mellem begge engines)
+    _ref_duration = (
+        selected_tour.get("durationDays") if selected_tour
+        else selected_catalog_tour.get("duration_days")
+    )
+
+    # To engines: n8n (legacy) og Python (ny). Begge gør samme thing.
+    btn_col1, btn_col2 = st.columns(2)
+    use_python_engine = btn_col1.button(
+        f"🐍 Screen via Python ({len(selected_ops)} konkurrenter)",
         type="primary",
         disabled=not can_send,
+        key=f"screen_py_btn_{selected_tour_code}",
+        help="Ny in-process screening. Real-time progress. Erstatter n8n.",
+    )
+    use_n8n_engine = btn_col2.button(
+        f"🔗 Send til n8n (legacy)",
+        type="secondary",
+        disabled=not can_send,
         key=f"screen_btn_{selected_tour_code}",
-    ):
-        import requests  # noqa: PLC0415
+        help="Gammel webhook-baseret screening. Beholdes som backup indtil Python-versionen er bevist.",
+    )
 
-        # Topas-tour duration sendes som reference — n8n bruger den til at
-        # scorere konkurrent-tours: matchende ±15% (min ±2 dage) = high,
-        # ellers medium.
-        _ref_duration = (
-            selected_tour.get("durationDays") if selected_tour
-            else selected_catalog_tour.get("duration_days")
-        )
+    if use_python_engine:
+        from topas_scraper.competitor_search import screen_competitors  # noqa: PLC0415
+
+        _sitemap_hints_py: dict[str, list[str]] = {}
+        for op_label in selected_ops:
+            domain = COMPETITOR_DOMAINS[op_label]
+            sm_urls = _fetch_sitemap_urls(
+                domain=domain,
+                country=screen_country.strip(),
+                keyword=screen_region.strip(),
+            )
+            if sm_urls:
+                _sitemap_hints_py[domain] = sm_urls
+
+        with st.status("🐍 Screening via Python...", expanded=True) as status:
+            log_lines: list[str] = []
+
+            def _emit(msg: str) -> None:
+                log_lines.append(msg)
+                status.update(label=msg)
+
+            try:
+                _domains = [COMPETITOR_DOMAINS[o] for o in selected_ops]
+                inserted, stats = screen_competitors(
+                    competitor_domains=_domains,
+                    country=screen_country.strip(),
+                    region=screen_region.strip(),
+                    topas_tour_code=selected_tour_code,
+                    topas_duration_days=_ref_duration if _ref_duration else None,
+                    sitemap_hints=_sitemap_hints_py,
+                    on_progress=_emit,
+                    competitor_workers=5,
+                    scrape_workers_per_competitor=4,
+                )
+                status.update(
+                    label=(
+                        f"✓ Færdig · {stats['domains']} konkurrenter · "
+                        f"{stats['total_candidates']} kandidater · "
+                        f"{stats['high_confidence']} high-confidence · "
+                        f"{stats['errors']} fejl"
+                    ),
+                    state="complete",
+                )
+                if log_lines:
+                    with st.expander("Detail-log", expanded=False):
+                        st.code("\n".join(log_lines))
+                st.success(f"Indsat {inserted} kandidat-rækker i Supabase. Gå til 'Review-kandidater' for at godkende.")
+            except Exception as e:
+                status.update(label=f"✗ Python-screening fejlede: {type(e).__name__}", state="error")
+                if os.getenv("APP_DEBUG"):
+                    st.exception(e)
+                else:
+                    st.error(f"Fejl ({type(e).__name__}). Tjek server-logs for detaljer.")
+
+    if use_n8n_engine:
+        import requests  # noqa: PLC0415
 
         # Hent sitemap-URLs for konkurrenter med kendt sitemap (Albatros har).
         # Disse mergeres med Firecrawl Search i n8n for at få 100% coverage —

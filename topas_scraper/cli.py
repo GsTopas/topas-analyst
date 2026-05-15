@@ -141,6 +141,42 @@ def cmd_export(args) -> int:
     return 0
 
 
+def cmd_screen(args) -> int:
+    """Discovery: find candidate competitor tours via Firecrawl + Claude."""
+    load_dotenv()
+    from .competitor_search import screen_competitors  # local — undgår side-effects ved CLI-load
+
+    def emit(msg: str) -> None:
+        print(f"→ {msg}")
+
+    domains = [d.strip() for d in args.competitors.split(",") if d.strip()]
+    if not domains:
+        print("✗ Ingen konkurrenter angivet (--competitors er tom)", file=sys.stderr)
+        return 1
+
+    try:
+        inserted, stats = screen_competitors(
+            competitor_domains=domains,
+            country=args.country,
+            region=args.region or "",
+            topas_tour_code=args.tour or "",
+            topas_duration_days=args.duration,
+            on_progress=emit,
+            competitor_workers=args.workers,
+        )
+    except (RuntimeError, ValueError) as e:
+        print(f"✗ {e}", file=sys.stderr)
+        return 1
+
+    print(f"\n=== Screening færdig ===")
+    print(f"  Konkurrenter:     {stats['domains']}")
+    print(f"  Kandidater total: {stats['total_candidates']}")
+    print(f"  High confidence:  {stats['high_confidence']}")
+    print(f"  Fejl:             {stats['errors']}")
+    print(f"  Indsat i DB:      {inserted}")
+    return 0 if stats["errors"] == 0 else 1
+
+
 def main(argv: list[str] = None) -> int:
     parser = argparse.ArgumentParser(prog="topas-scraper", description="Topas pricing scraper — Madeira slice.")
     parser.add_argument("--db", type=Path, default=DEFAULT_DB_PATH, help="SQLite path (default: data/snapshots.db)")
@@ -158,6 +194,14 @@ def main(argv: list[str] = None) -> int:
     p_export = sub.add_parser("export", help="Re-export dashboard JSON from latest run.")
     p_export.add_argument("--output", type=Path, help="Output path (default: data/dashboard.json)")
 
+    p_screen = sub.add_parser("screen", help="Discovery: find candidate competitor tours via Firecrawl + Claude.")
+    p_screen.add_argument("--competitors", required=True, help="Comma-separated competitor domains (e.g. 'albatros.dk,gjoa.dk')")
+    p_screen.add_argument("--country", required=True, help="Target country (e.g. 'Italien')")
+    p_screen.add_argument("--region", default="", help="Optional AND/OR keyword filter (e.g. 'Apulien AND Cykling')")
+    p_screen.add_argument("--tour", default="", help="Topas tour-code for context (e.g. 'ITTO')")
+    p_screen.add_argument("--duration", type=int, default=None, help="Topas tour duration in days (for tolerance check)")
+    p_screen.add_argument("--workers", type=int, default=5, help="Parallel competitor workers (default 5)")
+
     args = parser.parse_args(argv)
     # Default --tour to None for non-scrape commands so cmd_scrape can read args.tour safely
     if not hasattr(args, "tour"):
@@ -168,6 +212,7 @@ def main(argv: list[str] = None) -> int:
         "report": cmd_report,
         "diff": cmd_diff,
         "export": cmd_export,
+        "screen": cmd_screen,
     }
     return handlers[args.cmd](args)
 

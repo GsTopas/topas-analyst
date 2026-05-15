@@ -278,69 +278,76 @@ def _detail_row_style(row: pd.Series) -> list[str]:
 
 
 def _render_detail_view(df_in: pd.DataFrame, month_nums: list[int]) -> None:
-    """Detalje-tabel: alle ture pr. maaned side om side, opdelt i kategorier
-    (TOPAS / GREENLAND BY TOPAS / VIETNAM BY TOPAS) ligesom kilde-arket.
-
-    Kategori-rubrikker aligner horisontalt paa tvers af maaneder: vi pad'er
-    hver maaneds kategori-slot til max-antal-ture for den kategori paa tvers
-    af alle valgte maaneder. Saa hvis Februar har 15 TOPAS-ture og Januar
-    kun 7, faar Januar 8 tomme padding-rakker saa GREENLAND-headeren staar
-    paa samme raekke i begge kolonner."""
-    # Beregn max-slot-size pr. kategori paa tvers af alle valgte maaneder
-    cat_slot_sizes: dict[str, int] = {}
-    for cat_name in CATEGORY_ORDER:
-        sizes = []
-        for m_num in month_nums:
-            g = df_in[df_in["month_num"] == m_num]
-            cnt = (g["tour_code"].apply(_categorize) == cat_name).sum()
-            sizes.append(cnt)
-        cat_slot_sizes[cat_name] = max(sizes) if sizes else 0
-
-    month_rows: dict[int, list[tuple[str, str]]] = {}
-    for m_num in month_nums:
-        g = df_in[df_in["month_num"] == m_num]
-        month_rows[m_num] = _build_month_rows(g, cat_slot_sizes=cat_slot_sizes)
-
-    max_rows = max(len(r) for r in month_rows.values())
-
-    columns = []
-    data: dict[tuple, list] = {}
-    month_totals: dict[int, float] = {}
+    """Detalje-tabel: en flad liste med kolonner Maaned | Tur | Hjemkomst |
+    DB budget forskel. Sorteret efter maaned, dernaest hjemkomst-dato.
+    Maaneds-totaler vises som indrykkede header-raekker mellem maaneder."""
+    rows = []
     for m_num in month_nums:
         month_name = MONTH_ORDER[m_num - 1]
-        g = df_in[df_in["month_num"] == m_num]
-        total = g["db_budget_diff"].sum()
-        month_totals[m_num] = total
-        sign = "+" if total >= 0 else "-"
-        header = f"{month_name}  ·  {sign}{_fmt_kr(abs(total))} kr."
+        g = df_in[df_in["month_num"] == m_num].copy()
+        g["_special"] = g["tour_code"].isin(SPECIAL_CODES)
+        g = g.sort_values(["_special", "homecoming_date", "tour_code"], na_position="last")
 
-        opl_res = g[g["tour_code"].isin(SPECIAL_CODES)]["db_budget_diff"].sum()
-        if not g[g["tour_code"].isin(SPECIAL_CODES)].empty:
-            or_sign = "+" if opl_res >= 0 else "-"
-            header += f"  (Opl/Res: {or_sign}{_fmt_kr(abs(opl_res))} kr.)"
+        for _, r in g.iterrows():
+            hjem = ""
+            if pd.notna(r["homecoming_date"]):
+                try:
+                    hjem = pd.to_datetime(r["homecoming_date"]).strftime("%d. %b")
+                except (ValueError, TypeError):
+                    hjem = ""
+            rows.append({
+                "Måned": month_name,
+                "Tur": r["tour_code"],
+                "Hjemkomst": hjem,
+                "DB budget forskel": r["db_budget_diff"],
+            })
 
-        rows = month_rows[m_num]
-        tour_col = [t for (t, _) in rows] + [""] * (max_rows - len(rows))
-        diff_col = [d for (_, d) in rows] + [""] * (max_rows - len(rows))
-        data[(header, "Tur")] = tour_col
-        data[(header, "DB budget forskel")] = diff_col
-        columns.append((header, "Tur"))
-        columns.append((header, "DB budget forskel"))
+        # Maaneds-subtotal raekke
+        rows.append({
+            "Måned": month_name,
+            "Tur": f"  {month_name} total",
+            "Hjemkomst": "",
+            "DB budget forskel": g["db_budget_diff"].sum(),
+        })
 
-    table = pd.DataFrame(data, columns=pd.MultiIndex.from_tuples(columns))
+    table = pd.DataFrame(rows)
 
-    total_row: dict[tuple, str] = {}
-    for (header, sub) in columns:
-        m_num = next(mn for mn in month_nums if MONTH_ORDER[mn - 1] in header)
-        if sub == "Tur":
-            total_row[(header, sub)] = "Total"
-        else:
-            total_row[(header, sub)] = _fmt_kr(month_totals[m_num])
-    table.loc[len(table)] = pd.Series(total_row)
+    def _fmt_diff(v):
+        if pd.isna(v) or v == 0:
+            return "0"
+        sign = "+" if v > 0 else "-"
+        return f"{sign}{_fmt_kr(abs(v))}"
 
-    styled = table.style.apply(_detail_row_style, axis=1)
-    _row_h, _header_h = 35, 80
-    _target_h = min(900, _header_h + _row_h * (len(table) + 1))
+    def _color(row: pd.Series) -> list[str]:
+        is_subtotal = isinstance(row["Tur"], str) and row["Tur"].strip().endswith(" total")
+        styles: list[str] = []
+        for col, val in row.items():
+            s = ""
+            if is_subtotal:
+                s = ("background-color:#f1f5f9; font-style:italic; "
+                     "border-top:1px dashed #94a3b8; color:#1e3a5f;")
+                if col == "DB budget forskel" and isinstance(val, (int, float)):
+                    if val < 0:
+                        s += " color:#c0392b; font-weight:700;"
+                    elif val > 0:
+                        s += " color:#1e8449; font-weight:700;"
+            elif col == "Måned":
+                s = "font-weight:700; color:#1e3a5f;"
+            elif col == "DB budget forskel" and isinstance(val, (int, float)):
+                if val < 0:
+                    s = "color:#c0392b;"
+                elif val > 0:
+                    s = "color:#1e8449;"
+                else:
+                    s = "color:#94a3b8;"
+            styles.append(s)
+        return styles
+
+    styled = (table.style
+                   .format({"DB budget forskel": _fmt_diff})
+                   .apply(_color, axis=1))
+    _row_h = 35
+    _target_h = min(900, 60 + _row_h * len(table))
     st.dataframe(styled, use_container_width=True, hide_index=True, height=_target_h)
 
 
@@ -374,19 +381,22 @@ def _render_summary_view(df_in: pd.DataFrame, month_nums: list[int]) -> None:
         styles: list[str] = []
         for col, val in row.items():
             if col == "Måned":
-                s = "font-weight:800; color:#1e3a5f; font-size:1rem;"
+                # Foerste kolonne: fed
+                s = "font-weight:700; color:#1e3a5f;"
             elif col == "Total DB-afvigelse":
+                # Total: ikke fed, kun farvet
                 if isinstance(val, (int, float)) and not pd.isna(val):
                     if val < 0:
-                        s = "color:#c0392b; font-weight:800; font-size:1rem;"
+                        s = "color:#c0392b;"
                     elif val > 0:
-                        s = "color:#1e8449; font-weight:800; font-size:1rem;"
+                        s = "color:#1e8449;"
                     else:
-                        s = "color:#94a3b8; font-weight:700;"
+                        s = "color:#94a3b8;"
                 else:
                     s = ""
             elif col == "Oplæring / Research":
-                s = "font-style:italic; font-weight:700;"
+                # Italic, ikke fed
+                s = "font-style:italic;"
                 if isinstance(val, (int, float)) and not pd.isna(val):
                     if val < 0:
                         s += " color:#c0392b;"
@@ -397,11 +407,11 @@ def _render_summary_view(df_in: pd.DataFrame, month_nums: list[int]) -> None:
             else:  # Ture
                 if isinstance(val, (int, float)) and not pd.isna(val):
                     if val < 0:
-                        s = "color:#c0392b; font-weight:700;"
+                        s = "color:#c0392b;"
                     elif val > 0:
-                        s = "color:#1e8449; font-weight:700;"
+                        s = "color:#1e8449;"
                     else:
-                        s = "color:#94a3b8; font-weight:600;"
+                        s = "color:#94a3b8;"
                 else:
                     s = ""
             styles.append(s)
@@ -479,6 +489,7 @@ def _render_comparison_view(df_in: pd.DataFrame, month_nums: list[int]) -> None:
         pivot = pivot.reindex(columns=[MONTH_ORDER[m - 1] for m in month_nums if MONTH_ORDER[m - 1] in pivot.columns])
         pivot["YTD"] = pivot.sum(axis=1, min_count=1)
         pivot = pivot.sort_values("YTD", ascending=False)
+        pivot.index.name = "Turkode"
     else:
         # Sum pr. familie
         matching = matching.copy()
@@ -502,10 +513,10 @@ def _render_comparison_view(df_in: pd.DataFrame, month_nums: list[int]) -> None:
         if pd.isna(v):
             return ""
         if v < 0:
-            return "color:#c0392b; font-weight:700;"
+            return "color:#c0392b;"
         if v > 0:
-            return "color:#1e8449; font-weight:700;"
-        return "color:#94a3b8; font-weight:600;"
+            return "color:#1e8449;"
+        return "color:#94a3b8;"
 
     fmt_dict = {col: _fmt_or_blank for col in pivot.columns}
     styled = (pivot.style.format(fmt_dict)

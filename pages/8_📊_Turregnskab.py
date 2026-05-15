@@ -142,36 +142,46 @@ CATEGORY_ICONS = {
 }
 
 
-def _build_month_rows(g: pd.DataFrame) -> list[tuple[str, str]]:
+def _build_month_rows(
+    g: pd.DataFrame,
+    cat_slot_sizes: dict[str, int] | None = None,
+) -> list[tuple[str, str]]:
     """Returnér liste af (tur-celle, diff-celle) for én måned med kategori-
-    headere, sub-totaler og en blank linje mellem kategorier."""
+    headere, sub-totaler og en blank linje mellem kategorier.
+
+    Hvis cat_slot_sizes er givet, padder vi hver kategoris tur-blok til
+    præcis den størrelse — så kategori-rubrikker aligner horisontalt på
+    tværs af måneder uanset hvor mange ture hver måned har i kategorien."""
     rows: list[tuple[str, str]] = []
     cats: dict[str, pd.DataFrame] = {
         c: g[g["tour_code"].apply(_categorize) == c]
         for c in CATEGORY_ORDER
     }
     for cat_name in CATEGORY_ORDER:
-        sub = cats[cat_name]
-        if sub.empty:
-            continue
-
-        # Sortér: dato-baserede ture først, Oplæring/Research nederst i TOPAS
-        sub = sub.copy()
+        sub = cats[cat_name].copy()
         sub["_special"] = sub["tour_code"].isin(SPECIAL_CODES)
         sub = sub.sort_values(
             ["_special", "homecoming_date", "tour_code"],
             na_position="last",
         )
 
+        slot_size = cat_slot_sizes[cat_name] if cat_slot_sizes else len(sub)
+        if slot_size == 0:
+            continue
+
         rows.append((CATEGORY_ICONS[cat_name], ""))  # kategori-header med ikon-prefix
         for _, r in sub.iterrows():
             rows.append((r["tour_code"], _fmt_kr(r["db_budget_diff"])))
 
-        cat_total = sub["db_budget_diff"].sum()
-        rows.append((f"   {cat_name} total", _fmt_kr(cat_total)))  # indent saa sub-total er visuelt under kategori
-        rows.append(("", ""))  # spacer
+        # Pad med tomme raekker hvis maaneden har faerre ture end max-slot
+        padding = slot_size - len(sub)
+        for _ in range(padding):
+            rows.append(("", ""))
 
-    # Fjern sidste spacer hvis den er der
+        cat_total = sub["db_budget_diff"].sum() if not sub.empty else 0
+        rows.append((f"   {cat_name} total", _fmt_kr(cat_total)))
+        rows.append(("", ""))  # spacer mellem kategorier
+
     while rows and rows[-1] == ("", ""):
         rows.pop()
     return rows
@@ -255,14 +265,25 @@ def _render_detail_view(df_in: pd.DataFrame, month_nums: list[int]) -> None:
     """Detalje-tabel: alle ture pr. maaned side om side, opdelt i kategorier
     (TOPAS / GREENLAND BY TOPAS / VIETNAM BY TOPAS) ligesom kilde-arket.
 
-    NB: Maaneder har forskelligt antal ture i hver kategori, saa kategori-
-    headers aligner ikke altid horisontalt paa tvers af kolonner. Vi viser
-    dem alligevel fordi de matcher Excel-strukturen, og fed/farve-styling
-    goer dem genkendelige selv naar de er forskudt."""
+    Kategori-rubrikker aligner horisontalt paa tvers af maaneder: vi pad'er
+    hver maaneds kategori-slot til max-antal-ture for den kategori paa tvers
+    af alle valgte maaneder. Saa hvis Februar har 15 TOPAS-ture og Januar
+    kun 7, faar Januar 8 tomme padding-rakker saa GREENLAND-headeren staar
+    paa samme raekke i begge kolonner."""
+    # Beregn max-slot-size pr. kategori paa tvers af alle valgte maaneder
+    cat_slot_sizes: dict[str, int] = {}
+    for cat_name in CATEGORY_ORDER:
+        sizes = []
+        for m_num in month_nums:
+            g = df_in[df_in["month_num"] == m_num]
+            cnt = (g["tour_code"].apply(_categorize) == cat_name).sum()
+            sizes.append(cnt)
+        cat_slot_sizes[cat_name] = max(sizes) if sizes else 0
+
     month_rows: dict[int, list[tuple[str, str]]] = {}
     for m_num in month_nums:
         g = df_in[df_in["month_num"] == m_num]
-        month_rows[m_num] = _build_month_rows(g)
+        month_rows[m_num] = _build_month_rows(g, cat_slot_sizes=cat_slot_sizes)
 
     max_rows = max(len(r) for r in month_rows.values())
 

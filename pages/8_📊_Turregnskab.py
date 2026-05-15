@@ -187,29 +187,45 @@ def _build_month_rows(
     return rows
 
 
-# Custom CSS for alle tabellers headers — fed paa tvers af de 3 faner.
+# Custom CSS — fed paa headers + tal paa tvers af de 3 faner.
+# Streamlit Arrow-renderer har forskellige DOM-strukturer i forskellige
+# versioner; vi targetterer alle kendte selectors for at sikre at fed rammer.
 st.markdown(
     """
     <style>
-    [data-testid="stDataFrame"] thead tr:first-child th {
+    /* === Headers (top-level + sub-level) === */
+    [data-testid="stDataFrame"] thead th,
+    [data-testid="stDataFrame"] th,
+    div[data-testid="stDataFrameResizable"] thead th,
+    .stDataFrame thead th,
+    [role="columnheader"],
+    [role="columnheader"] *,
+    [data-testid="stDataFrame"] [role="columnheader"] {
         font-weight: 800 !important;
-        font-size: 0.95rem !important;
-        background-color: #f8fafc !important;
         color: #0f172a !important;
-        border-bottom: 1px solid #cbd5e1 !important;
+        background-color: #f1f5f9 !important;
     }
-    [data-testid="stDataFrame"] thead tr:nth-child(2) th {
-        font-weight: 700 !important;
-        color: #1e3a5f !important;
+    /* Glide-data-grid (Streamlit's underliggende grid-engine) headers */
+    [data-testid="stDataFrame"] canvas + div [role="columnheader"] {
+        font-weight: 800 !important;
+    }
+    /* === Body cells === */
+    [data-testid="stDataFrame"] tbody td,
+    [data-testid="stDataFrame"] td {
         font-size: 0.9rem !important;
     }
-    [data-testid="stDataFrame"] tbody td {
-        font-size: 0.9rem !important;
-    }
-    /* Tab-labels selv */
-    button[data-baseweb="tab"] p {
+    /* === Tab-labels === */
+    button[data-baseweb="tab"] p,
+    .stTabs [data-baseweb="tab"] {
         font-weight: 700 !important;
         font-size: 0.95rem !important;
+    }
+    /* === Metric-bokse (st.metric) ovre under tabellen === */
+    [data-testid="stMetricLabel"] {
+        font-weight: 700 !important;
+    }
+    [data-testid="stMetricValue"] {
+        font-weight: 800 !important;
     }
     </style>
     """,

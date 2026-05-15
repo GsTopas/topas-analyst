@@ -137,15 +137,14 @@ def _heatmap_bg(v: float | None, scale_abs: float) -> str:
     except (ValueError, TypeError):
         return ""
     intensity = min(abs(v) / scale_abs, 1.0)
-    # Justér saa selv smaa vaerdier viser mindst lidt farve (gamma 0.6)
-    intensity = intensity ** 0.6
+    # Gamma 0.5 saa selv smaa vaerdier viser tydelig farve
+    intensity = intensity ** 0.5
     if v > 0:
-        # Groen: #1e8449 ved fuld intensity, fader til hvid
-        alpha = intensity * 0.65  # max 65% saa text forbliver laesbar
+        # Groen: max alpha 0.75 (text forbliver laesbar)
+        alpha = intensity * 0.75
         return f"background-color: rgba(46, 139, 87, {alpha:.2f});"
     else:
-        # Roed: #c0392b ved fuld intensity
-        alpha = intensity * 0.65
+        alpha = intensity * 0.75
         return f"background-color: rgba(192, 57, 43, {alpha:.2f});"
 
 def _categorize(code: str) -> str:

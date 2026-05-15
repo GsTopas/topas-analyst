@@ -53,6 +53,28 @@ A MATCH means ALL THREE are true:
 If the input says "(No pages scraped for this competitor — Firecrawl Search returned 0 URLs.)" — return matches=[] with noMatchReason="Search returned 0 URLs for this competitor."
 
 ==========================================================================
+MEMORY: reviewer's previous rejections (negative examples)
+==========================================================================
+
+The search blob may contain a section labelled "PREVIOUSLY REJECTED MATCHES".
+These are tours that the reviewer (Gorm, head of agency at Topas) has
+explicitly rejected in earlier screenings, each with a reason like
+"Forkert geografi" (wrong region), "Kultur ikke vandring" (culture, not
+hiking), "Forkert format — Individuel" (self-drive package), "Krydstog ikke
+vandretur" (cruise, not hiking), "Højskole-koncept" (academy-style trip),
+"Manglende data" (no published prices/dates).
+
+USE THESE AS NEGATIVE EXAMPLES. If a candidate tour you're considering looks
+similar in pattern to one of these rejections — same kind of content, same
+category mismatch, same format issue — you should:
+  1. Lower its matchConfidence (from high → medium, or medium → low)
+  2. Add a note like "Similar to previously rejected: <pattern>"
+  3. Or skip it entirely if the pattern match is very strong
+
+The reviewer's rejection-reasons are a strong signal of what does NOT count
+as competition for Topas. Learn from them.
+
+==========================================================================
 KEYWORD/REGION FILTER — supports AND/OR boolean operators
 ==========================================================================
 
@@ -274,10 +296,53 @@ def _firecrawl_scrape_markdown(url: str, api_key: str) -> Optional[str]:
 
 
 # ---------------------------------------------------------------------------
+# Memory layer: hent tidligere afvisninger som negative examples for Claude
+# ---------------------------------------------------------------------------
+
+def _fetch_rejection_examples(
+    topas_tour_code: str,
+    competitor_domain: str,
+    limit: int = 10,
+) -> list[dict]:
+    """Henter de seneste afvisninger for samme tour-kode eller konkurrent.
+    Bruges som negative examples i Claude's prompt — så den lærer af tidligere
+    review-beslutninger uden at vi skal genoplære den.
+
+    Returnerer liste med {tour_name, tour_url, reason}. Tom liste hvis ingen
+    afvisninger findes (fx ny tour-kode/konkurrent).
+    """
+    conn = catalog_db.connect()
+    try:
+        rows = conn.execute(
+            """
+            SELECT c.tour_name, c.tour_url, c.tour_category, c.competitor_domain,
+                   c.topas_tour_code, d.reason, d.decided_at
+            FROM review_decisions d
+            JOIN n8n_candidates c ON d.target_id = c.n8n_row_id
+            WHERE d.target_kind = 'n8n_candidate'
+              AND d.action = 'reject'
+              AND c.tour_name <> ''
+              AND (c.topas_tour_code = ? OR c.competitor_domain = ?)
+            ORDER BY d.decided_at DESC
+            LIMIT ?
+            """,
+            (topas_tour_code, competitor_domain, limit),
+        ).fetchall()
+        return [dict(r) for r in rows]
+    except Exception:
+        log.exception("Fejl ved hent af rejection-eksempler for %s/%s", topas_tour_code, competitor_domain)
+        return []
+
+
+# ---------------------------------------------------------------------------
 # Classifier (Anthropic)
 # ---------------------------------------------------------------------------
 
-def _build_search_blob(ctx: ScreeningContext, pages: list[dict]) -> str:
+def _build_search_blob(
+    ctx: ScreeningContext,
+    pages: list[dict],
+    rejection_examples: Optional[list[dict]] = None,
+) -> str:
     """Bygger den tekst-blob Claude analyserer. Matcher n8n's Format Analysis Input.
 
     Hard cap på blob-størrelse for at sikre vi aldrig overstiger Claude's
@@ -290,6 +355,22 @@ def _build_search_blob(ctx: ScreeningContext, pages: list[dict]) -> str:
     if ctx.search_region:
         blob += f" — keyword/region filter: {ctx.search_region}"
     blob += "\n\n"
+
+    # Memory layer: inject reviewer's previous rejections for this tour-code /
+    # competitor. Claude generaliserer fra dem og undgår at klassificere
+    # lignende kandidater som high-confidence matches.
+    if rejection_examples:
+        blob += "PREVIOUSLY REJECTED MATCHES (reviewer decisions — use as negative examples):\n"
+        for ex in rejection_examples:
+            same_tour = ex.get("topas_tour_code") == ctx.topas_tour_code
+            same_domain = ex.get("competitor_domain") == ctx.competitor_domain
+            scope = "same tour-code" if same_tour else ("same competitor" if same_domain else "related")
+            reason = (ex.get("reason") or "?").replace("\n", " ")
+            blob += f"  - [{scope}] {ex.get('tour_name', '')[:80]}\n"
+            blob += f"    URL: {ex.get('tour_url', '')}\n"
+            blob += f"    Rejected because: {reason[:200]}\n"
+        blob += "\n"
+
     if not pages:
         blob += "(No pages scraped for this competitor — Firecrawl Search returned 0 URLs.)"
         return blob
@@ -537,7 +618,14 @@ def _screen_one_competitor(
         list(ex.map(_scrape_one, candidate_urls))
 
     emit(f"[{domain}] ✓ Scraping færdig · klassificerer med Claude...")
-    search_blob = _build_search_blob(ctx, pages)
+    rejection_examples = _fetch_rejection_examples(
+        topas_tour_code=ctx.topas_tour_code,
+        competitor_domain=ctx.competitor_domain,
+        limit=10,
+    )
+    if rejection_examples:
+        emit(f"[{domain}] ✓ Henter {len(rejection_examples)} tidligere afvisninger som context")
+    search_blob = _build_search_blob(ctx, pages, rejection_examples=rejection_examples)
     classifier_output = _classify(search_blob, anthropic_client)
     rows = _normalize_matches(classifier_output, ctx, page_count=len(pages))
 

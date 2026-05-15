@@ -98,42 +98,87 @@ try {
     $found = 0
 
     # FORMEL: diff = (I or 0) - (C or 0)
-    # Inkluder raekker hvor B er udfyldt OG (I or C har vaerdi). Kolonne F
-    # (Budget GBT/VBT individuel) ignoreres helt - vi bruger kun kolonne C
-    # som budget, saa for Greenland/Vietnam-ture (hvor C er tom) bliver
-    # diff = I (positiv) i stedet for Excel's M (=I-F).
+    # - Almindelige turer (Topas/GBT/VBT): krav om I udfyldt. Diff = I - C.
+    # - 'Budget [maaned]'-raekker: inkluder selv uden I (ufordelt budget).
+    #   Diff = -C. Track current section saa GBT og VBT 'Budget Januar' faar
+    #   unikke tour_codes ('Budget Januar (GBT)' / 'Budget Januar (VBT)').
+    # - Kolonne F ignoreres helt.
+    $currentSection = "TOPAS"  # default; opdateres naar vi rammer en sektion-header
     for ($r = 6; $r -le $usedRows; $r++) {
-      $a = $sheet.Cells.Item($r, 1).Value2   # Hjemkomst dato (Excel serial)
+      $a = $sheet.Cells.Item($r, 1).Value2   # Hjemkomst dato eller sektion-header
       $b = $sheet.Cells.Item($r, 2).Value2   # Turkode eller "Budget Januar"
       $c = $sheet.Cells.Item($r, 3).Value2   # Budget DB
       $i = $sheet.Cells.Item($r, 9).Value2   # Realiseret DB
       $l = $sheet.Cells.Item($r, 12).Value2  # Pax-diff
 
-      # Filter: B skal vaere udfyldt, og enten I eller C skal have vaerdi
-      if ($null -eq $b) { continue }
-      if ($null -eq $i -and $null -eq $c) { continue }
+      # Track current section ud fra A-vaerdien (kategori-header)
+      if ($null -ne $a) {
+        $aStr = [string]$a
+        if ($aStr -match "GREENLAND BY TOPAS") { $currentSection = "GBT" }
+        elseif ($aStr -match "VIETNAM BY TOPAS") { $currentSection = "VBT" }
+        elseif ($aStr -eq "TOPAS") { $currentSection = "TOPAS" }
+      }
 
+      if ($null -eq $b) { continue }
       $bStr = [string]$b
       if ($bStr -eq "Turkode" -or $bStr.Length -lt 4) { continue }
 
-      # Numeriske vaerdier (0 hvis blank)
-      $iVal = if ($null -ne $i -and $i -is [double]) { [double]$i } else { 0.0 }
-      $cVal = if ($null -ne $c -and $c -is [double]) { [double]$c } else { 0.0 }
-      $diff = $iVal - $cVal
+      # Klassificer raekke:
+      $isBudgetMonth = $bStr -match "^Budget\s+\w+"
+      $hasI = $null -ne $i -and $i -is [double]
+      $hasC = $null -ne $c -and $c -is [double]
 
-      # Drop hvis diff er noejagtigt 0 (no-op raekker)
+      if ($isBudgetMonth) {
+        # 'Budget [maaned]'-raekke: krav om C, men I maa vaere tom (ufordelt)
+        if (-not $hasC) { continue }
+        # Unik tour_code via section-prefix
+        $tourCode = "$bStr ($currentSection)"
+        $homecoming = $null
+        $homecomingDt = $null
+        if ($null -ne $a -and $a -is [double] -and $a -gt 40000 -and $a -lt 60000) {
+          $homecomingDt = [DateTime]::FromOADate($a)
+          $homecoming = $homecomingDt.ToString("yyyy-MM-dd")
+        }
+        # Krav: dato i 2026 + samme maaned som fanen
+        if ($null -eq $homecomingDt -or
+            $homecomingDt.Year -ne 2026 -or
+            $homecomingDt.Month -ne $m.Num) {
+          continue
+        }
+        $iVal = if ($hasI) { [double]$i } else { 0.0 }
+        $cVal = [double]$c
+        $diff = $iVal - $cVal
+        if ($diff -eq 0) { continue }
+
+        $rows += [PSCustomObject]@{
+          month            = $sheetName
+          month_num        = $m.Num
+          tour_code        = $tourCode
+          homecoming_date  = $homecoming
+          budget_db        = $cVal
+          realiseret_db    = if ($hasI) { [double]$i } else { $null }
+          db_budget_diff   = $diff
+          pax_diff         = $null
+          dg_diff          = $null
+        }
+        $found++
+        continue
+      }
+
+      # Almindelige turer: krav om I udfyldt
+      if (-not $hasI) { continue }
+
+      $iVal = [double]$i
+      $cVal = if ($hasC) { [double]$c } else { 0.0 }
+      $diff = $iVal - $cVal
       if ($diff -eq 0) { continue }
 
-      # Konverter Excel-dato (serial) til DateTime
       $homecoming = $null
       $homecomingDt = $null
       if ($null -ne $a -and $a -is [double] -and $a -gt 40000 -and $a -lt 60000) {
         $homecomingDt = [DateTime]::FromOADate($a)
         $homecoming = $homecomingDt.ToString("yyyy-MM-dd")
       }
-
-      # Filter: A-vaerdien (hjemkomst dato) skal vaere i 2026 OG samme maaned
-      # som fanen. Excel-fanen indeholder rester af 2025-data + andre maaneder.
       if ($null -eq $homecomingDt -or
           $homecomingDt.Year -ne 2026 -or
           $homecomingDt.Month -ne $m.Num) {
@@ -148,8 +193,8 @@ try {
         month_num        = $m.Num
         tour_code        = $bStr
         homecoming_date  = $homecoming
-        budget_db        = if ($null -ne $c) { [double]$c } else { $null }
-        realiseret_db    = if ($null -ne $i) { [double]$i } else { $null }
+        budget_db        = if ($hasC) { [double]$c } else { $null }
+        realiseret_db    = $iVal
         db_budget_diff   = $diff
         pax_diff         = $paxDiff
         dg_diff          = $null

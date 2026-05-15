@@ -240,13 +240,22 @@ def _detail_row_style(row: pd.Series) -> list[str]:
 
 
 def _render_detail_view(df_in: pd.DataFrame, month_nums: list[int]) -> None:
-    """Detalje-tabel: alle ture pr. maaned side om side, opdelt i kategorier."""
-    month_rows: dict[int, list[tuple[str, str]]] = {}
+    """Detalje-tabel: alle ture pr. maaned side om side. Maaneder har forskelligt
+    antal ture saa horizontale sub-rubrikker (TOPAS/GBT/VBT) ville misaligne
+    paa tvars af kolonner. Derfor: flad raekkeliste sorteret efter hjemkomst-dato
+    + Opl/Res til sidst. Brug Maaneds-overblik for kategori-opdelt syn."""
+    # Byg pr. maaned: en flad liste af (tur, diff) sorteret efter dato, Opl/Res sidst
+    month_lists: dict[int, list[tuple[str, str]]] = {}
     for m_num in month_nums:
-        g = df_in[df_in["month_num"] == m_num]
-        month_rows[m_num] = _build_month_rows(g)
+        g = df_in[df_in["month_num"] == m_num].copy()
+        g["_special"] = g["tour_code"].isin(SPECIAL_CODES)
+        g = g.sort_values(["_special", "homecoming_date", "tour_code"], na_position="last")
+        month_lists[m_num] = [
+            (r["tour_code"], _fmt_kr(r["db_budget_diff"]))
+            for _, r in g.iterrows()
+        ]
 
-    max_rows = max(len(r) for r in month_rows.values())
+    max_rows = max(len(lst) for lst in month_lists.values())
 
     columns = []
     data: dict[tuple, list] = {}
@@ -264,7 +273,7 @@ def _render_detail_view(df_in: pd.DataFrame, month_nums: list[int]) -> None:
             or_sign = "+" if opl_res >= 0 else "-"
             header += f"  (Opl/Res: {or_sign}{_fmt_kr(abs(opl_res))} kr.)"
 
-        rows = month_rows[m_num]
+        rows = month_lists[m_num]
         tour_col = [t for (t, _) in rows] + [""] * (max_rows - len(rows))
         diff_col = [d for (_, d) in rows] + [""] * (max_rows - len(rows))
         data[(header, "Tur")] = tour_col
@@ -274,6 +283,7 @@ def _render_detail_view(df_in: pd.DataFrame, month_nums: list[int]) -> None:
 
     table = pd.DataFrame(data, columns=pd.MultiIndex.from_tuples(columns))
 
+    # Grand-Total-raekke nederst
     total_row: dict[tuple, str] = {}
     for (header, sub) in columns:
         m_num = next(mn for mn in month_nums if MONTH_ORDER[mn - 1] in header)
@@ -283,7 +293,40 @@ def _render_detail_view(df_in: pd.DataFrame, month_nums: list[int]) -> None:
             total_row[(header, sub)] = _fmt_kr(month_totals[m_num])
     table.loc[len(table)] = pd.Series(total_row)
 
-    styled = table.style.apply(_detail_row_style, axis=1)
+    # Simplified styling: kun Total-raekken + farve-koder paa tal
+    def _flat_row_style(row: pd.Series) -> list[str]:
+        tour_cell = ""
+        for (_h, sub), val in row.items():
+            if sub == "Tur":
+                tour_cell = str(val).strip()
+                break
+        is_total = tour_cell == "Total"
+        is_opl = tour_cell in SPECIAL_CODES
+
+        styles = []
+        for (_h, sub), val in row.items():
+            s = ""
+            if is_total:
+                s = ("background-color:#fff4e6; color:#7c2d12; "
+                     "font-weight:800; font-size:1.05rem; "
+                     "border-top:2px solid #d97706;")
+            elif is_opl:
+                s = "font-style:italic; color:#475569;"
+                if sub == "DB budget forskel" and isinstance(val, str) and val:
+                    if val.startswith("-"):
+                        s += " color:#c0392b;"
+                    elif val != "0":
+                        s += " color:#1e8449;"
+            else:
+                if sub == "DB budget forskel" and isinstance(val, str) and val:
+                    if val.startswith("-"):
+                        s = "color:#c0392b; font-weight:500;"
+                    elif val != "0":
+                        s = "color:#1e8449; font-weight:500;"
+            styles.append(s)
+        return styles
+
+    styled = table.style.apply(_flat_row_style, axis=1)
     _row_h, _header_h = 35, 80
     _target_h = min(900, _header_h + _row_h * (len(table) + 1))
     st.dataframe(styled, use_container_width=True, hide_index=True, height=_target_h)

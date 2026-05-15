@@ -115,11 +115,19 @@ if not months_with_data:
     st.info("Ingen rækker matcher dit filter.")
     st.stop()
 
-# Find længste maaned for at vide hvor mange raekker tabellen skal have
+# Find længste maaned for at vide hvor mange raekker tabellen skal have.
+# Inden for hver maaned sorteres turkode-raekker efter homecoming_date,
+# saa placeres Oplæring + Research sidst (de har ingen dato).
+SPECIAL_CODES = {"Oplæring", "Research"}
 month_groups: dict[int, pd.DataFrame] = {}
 for m_num in months_with_data:
-    g = df_filt[df_filt["month_num"] == m_num].sort_values("homecoming_date").reset_index(drop=True)
-    month_groups[m_num] = g
+    sub = df_filt[df_filt["month_num"] == m_num].copy()
+    sub["_is_special"] = sub["tour_code"].isin(SPECIAL_CODES)
+    sub = sub.sort_values(
+        ["_is_special", "homecoming_date", "tour_code"],
+        na_position="last",
+    ).drop(columns="_is_special").reset_index(drop=True)
+    month_groups[m_num] = sub
 
 max_rows = max(len(g) for g in month_groups.values())
 

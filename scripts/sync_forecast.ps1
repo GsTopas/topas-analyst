@@ -147,6 +147,48 @@ try {
       }
       $found++
     }
+
+    # === Saerlige raekker: Oplæring + Research ===
+    # Disse er angivet via kolonne A som label (B er tom). Budget i C, realiseret i I.
+    # DB-budget-forskel udregnes som I - C.
+    #
+    # Skip hvis fanen ikke har 2026-turdata (sandsynligvis stadig 2025-rester):
+    # i saa fald er Oplæring/Research ogsaa fra 2025 og hoerer ikke i 2026-forecast.
+    if ($found -eq 0) {
+      Write-Host "  $sheetName : 0 raekker (fanen mangler 2026-data, skipper ogsaa Oplaering/Research)"
+      continue
+    }
+
+    for ($r = 6; $r -le $usedRows; $r++) {
+      $a = $sheet.Cells.Item($r, 1).Value2
+      if ($null -eq $a) { continue }
+      $aStr = [string]$a
+      if ($aStr -notmatch "^(Oplæring|Research)\s*$") { continue }
+
+      $c = $sheet.Cells.Item($r, 3).Value2   # Budget
+      $i = $sheet.Cells.Item($r, 9).Value2   # Realiseret
+
+      # Krav: I skal have vaerdi (ellers er udgiften ikke realiseret endnu)
+      if ($null -eq $i) { continue }
+
+      $cVal = if ($null -ne $c) { [double]$c } else { 0.0 }
+      $iVal = [double]$i
+      $diff = $iVal - $cVal
+
+      $rows += [PSCustomObject]@{
+        month            = $sheetName
+        month_num        = $m.Num
+        tour_code        = $aStr.Trim()
+        homecoming_date  = $null
+        budget_db        = $cVal
+        realiseret_db    = $iVal
+        db_budget_diff   = $diff
+        pax_diff         = $null
+        dg_diff          = $null
+      }
+      $found++
+    }
+
     Write-Host "  $sheetName : $found raekker"
   }
 }

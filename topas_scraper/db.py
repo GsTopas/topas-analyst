@@ -350,6 +350,26 @@ def detect_status_anomaly(
     if previous is None:
         return None
 
+    # Anti-flicker guard: kræv mindst 4 timer mellem observationerne for at undgå
+    # at LLM-fluktuationer mellem to tæt-spacede cron-runs udløser falske anomalier.
+    try:
+        from datetime import datetime as _dt
+        def _parse(ts):
+            return _dt.fromisoformat((ts or "").replace("Z", "+00:00"))
+        gap = (_parse(latest["observed_at"]) - _parse(previous["observed_at"])).total_seconds()
+        if gap < 4 * 3600:
+            return None
+    except (ValueError, TypeError, KeyError):
+        pass
+
+    # Regress-guard: 'Garanteret' → 'Afventer pris' med identisk pris er flicker,
+    # ikke en reel withdrawal.
+    prev_status = (previous["availability_status"] or "").strip().lower()
+    curr_status = (latest["availability_status"] or "").strip().lower()
+    if prev_status == "garanteret" and curr_status == "afventer pris":
+        if previous["price_dkk"] == latest["price_dkk"]:
+            return None
+
     prev_cat = _categorize(previous["availability_status"])
 
     base = {

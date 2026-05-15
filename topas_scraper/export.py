@@ -469,7 +469,33 @@ def _detect_status_anomaly_from_list(snapshots: list) -> Optional[dict]:
     if previous is None:
         return None
 
+    # Anti-flicker guard: hvis previous og current er observeret tæt på hinanden
+    # (typisk to cron-runs minutter fra hinanden), er det LLM-fluktuation, ikke
+    # en reel statusændring fra operatørens side. Krav: mindst 4 timer.
+    try:
+        from datetime import datetime as _dt
+        def _parse(ts):
+            return _dt.fromisoformat((ts or "").replace("Z", "+00:00"))
+        prev_dt = _parse(previous["observed_at"])
+        curr_dt = _parse(latest["observed_at"])
+        gap_seconds = (curr_dt - prev_dt).total_seconds()
+        if gap_seconds < 4 * 3600:
+            return None
+    except (ValueError, TypeError, KeyError):
+        pass
+
     prev_cat = _categorize(previous["availability_status"])
+
+    # Regress-guard: skip uplausible transitions. 'Garanteret' (bekræftet med pris)
+    # → 'Afventer pris' (pris endnu ikke publiceret) er en regress der ikke giver
+    # mening — typisk LLM-fluktuation eller pris-felt parsed forskelligt mellem
+    # to scrapes. Hvis prisen oven i købet er identisk, er det 100% flicker.
+    prev_status = (previous["availability_status"] or "").strip().lower()
+    curr_status = (latest["availability_status"] or "").strip().lower()
+    if prev_status == "garanteret" and curr_status == "afventer pris":
+        if previous.get("price_dkk") == latest.get("price_dkk"):
+            return None
+
     base = {
         "previous_state": previous["availability_status"],
         "previous_observed_at": previous["observed_at"],

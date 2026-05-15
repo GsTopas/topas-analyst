@@ -114,6 +114,10 @@ try {
       $bStr = [string]$b
       if ($bStr -eq "Turkode" -or $bStr.Length -lt 4) { continue }
 
+      # Drop turer hvor DB-forskel er noejagtigt 0 (Oplaering/Research bevares
+      # separat senere). Disse traekker stoejen i UI'et uden at tilfoere noget.
+      if ($mVal -is [double] -and $mVal -eq 0) { continue }
+
       # Konverter Excel-dato (serial) til DateTime
       $homecoming = $null
       $homecomingDt = $null

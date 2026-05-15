@@ -43,20 +43,17 @@ def _load_forecast() -> pd.DataFrame:
     from topas_scraper._pg_conn import connect as pg_connect  # noqa: PLC0415
 
     conn = pg_connect()
-    with conn.cursor() as cur:
-        cur.execute("""
-            SELECT month, month_num, tour_code, homecoming_date,
-                   budget_db, realiseret_db, db_budget_diff,
-                   pax_diff, dg_diff, synced_at
-            FROM tour_pl_forecast
-            ORDER BY month_num, homecoming_date, tour_code
-        """)
-        rows = cur.fetchall()
-        cols = [c[0] for c in cur.description]
+    rows = conn.execute("""
+        SELECT month, month_num, tour_code, homecoming_date,
+               budget_db, realiseret_db, db_budget_diff,
+               pax_diff, dg_diff, synced_at
+        FROM tour_pl_forecast
+        ORDER BY month_num, homecoming_date, tour_code
+    """).fetchall()
 
     if not rows:
         return pd.DataFrame()
-    return pd.DataFrame(rows, columns=cols)
+    return pd.DataFrame([dict(r) for r in rows])
 
 
 df = _load_forecast()

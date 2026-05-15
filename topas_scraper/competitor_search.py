@@ -141,13 +141,22 @@ For EACH match, verify and report TWO booleans honestly. CRITICAL: each can be t
   • null — couldn't determine from scraped content
 
 - hasFixedDepartures:
-  • true — you found ACTUAL departure dates with prices in the content
-  • false — page explicitly states no departures available
-  • null — couldn't find specific dates BUT there's a clear booking-section
-    anchor/tab/heading. NEVER set to false in this case — set null.
+  • true — the tour-CONCEPT has fixed published departure dates. This is
+    true EVEN IF some/all are currently "Udsolgt" / "Sold out" / "Ingen
+    ledige datoer". Sold-out departures are still fixed departures — the
+    reviewer wants to track them as competitor signals (price history,
+    market demand). What matters is "did this tour have a fixed departure
+    table?", not "can you book today?".
+  • false — page explicitly states the tour is a custom/private/on-request
+    package with no fixed schedule ("Kontakt os for tilbud", "På
+    forespørgsel", "Indhent tilbud", self-drive packages).
+  • null — couldn't find departure dates AND there's no clear booking
+    section. Use null when uncertain. NEVER set to false just because the
+    tour is sold out.
 
-  Use null GENEROUSLY. False positives ("Nej" when it's actually yes) are
-  much worse than nulls.
+  Use null GENEROUSLY for genuine uncertainty. False positives ("Nej" when
+  it's actually yes) are much worse than nulls. And remember: sold-out is
+  still YES.
 
 For each match, ALSO classify:
 - tourCategory: "vandre" | "cykel" | "kultur" | "kombineret" | "andet"
@@ -537,7 +546,13 @@ def _normalize_matches(
                 search_country=ctx.search_country,
                 search_region=ctx.search_region,
                 topas_tour_code=ctx.topas_tour_code,
-                has_match=(has_guide is True and has_fixed is True),
+                # has_match betyder "relevant konkurrent at tracke i markedsanalyse".
+                # Vi kræver dansk guide + at det er en gruppetur (= ikke explicit
+                # custom/private). Udsolgte tours TÆLLER STADIG som matches —
+                # de er stærke markeds-signaler (efterspørgsel) og deres pris-
+                # historik er værdifuld. Kun has_fixed_departures=False (eksplicit
+                # custom/on-request) ekskluderer.
+                has_match=(has_guide is True and has_fixed is not False),
                 tour_name=str(m.get("tourName") or ""),
                 tour_url=str(m.get("tourUrl") or ""),
                 duration_days=_to_int_or_none(m.get("durationDays")),

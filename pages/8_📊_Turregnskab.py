@@ -233,51 +233,6 @@ st.markdown(
     unsafe_allow_html=True,
 )
 
-CATEGORY_HEADER_VALUES = set(CATEGORY_ICONS.values())
-SUBTOTAL_SUFFIX = " total"
-
-
-def _detail_row_style(row: pd.Series) -> list[str]:
-    """CSS pr. celle for detalje-tabellen."""
-    tour_cell = ""
-    for (_header, sub), val in row.items():
-        if sub == "Tur":
-            tour_cell = str(val)
-            break
-
-    styles: list[str] = []
-    tour_stripped = tour_cell.strip()
-    is_cat_header = tour_cell in CATEGORY_HEADER_VALUES
-    is_subtotal = tour_stripped.endswith(SUBTOTAL_SUFFIX) and tour_stripped != "Total"
-    is_grand_total = tour_stripped == "Total"
-
-    for (_header, sub), val in row.items():
-        s = ""
-        if is_cat_header:
-            s = ("background-color:#1e3a5f; color:#ffffff; font-weight:800; "
-                 "font-size:0.95rem; letter-spacing:0.5px; padding:8px 4px;")
-        elif is_subtotal:
-            s = ("font-weight:700; font-style:italic; border-top:1px dashed #94a3b8; "
-                 "color:#475569; background-color:#f8fafc;")
-        elif is_grand_total:
-            s = ("background-color:#fff4e6; color:#7c2d12; font-weight:800; "
-                 "font-size:1.05rem; border-top:2px solid #d97706;")
-        else:
-            # Alle data-tal i fed
-            if sub == "DB budget forskel" and isinstance(val, str) and val:
-                if val.startswith("-"):
-                    s = "color:#c0392b; font-weight:700;"
-                elif val and val != "0":
-                    s = "color:#1e8449; font-weight:700;"
-                else:
-                    s = "font-weight:700;"
-            elif sub == "Tur" and val:
-                # Turkode i semi-fed
-                s = "font-weight:600;"
-        styles.append(s)
-    return styles
-
-
 def _render_detail_view(df_in: pd.DataFrame, month_nums: list[int]) -> None:
     """Detalje-tabel: side-om-side maaneds-kolonner med Topas/GBT/VBT-rubrikker.
 

@@ -23,6 +23,7 @@ from .client import FirecrawlClient
 from .config import TARGETS, DEFAULT_DB_PATH, TourTarget, load_active_targets
 from .db import (
     connect, start_run, finish_run, upsert_tour, replace_departures,
+    fetch_departures,
 )
 from .export import export
 from .extraction_schema import TOUR_EXTRACTION_SCHEMA
@@ -224,17 +225,35 @@ def run_scrape(
                 emit(f"  ↳ meals extraction skipped: {exc}")
 
             upsert_tour(conn, tour_dict, run_id)
-            # Guard mod degraded scrape: hvis vi ikke fandt nogen afgange men
-            # tour-siden faktisk havde data (from_price_dkk blev udtrukket),
-            # er det sandsynligvis en parser/vision-fejl — IKKE en reel "tom
-            # afgangsliste". Skip DELETE+INSERT så historikken bevares.
+            # Guards mod degraded scrape — beskytter DB mod Firecrawl/LLM-fejl
+            # der returnerer mangelfulde/forkerte data. To kategorier:
+            #
+            # 1. Tom liste men siden havde data: from_price_dkk er sat men
+            #    departures=[]. Parser fandt åbenbart fra-prisen men ingen
+            #    afgange — sandsynligvis en JS-render-glitch.
+            #
+            # 2. Thin result: vi har eksisterende data i DB for denne tour,
+            #    og nye scrape giver markant færre departures (< 75% af før).
+            #    Det er det mønster vi så med ITTO La Fontanella 2026-05-13:
+            #    34 → 21 + ændret pris på én. Sandsynligvis LLM-hallucination.
+            existing_deps = fetch_departures(conn, target.operator, tour_dict["tour_slug"])
+            existing_count = len(existing_deps)
+            new_count = len(departures)
+            degraded = False
+            degraded_reason = ""
+
             if not departures and tour_dict.get("from_price_dkk"):
-                emit(f"  ↳ ⚠ degraded scrape: 0 afgange men fra-pris fundet — behold eksisterende DB-rækker")
-                dep_count = 0
                 degraded = True
+                degraded_reason = "0 afgange men fra-pris fundet"
+            elif existing_count >= 4 and new_count < int(existing_count * 0.75):
+                degraded = True
+                degraded_reason = f"thin result: {new_count} afgange (havde {existing_count})"
+
+            if degraded:
+                emit(f"  ↳ ⚠ degraded scrape: {degraded_reason} — behold eksisterende DB-rækker")
+                dep_count = existing_count
             else:
                 dep_count = replace_departures(conn, target.operator, tour_dict["tour_slug"], departures, run_id)
-                degraded = False
             success += 1
             from_str = (
                 f"fra {tour_dict.get('from_price_dkk')} kr."

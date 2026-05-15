@@ -201,14 +201,20 @@ st.markdown(
     .stDataFrame thead th,
     [role="columnheader"],
     [role="columnheader"] *,
+    [role="columnheader"] span,
+    [role="columnheader"] div,
     [data-testid="stDataFrame"] [role="columnheader"] {
-        font-weight: 800 !important;
+        font-weight: 900 !important;
         color: #0f172a !important;
-        background-color: #f1f5f9 !important;
+        background-color: #e2e8f0 !important;
+        font-size: 0.95rem !important;
     }
     /* Glide-data-grid (Streamlit's underliggende grid-engine) headers */
-    [data-testid="stDataFrame"] canvas + div [role="columnheader"] {
-        font-weight: 800 !important;
+    [data-testid="stDataFrame"] canvas + div [role="columnheader"],
+    [data-testid="stDataFrame"] [role="row"][aria-rowindex="1"] *,
+    [data-testid="stDataFrame"] [role="row"][aria-rowindex="2"] * {
+        font-weight: 900 !important;
+        color: #0f172a !important;
     }
     /* === Body cells === */
     [data-testid="stDataFrame"] tbody td,
@@ -249,27 +255,38 @@ def _render_detail_view(df_in: pd.DataFrame, month_nums: list[int]) -> None:
     columns = []
     data: dict[tuple, list] = {}
     month_totals: dict[int, float] = {}
+    # Map fra header-streng tilbage til month_num (saa total_row-lookup virker)
+    header_to_month: dict[str, int] = {}
     for m_num in month_nums:
         month_name = MONTH_ORDER[m_num - 1]
         g = df_in[df_in["month_num"] == m_num]
-        month_totals[m_num] = g["db_budget_diff"].sum()
+        total = g["db_budget_diff"].sum()
+        month_totals[m_num] = total
+
+        # Header: Maaned + total + Opl/Res-parentes
+        sign = "+" if total >= 0 else "-"
+        header = f"{month_name}  ·  {sign}{_fmt_kr(abs(total))} kr."
+        opl_res_g = g[g["tour_code"].isin(SPECIAL_CODES)]
+        if not opl_res_g.empty:
+            opl_res = opl_res_g["db_budget_diff"].sum()
+            or_sign = "+" if opl_res >= 0 else "-"
+            header += f"  (Opl/Res: {or_sign}{_fmt_kr(abs(opl_res))} kr.)"
+        header_to_month[header] = m_num
 
         rows = month_rows[m_num]
-        # Pad kun tilbage til max_rows for at fa et rektangulart DataFrame
-        # (et teknisk krav for pandas) - IKKE for alignment.
         tour_col = [t for (t, _) in rows] + [""] * (max_rows - len(rows))
         diff_col = [d for (_, d) in rows] + [""] * (max_rows - len(rows))
-        data[(month_name, "Tur")] = tour_col
-        data[(month_name, "DB budget forskel")] = diff_col
-        columns.append((month_name, "Tur"))
-        columns.append((month_name, "DB budget forskel"))
+        data[(header, "Tur")] = tour_col
+        data[(header, "DB budget forskel")] = diff_col
+        columns.append((header, "Tur"))
+        columns.append((header, "DB budget forskel"))
 
     table = pd.DataFrame(data, columns=pd.MultiIndex.from_tuples(columns))
 
     # Grand-Total-raekke nederst
     total_row: dict[tuple, str] = {}
     for (header, sub) in columns:
-        m_num = next(mn for mn in month_nums if MONTH_ORDER[mn - 1] == header)
+        m_num = header_to_month[header]
         if sub == "Tur":
             total_row[(header, sub)] = "Total"
         else:

@@ -140,7 +140,6 @@ def _format_dk_date(d: datetime | date | None) -> str:
 price_changes: list[dict] = []   # priser der er ændret
 status_changes: list[dict] = []  # status-overgange (incl. anomalies)
 new_departures: list[dict] = []  # afgange der dukkede op i vinduet
-vanished: list[dict] = []         # afgange der forsvandt i vinduet
 anomalies: list[dict] = []        # withdrawn / fast_sellout markeret af export
 
 # Build a tour-code → name lookup for context
@@ -168,9 +167,6 @@ def _process_departures(operator: str, tour_code: str, tour_name: str, deps: lis
     for d in deps:
         start_iso = d.get("startDate")
         start_dt = _parse_iso(start_iso) if start_iso else None
-        # Drop very old departures (already past) for "vanished" and "new" sections
-        # but keep them for price/status delta tracking.
-
         # Pris-ændring (har vi priceDelta-data?)
         # Topas's egne pris-ændringer udelades — rapporten handler om markedet
         # (konkurrenter), og Gorm kender allerede sine egne pris-skift.
@@ -208,22 +204,6 @@ def _process_departures(operator: str, tour_code: str, tour_name: str, deps: lis
                     "previous_observed_at": anomaly.get("previous_observed_at"),
                     "changed_at": anomaly.get("current_observed_at"),
                     "severity": anomaly.get("severity"),
-                })
-
-        # Forsvundne afgange (isArchived=true OG datoen er stadig fremtidig =
-        # interessant signal)
-        if d.get("isArchived"):
-            today = datetime.utcnow()
-            is_future = start_dt is not None and start_dt > today
-            if is_future:
-                vanished.append({
-                    "operator": operator,
-                    "tour_code": tour_code,
-                    "tour_name": tour_name,
-                    "start_date": start_iso,
-                    "last_status": d.get("status"),
-                    "last_price": d.get("priceDkk"),
-                    "last_seen_run": d.get("lastSeenRun"),
                 })
 
         # Nye afgange — afgang dukket op INDEN FOR vinduet for en tour der
@@ -267,15 +247,13 @@ for c in competitors:
 # Top-line metrics
 # ---------------------------------------------------------------------------
 
-m1, m2, m3, m4, m5 = st.columns(5)
+m1, m2, m3, m4 = st.columns(4)
 m1.metric("🚨 Bemærkelsesværdige", len(anomalies),
           help="Withdrawn fra salg eller hurtigt udsolgt — kræver opmærksomhed")
 m2.metric("Δ Pris-ændringer", len(price_changes))
 m3.metric("🆕 Nye afgange", len(new_departures),
           help="Nye afgange i tours vi allerede havde data om før vinduet — fx en ekstra afgang åbnet for salg")
-m4.metric("🗓️ Fjernede afgange", len(vanished),
-          help="Afgange der ikke længere er på operatørens side, men hvor datoen stadig er fremtidig")
-m5.metric("Total fund", len(anomalies) + len(price_changes) + len(new_departures) + len(vanished))
+m4.metric("Total fund", len(anomalies) + len(price_changes) + len(new_departures))
 
 st.divider()
 
@@ -420,36 +398,10 @@ if new_departures:
 
 
 # ---------------------------------------------------------------------------
-# 🗓️ Fjernede afgange (kun fremtidige)
-# ---------------------------------------------------------------------------
-
-if vanished:
-    st.markdown(f"## 🗓️ Fjernede afgange ({len(vanished)})")
-    st.caption(
-        "Afgange der ikke længere er på operatørens side, men hvor datoen stadig "
-        "er i fremtiden. Sandsynlig årsag: udsolgt eller annulleret."
-    )
-    df_vanished = pd.DataFrame([
-        {
-            "Operatør": v["operator"],
-            "Tur-kode": v["tour_code"],
-            "Tur": v["tour_name"][:60],
-            "Afgang": _format_dk_date(_parse_iso(v["start_date"])),
-            "Sidst set som": v.get("last_status") or "—",
-            "Sidste pris": f"{v['last_price']:,} kr.".replace(",", ".") if v.get("last_price") else "—",
-        }
-        for v in sorted(vanished, key=lambda x: x.get("start_date", ""))
-    ])
-    st.dataframe(df_vanished, use_container_width=True, hide_index=True)
-
-    st.divider()
-
-
-# ---------------------------------------------------------------------------
 # Empty state
 # ---------------------------------------------------------------------------
 
-if not (anomalies or price_changes or new_departures or vanished):
+if not (anomalies or price_changes or new_departures):
     st.info(
         "Ingen ændringer i vinduet. Det kan skyldes at:\n"
         "  - Du har ikke kørt nye scrapes i perioden\n"

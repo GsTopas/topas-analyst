@@ -100,7 +100,7 @@ Alle pages bruger `from topas_scraper._auth import require_auth` til password-ga
 - `firstSeen` — ældste snapshot for afgangen (bruges af "Nye afgange"-sektion).
 - `isArchived` — true hvis last_seen_run ≠ current run.
 
-Ugentlig-rapport viser disse i 5 sektioner: Bemærkelsesværdige, Pris-fald, Pris-stigninger, Nye afgange, Fjernede afgange.
+Ugentlig-rapport viser disse i 4 sektioner: Bemærkelsesværdige, Pris-fald, Pris-stigninger, Nye afgange. ("Fjernede afgange" droppet 2026-05-15 — funktionen virkede ikke pålideligt.)
 
 ## Typiske opgaver
 

@@ -116,8 +116,19 @@ try {
 
       # Konverter Excel-dato (serial) til DateTime
       $homecoming = $null
+      $homecomingDt = $null
       if ($null -ne $a -and $a -is [double] -and $a -gt 40000 -and $a -lt 60000) {
-        $homecoming = [DateTime]::FromOADate($a).ToString("yyyy-MM-dd")
+        $homecomingDt = [DateTime]::FromOADate($a)
+        $homecoming = $homecomingDt.ToString("yyyy-MM-dd")
+      }
+
+      # Filter: A-vaerdien (hjemkomst dato) skal vaere i 2026 OG samme maaned
+      # som fanen. Excel-fanen indeholder rester af 2025-data + andre maaneder
+      # som vi ikke vil have med i forecast.
+      if ($null -eq $homecomingDt -or
+          $homecomingDt.Year -ne 2026 -or
+          $homecomingDt.Month -ne $m.Num) {
+        continue
       }
 
       $paxDiff = $null

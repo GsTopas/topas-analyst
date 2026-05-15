@@ -3,7 +3,8 @@ Streamlit page: Topas-katalog
 
 Shows the authoritative list of Topas Fællesrejse-med-turleder products,
 fetched from topas.dk's filtered search page. Indicates which tours have
-competitor mapping (in TARGETS) and which need setup.
+godkendte konkurrenter (i approved_competitor_targets) og hvilke der mangler
+mapping.
 
 This is the foundation for the per-tour-code workflow — once we know what
 Topas sells, we can systematically work through which tours need competitor
@@ -22,8 +23,8 @@ require_auth()
 
 import pandas as pd
 
+from topas_scraper import catalog_db
 from topas_scraper.client import FirecrawlClient
-from topas_scraper.config import TARGETS
 from topas_scraper.db import (
     connect,
     upsert_topas_catalog,
@@ -196,6 +197,25 @@ with tab_add:
 # ---------------------------------------------------------------------------
 
 conn = connect()
+
+# Auto-sync has_competitor_mapping mod approved_competitor_targets ved hver
+# page-load. Tidligere blev kolonnen kun opdateret ved katalog-refresh, så den
+# blev stale når reviewer godkendte nye konkurrenter. Cheap query (~10ms).
+try:
+    conn.execute(
+        """
+        UPDATE topas_catalog tc
+        SET has_competitor_mapping = CASE
+          WHEN EXISTS (
+            SELECT 1 FROM approved_competitor_targets a
+            WHERE a.topas_tour_code = tc.tour_code
+          ) THEN 1 ELSE 0 END
+        """
+    )
+    conn.commit()
+except Exception:
+    pass  # silent — bare vis det vi har
+
 catalog_rows = fetch_topas_catalog(conn)
 
 if not catalog_rows:
@@ -217,13 +237,19 @@ df = pd.DataFrame(
 
 mapped = int(df["has_competitor_mapping"].sum())
 unmapped = len(df) - mapped
-mapped_codes_in_targets = len({t.competes_with for t in TARGETS if t.competes_with})
+
+# Total approved competitor URLs på tværs af alle tours (kan være >1 pr tour-kode)
+try:
+    cat_conn = catalog_db.connect()
+    approved_total = len(catalog_db.list_approved_targets(cat_conn))
+except Exception:
+    approved_total = 0
 
 m1, m2, m3, m4 = st.columns(4)
 m1.metric("Topas-ture i katalog", len(df))
-m2.metric("Med konkurrent-mapping", mapped, help="Antal ture der har konkurrenter i TARGETS-listen")
-m3.metric("Mangler mapping", unmapped, help="Ture i katalog uden konkurrent-mapping endnu")
-m4.metric("Tur-koder i TARGETS", mapped_codes_in_targets, help=f"Unikke competes_with-koder i den nuværende TARGETS-liste")
+m2.metric("Med konkurrent-mapping", mapped, help="Antal Topas-ture med mindst én godkendt konkurrent i Supabase")
+m3.metric("Mangler mapping", unmapped, help="Ture i katalog uden konkurrent-mapping endnu — kør screening fra Tour-detalje")
+m4.metric("Godkendte konkurrent-URLs", approved_total, help="Total antal godkendte konkurrent-targets på tværs af alle tours")
 
 
 # ---------------------------------------------------------------------------
@@ -308,8 +334,8 @@ else:
 
     st.caption(
         f"{len(filtered)} ture vist (af {len(df)} i katalogen). "
-        f"✅ = konkurrent-mapping findes i TARGETS · "
-        f"⚠️ = mangler konkurrent-mapping (skal sættes op manuelt)"
+        f"✅ = mindst én godkendt konkurrent (i Supabase) · "
+        f"⚠️ = mangler godkendte konkurrenter — kør screening fra Tour-detalje"
     )
 
 
@@ -320,17 +346,14 @@ else:
 if unmapped > 0:
     with st.expander(f"📝 {unmapped} ture mangler konkurrent-mapping — næste skridt"):
         st.markdown("""
-        Hver tur i katalogen uden ⚠️ mangler en eller flere konkurrent-produkter
-        i `topas_scraper/config.py` `TARGETS`-listen, så ugentlig scraping kan
-        hente sammenlignings-data.
+        Hver tur uden ✅ mangler godkendte konkurrenter i Supabase. Workflow:
 
-        **Manuelt workflow** (indtil discovery-feature er bygget):
-        i `topas_scraper/config.py` `TARGETS`-listen, så ugentlig scraping kan
-        hente sammenlignings-data.
-
-        **Manuelt workflow** (indtil discovery-feature er bygget):
-        1. Vælg en tur uden mapping fra tabellen ovenfor
-        2. Find konkurrenter manuelt (Stjernegaard, Albatros, Smilrejser, Viktors Farmor osv.)
-        3. Tilføj URLs til `TARGETS`-listen i `topas_scraper/config.py`
-        4. Test med `python -m topas_scraper.cli scrape`
+        1. Vælg en tur uden mapping fra tabellen ovenfor (eller fra dropdown
+           i **🔍 Tour-detalje**)
+        2. Klik **🔍 Screen konkurrenter** — Python-pipelinen finder kandidater
+           via Firecrawl Search + Claude
+        3. Gennemgå kandidaterne i **📋 Review-kandidater** og godkend de
+           relevante
+        4. Godkendte targets ender i `approved_competitor_targets` i Supabase
+           og fanges automatisk af næste ugentlig scrape (cron mandag morgen)
         """)

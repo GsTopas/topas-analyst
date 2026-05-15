@@ -278,7 +278,14 @@ def run_scrape(
                     if fut.result():
                         success += 1
                 except Exception as e:
-                    emit(f"  ↳ uventet fejl i worker: {e}")
+                    # Inkluder exception-type + repr så vi ser hvad der faktisk
+                    # er galt (ellers viste den bare en tom besked for visse
+                    # exception-typer).
+                    import traceback  # noqa: PLC0415
+                    tb_short = traceback.format_exc().splitlines()[-3:]
+                    emit(f"  ↳ uventet fejl i worker: {type(e).__name__}: {e!r}")
+                    for line in tb_short:
+                        emit(f"     {line.strip()}")
 
         finish_run(conn, run_id, success)
         emit(f"{success}/{len(targets)} succeeded")

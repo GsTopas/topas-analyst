@@ -134,11 +134,11 @@ def _categorize(code: str) -> str:
 
 CATEGORY_ORDER = ["TOPAS", "GREENLAND BY TOPAS", "VIETNAM BY TOPAS"]
 
-# Ikon-prefix saa man straks ser at det er en underrubrik (ikke en turkode).
-CATEGORY_ICONS = {
-    "TOPAS": "▸ TOPAS",
-    "GREENLAND BY TOPAS": "▸ GREENLAND BY TOPAS",
-    "VIETNAM BY TOPAS": "▸ VIETNAM BY TOPAS",
+# Korte labels som vises i Detalje-tab (matches brugerens template).
+CATEGORY_SHORT = {
+    "TOPAS": "Topas",
+    "GREENLAND BY TOPAS": "GBT",
+    "VIETNAM BY TOPAS": "VBT",
 }
 
 
@@ -147,7 +147,7 @@ def _build_month_rows(
     cat_slot_sizes: dict[str, int] | None = None,
 ) -> list[tuple[str, str]]:
     """Returnér liste af (tur-celle, diff-celle) for én måned med kategori-
-    headere, sub-totaler og en blank linje mellem kategorier.
+    rubrikker (Topas/GBT/VBT), sub-totaler og spacer mellem kategorier.
 
     Hvis cat_slot_sizes er givet, padder vi hver kategoris tur-blok til
     præcis den størrelse — så kategori-rubrikker aligner horisontalt på
@@ -169,7 +169,8 @@ def _build_month_rows(
         if slot_size == 0:
             continue
 
-        rows.append((CATEGORY_ICONS[cat_name], ""))  # kategori-header med ikon-prefix
+        short = CATEGORY_SHORT[cat_name]
+        rows.append((short, ""))  # kategori-header
         for _, r in sub.iterrows():
             rows.append((r["tour_code"], _fmt_kr(r["db_budget_diff"])))
 
@@ -179,7 +180,7 @@ def _build_month_rows(
             rows.append(("", ""))
 
         cat_total = sub["db_budget_diff"].sum() if not sub.empty else 0
-        rows.append((f"   {cat_name} total", _fmt_kr(cat_total)))
+        rows.append((f"{short} total", _fmt_kr(cat_total)))
         rows.append(("", ""))  # spacer mellem kategorier
 
     while rows and rows[-1] == ("", ""):
@@ -278,76 +279,95 @@ def _detail_row_style(row: pd.Series) -> list[str]:
 
 
 def _render_detail_view(df_in: pd.DataFrame, month_nums: list[int]) -> None:
-    """Detalje-tabel: en flad liste med kolonner Maaned | Tur | Hjemkomst |
-    DB budget forskel. Sorteret efter maaned, dernaest hjemkomst-dato.
-    Maaneds-totaler vises som indrykkede header-raekker mellem maaneder."""
-    rows = []
+    """Detalje-tabel: side-om-side maaneds-kolonner med kategori-rubrikker
+    (Topas / GBT / VBT). Kategori-blokke padder til ens stoerrelse paa
+    tvers af maaneder saa rubrikker aligner horisontalt."""
+    # Beregn max-slot-size pr. kategori paa tvers af alle valgte maaneder
+    cat_slot_sizes: dict[str, int] = {}
+    for cat_name in CATEGORY_ORDER:
+        sizes = []
+        for m_num in month_nums:
+            g = df_in[df_in["month_num"] == m_num]
+            cnt = (g["tour_code"].apply(_categorize) == cat_name).sum()
+            sizes.append(cnt)
+        cat_slot_sizes[cat_name] = max(sizes) if sizes else 0
+
+    month_rows: dict[int, list[tuple[str, str]]] = {}
+    for m_num in month_nums:
+        g = df_in[df_in["month_num"] == m_num]
+        month_rows[m_num] = _build_month_rows(g, cat_slot_sizes=cat_slot_sizes)
+
+    max_rows = max(len(r) for r in month_rows.values()) if month_rows else 0
+
+    # Byg MultiIndex-kolonner: (maaned, Tur|DB budget forskel)
+    columns = []
+    data: dict[tuple, list] = {}
+    month_totals: dict[int, float] = {}
     for m_num in month_nums:
         month_name = MONTH_ORDER[m_num - 1]
-        g = df_in[df_in["month_num"] == m_num].copy()
-        g["_special"] = g["tour_code"].isin(SPECIAL_CODES)
-        g = g.sort_values(["_special", "homecoming_date", "tour_code"], na_position="last")
+        g = df_in[df_in["month_num"] == m_num]
+        month_totals[m_num] = g["db_budget_diff"].sum()
 
-        for _, r in g.iterrows():
-            hjem = ""
-            if pd.notna(r["homecoming_date"]):
-                try:
-                    hjem = pd.to_datetime(r["homecoming_date"]).strftime("%d. %b")
-                except (ValueError, TypeError):
-                    hjem = ""
-            rows.append({
-                "Måned": month_name,
-                "Tur": r["tour_code"],
-                "Hjemkomst": hjem,
-                "DB budget forskel": r["db_budget_diff"],
-            })
+        rows = month_rows[m_num]
+        tour_col = [t for (t, _) in rows] + [""] * (max_rows - len(rows))
+        diff_col = [d for (_, d) in rows] + [""] * (max_rows - len(rows))
+        data[(month_name, "Tur")] = tour_col
+        data[(month_name, "DB budget forskel")] = diff_col
+        columns.append((month_name, "Tur"))
+        columns.append((month_name, "DB budget forskel"))
 
-        # Maaneds-subtotal raekke
-        rows.append({
-            "Måned": month_name,
-            "Tur": f"  {month_name} total",
-            "Hjemkomst": "",
-            "DB budget forskel": g["db_budget_diff"].sum(),
-        })
+    table = pd.DataFrame(data, columns=pd.MultiIndex.from_tuples(columns))
 
-    table = pd.DataFrame(rows)
+    # Grand-Total-raekke nederst
+    total_row: dict[tuple, str] = {}
+    for (header, sub) in columns:
+        m_num = next(mn for mn in month_nums if MONTH_ORDER[mn - 1] == header)
+        if sub == "Tur":
+            total_row[(header, sub)] = "Total"
+        else:
+            total_row[(header, sub)] = _fmt_kr(month_totals[m_num])
+    table.loc[len(table)] = pd.Series(total_row)
 
-    def _fmt_diff(v):
-        if pd.isna(v) or v == 0:
-            return "0"
-        sign = "+" if v > 0 else "-"
-        return f"{sign}{_fmt_kr(abs(v))}"
+    # Styling-helper-funktion
+    cat_labels = set(CATEGORY_SHORT.values())  # {"Topas", "GBT", "VBT"}
 
-    def _color(row: pd.Series) -> list[str]:
-        is_subtotal = isinstance(row["Tur"], str) and row["Tur"].strip().endswith(" total")
-        styles: list[str] = []
-        for col, val in row.items():
+    def _style(row: pd.Series) -> list[str]:
+        tour_cell = ""
+        for (_h, sub), val in row.items():
+            if sub == "Tur":
+                tour_cell = str(val).strip()
+                break
+
+        is_cat_header = tour_cell in cat_labels
+        is_subtotal = tour_cell.endswith(" total") and tour_cell != "Total"
+        is_grand_total = tour_cell == "Total"
+
+        styles = []
+        for (_h, sub), val in row.items():
             s = ""
-            if is_subtotal:
+            if is_cat_header:
+                s = ("background-color:#1e3a5f; color:#ffffff; font-weight:700; "
+                     "letter-spacing:0.3px;")
+            elif is_subtotal:
                 s = ("background-color:#f1f5f9; font-style:italic; "
-                     "border-top:1px dashed #94a3b8; color:#1e3a5f;")
-                if col == "DB budget forskel" and isinstance(val, (int, float)):
-                    if val < 0:
-                        s += " color:#c0392b; font-weight:700;"
-                    elif val > 0:
-                        s += " color:#1e8449; font-weight:700;"
-            elif col == "Måned":
-                s = "font-weight:700; color:#1e3a5f;"
-            elif col == "DB budget forskel" and isinstance(val, (int, float)):
-                if val < 0:
-                    s = "color:#c0392b;"
-                elif val > 0:
-                    s = "color:#1e8449;"
-                else:
-                    s = "color:#94a3b8;"
+                     "font-weight:700; color:#1e3a5f; "
+                     "border-top:1px dashed #94a3b8;")
+            elif is_grand_total:
+                s = ("background-color:#fff4e6; color:#7c2d12; font-weight:800; "
+                     "border-top:2px solid #d97706;")
+            else:
+                # Almindelige tur-rakker: ikke fede, bare farvet diff
+                if sub == "DB budget forskel" and isinstance(val, str) and val:
+                    if val.startswith("-"):
+                        s = "color:#c0392b;"
+                    elif val != "0":
+                        s = "color:#1e8449;"
             styles.append(s)
         return styles
 
-    styled = (table.style
-                   .format({"DB budget forskel": _fmt_diff})
-                   .apply(_color, axis=1))
-    _row_h = 35
-    _target_h = min(900, 60 + _row_h * len(table))
+    styled = table.style.apply(_style, axis=1)
+    _row_h, _header_h = 35, 70
+    _target_h = min(900, _header_h + _row_h * (len(table) + 1))
     st.dataframe(styled, use_container_width=True, hide_index=True, height=_target_h)
 
 
@@ -536,7 +556,10 @@ with tab_summary:
     _render_summary_view(df_filt, months_with_data)
 
 with tab_detail:
-    st.caption("Alle ture pr. måned side om side, opdelt i TOPAS / GREENLAND / VIETNAM.")
+    st.caption(
+        "Alle ture pr. måned side om side, opdelt i kategorier: "
+        "**Topas** · **GBT** (Greenland by Topas) · **VBT** (Vietnam by Topas)."
+    )
     _render_detail_view(df_filt, months_with_data)
 
 with tab_compare:

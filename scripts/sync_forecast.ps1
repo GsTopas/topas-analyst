@@ -97,26 +97,32 @@ try {
     $usedRows = $sheet.UsedRange.Rows.Count
     $found = 0
 
-    # Data starter typisk omkring raekke 9 (efter headers paa 4-5 + TOPAS-sektion 6-8)
+    # FORMEL: diff = (I or 0) - (C or 0)
+    # Inkluder raekker hvor B er udfyldt OG (I or C har vaerdi). Kolonne F
+    # (Budget GBT/VBT individuel) ignoreres helt - vi bruger kun kolonne C
+    # som budget, saa for Greenland/Vietnam-ture (hvor C er tom) bliver
+    # diff = I (positiv) i stedet for Excel's M (=I-F).
     for ($r = 6; $r -le $usedRows; $r++) {
       $a = $sheet.Cells.Item($r, 1).Value2   # Hjemkomst dato (Excel serial)
-      $b = $sheet.Cells.Item($r, 2).Value2   # Turkode
+      $b = $sheet.Cells.Item($r, 2).Value2   # Turkode eller "Budget Januar"
       $c = $sheet.Cells.Item($r, 3).Value2   # Budget DB
       $i = $sheet.Cells.Item($r, 9).Value2   # Realiseret DB
       $l = $sheet.Cells.Item($r, 12).Value2  # Pax-diff
-      $mVal = $sheet.Cells.Item($r, 13).Value2  # DB budget diff
-      $n = $sheet.Cells.Item($r, 14).Value2  # DG-diff
 
-      # Filter: B, I og M skal alle have vaerdi
-      if ($null -eq $b -or $null -eq $i -or $null -eq $mVal) { continue }
+      # Filter: B skal vaere udfyldt, og enten I eller C skal have vaerdi
+      if ($null -eq $b) { continue }
+      if ($null -eq $i -and $null -eq $c) { continue }
 
-      # B skal vaere en turkode-streng, ikke fx "Hjemkomst dato"-header
       $bStr = [string]$b
       if ($bStr -eq "Turkode" -or $bStr.Length -lt 4) { continue }
 
-      # Drop turer hvor DB-forskel er noejagtigt 0 (Oplaering/Research bevares
-      # separat senere). Disse traekker stoejen i UI'et uden at tilfoere noget.
-      if ($mVal -is [double] -and $mVal -eq 0) { continue }
+      # Numeriske vaerdier (0 hvis blank)
+      $iVal = if ($null -ne $i -and $i -is [double]) { [double]$i } else { 0.0 }
+      $cVal = if ($null -ne $c -and $c -is [double]) { [double]$c } else { 0.0 }
+      $diff = $iVal - $cVal
+
+      # Drop hvis diff er noejagtigt 0 (no-op raekker)
+      if ($diff -eq 0) { continue }
 
       # Konverter Excel-dato (serial) til DateTime
       $homecoming = $null
@@ -127,8 +133,7 @@ try {
       }
 
       # Filter: A-vaerdien (hjemkomst dato) skal vaere i 2026 OG samme maaned
-      # som fanen. Excel-fanen indeholder rester af 2025-data + andre maaneder
-      # som vi ikke vil have med i forecast.
+      # som fanen. Excel-fanen indeholder rester af 2025-data + andre maaneder.
       if ($null -eq $homecomingDt -or
           $homecomingDt.Year -ne 2026 -or
           $homecomingDt.Month -ne $m.Num) {
@@ -144,10 +149,10 @@ try {
         tour_code        = $bStr
         homecoming_date  = $homecoming
         budget_db        = if ($null -ne $c) { [double]$c } else { $null }
-        realiseret_db    = [double]$i
-        db_budget_diff   = [double]$mVal
+        realiseret_db    = if ($null -ne $i) { [double]$i } else { $null }
+        db_budget_diff   = $diff
         pax_diff         = $paxDiff
-        dg_diff          = if ($null -ne $n -and $n -is [double]) { [double]$n } else { $null }
+        dg_diff          = $null
       }
       $found++
     }

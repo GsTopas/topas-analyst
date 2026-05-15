@@ -120,7 +120,18 @@ TOUR_EXTRACTION_SCHEMA: dict = {
                             "Price for THIS departure in DKK, basis "
                             "dobbeltværelse / per-person-i-delt-værelse. Return "
                             "just the integer (e.g. '24.990 kr.' → 24990). If the "
-                            "row shows multiple prices (single/double), use double."
+                            "row shows multiple prices (single/double), use double. "
+                            "CRITICAL — IGNORE EXTENSIONS: If a departure-row mentions "
+                            "'Inkl. forlængelse', 'forlængelse', 'extension', 'tilkøb', "
+                            "'optional add-on', 'pre-trip', 'post-trip', or shows TWO "
+                            "duration-options (e.g. '16 dage / 20 dage'), choose ONLY "
+                            "the SHORTEST-duration / LOWEST-price BASIS-variant. "
+                            "Never return the price for an extension/forlængelse-variant. "
+                            "Example: row shows '02. marts 2027 (20 dage) 28.990 kr. "
+                            "Inkl. forlængelse' → SKIP this row entirely (it is not "
+                            "the basis-rejse). If a date ONLY exists as an extension-"
+                            "variant (no basis-variant available for that date), "
+                            "EXCLUDE the date completely from the departures array."
                         ),
                     },
                     "availability_status": {

@@ -24,13 +24,6 @@ from topas_scraper._auth import require_auth  # noqa: E402
 require_auth()
 
 
-st.markdown("# 📈 Forecasting")
-st.caption(
-    "DB-budget-forskel pr. tur pr. måned, synced fra Turomkostninger 2026.xls. "
-    "Kun realiserede ture (rækker hvor 'Realiseret DB' er udfyldt) vises."
-)
-
-
 MONTH_ORDER = [
     "Januar", "Februar", "Marts", "April", "Maj", "Juni",
     "Juli", "August", "September", "Oktober", "November", "December",
@@ -66,53 +59,55 @@ if df.empty:
     st.stop()
 
 
-# Header med sync-info
+# === Kompakt header: titel + total + sync-info + maaneds-filter paa én linje ===
 synced_at = df["synced_at"].max()
 if pd.notna(synced_at):
     if hasattr(synced_at, "tz_convert"):
         synced_at = synced_at.tz_convert("Europe/Copenhagen")
-    sync_label = synced_at.strftime("%d. %b %Y kl. %H:%M")
+    sync_label = synced_at.strftime("%d. %b kl. %H:%M")
 else:
     sync_label = "ukendt"
 
-col_meta, col_total = st.columns([3, 2])
-with col_meta:
-    st.caption(f"Senest synced: **{sync_label}** · {len(df)} rækker · "
-               f"{df['tour_code'].nunique()} unikke turkoder")
+grand_total = df["db_budget_diff"].sum()
+grand_sign = "+" if grand_total >= 0 else "-"
+grand_total_str = f"{grand_sign}{abs(int(round(grand_total))):,}".replace(",", ".")
+
+# Liste af maaneder der HAR data
+available_months_num = sorted(df["month_num"].dropna().unique().tolist())
+available_months_names = [MONTH_ORDER[m - 1] for m in available_months_num]
+
+col_title, col_total, col_months = st.columns([1.3, 1, 3])
+with col_title:
+    st.markdown(
+        f"### 📈 Forecasting  \n"
+        f"<span style='color:#888;font-size:0.85em'>Synced {sync_label} · "
+        f"{len(df)} rækker</span>",
+        unsafe_allow_html=True,
+    )
 with col_total:
-    grand_total = df["db_budget_diff"].sum()
-    st.metric("Total DB-forskel ift. budget", f"{grand_total:,.0f} kr.".replace(",", "."))
-
-st.divider()
-
-
-# === Filter-bar ===
-col1, _ = st.columns([1, 3])
-with col1:
-    tour_prefix = st.text_input(
-        "Filtrer turkoder (prefix)",
-        value="",
-        placeholder="fx ESMV, NOSS, IVXX ...",
-        help="Vis kun turkoder der starter med denne tekst. Tom = alle."
+    st.markdown(
+        f"<div style='text-align:right;'>"
+        f"<span style='color:#888;font-size:0.85em'>Total ift. budget</span><br>"
+        f"<span style='font-size:1.5em;font-weight:600'>{grand_total_str} kr.</span>"
+        f"</div>",
+        unsafe_allow_html=True,
+    )
+with col_months:
+    selected_month_names = st.multiselect(
+        "Måneder",
+        options=available_months_names,
+        default=available_months_names,
+        label_visibility="visible",
     )
 
 # Apply filter
-df_filt = df.copy()
-if tour_prefix.strip():
-    df_filt = df_filt[df_filt["tour_code"].str.startswith(tour_prefix.strip().upper(), na=False)]
+selected_month_nums = [MONTH_ORDER.index(n) + 1 for n in selected_month_names]
+df_filt = df[df["month_num"].isin(selected_month_nums)].copy()
 
-
-# === Side-om-side maaned-kolonner ===
-# For hver maaned: én kolonne med turkoder + én med DB-budget forskel.
-# Maaneder har forskelligt antal raekker → pad med tomme strenge saa de
-# kan flettes i én tabel.
-
-months_with_data = sorted(
-    df_filt["month_num"].dropna().unique().tolist()
-)
+months_with_data = sorted(df_filt["month_num"].dropna().unique().tolist())
 
 if not months_with_data:
-    st.info("Ingen rækker matcher dit filter.")
+    st.info("Vælg mindst én måned.")
     st.stop()
 
 def _fmt_kr(v) -> str:
@@ -223,7 +218,12 @@ for (header, sub) in columns:
 
 table.loc[len(table)] = pd.Series(total_row)
 
-st.dataframe(table, use_container_width=True, hide_index=True)
+# Dybere default-hoejde saa hele tabellen er synlig uden scroll i de fleste maaneder.
+# Streamlit dataframe-row-height ~35px + ~50px header. Vi giver plads til ca. 30 rows.
+_row_h = 35
+_header_h = 80
+_target_h = min(900, _header_h + _row_h * (len(table) + 1))
+st.dataframe(table, use_container_width=True, hide_index=True, height=_target_h)
 
 
 with st.expander("ℹ Hvor kommer data fra?"):

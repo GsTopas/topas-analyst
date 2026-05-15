@@ -617,16 +617,22 @@ with st.expander(
     with sc2:
         screen_region = st.text_input(
             "Region eller aktivitet (valgfri)",
-            placeholder="fx 'Madeira', 'Apulien AND Cykling OR Cykelferie'",
+            placeholder="fx 'Madeira', 'Cykling OR Cykelferie AND Sejlads OR Krydstogt'",
             help=(
                 "Geografisk region eller aktivitet. Operatorer:\n"
-                "• `OR` mellem synonymer/alternativer (samme koncept)\n"
-                "• `AND` mellem forskellige krav (alle skal opfyldes)\n"
-                "Eksempler:\n"
+                "• **OR** mellem synonymer/alternativer (samme koncept)\n"
+                "• **AND** mellem forskellige krav (alle skal opfyldes)\n"
+                "• Precedence: OR binder tættere end AND\n\n"
+                "**Eksempler:**\n"
                 "• `Madeira` — én region\n"
-                "• `Cykling OR Cykelferie` — enten/eller (synonymer)\n"
-                "• `Apulien AND Cykling OR Cykelferie` — Apulien OG en cykel-tur\n"
-                "Precedence: OR binder tættere end AND."
+                "• `Vandring OR Vandreferie OR Trek` — synonymer\n"
+                "• `Cykling AND Apulien` — begge skal være tilstede\n"
+                "• `Apulien AND Cykling OR Cykelferie` — Apulien OG en cykel-variant\n"
+                "• `Cykling OR Cykelferie OR Cykelkrydstogt AND Sejlads OR Øhop OR Krydstogt`\n"
+                "  → 2 AND-grupper: tour skal have CYKEL-content OG SEJL-content\n"
+                "  (perfekt til HRCS — fanger cykel-sejlads-kombinationer, ikke rene krydstogter)\n\n"
+                "**Tip:** Hvis du afviser samme type tour gentagne gange med 'Forkert aktivitet', "
+                "stram dit keyword med AND så Claude fanger problemet i screening."
             ),
             key=f"screen_region_{selected_tour_code}",
         )

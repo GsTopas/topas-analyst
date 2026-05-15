@@ -14,9 +14,17 @@ v0.8 architecture: schema-driven LLM extraction
     n8n-agent experiment: agents that fetch sitemap.xml find variants that
     single-page scraping misses).
   - Same downstream code for every operator.
+
+v0.9: parallel scraping via ThreadPoolExecutor. Each target's Tier 1 Firecrawl
+call runs concurrently (default 5 workers, configurable via SCRAPE_MAX_WORKERS
+env-var). DB-writes and progress emits are serialized via locks so the data
+layer stays simple — psycopg2 connections aren't thread-safe.
 """
 from __future__ import annotations
 
+import os
+import threading
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from typing import Callable, Optional
 
 from .client import FirecrawlClient
@@ -40,22 +48,36 @@ from .sitemap_discovery import (
 ProgressCallback = Callable[[str], None]
 
 
+# Default parallelism. Set via SCRAPE_MAX_WORKERS env-var.
+# Hobby plan Firecrawl: 5 concurrent. Standard plan: 50 concurrent.
+DEFAULT_MAX_WORKERS = 5
+
+
 def run_scrape(
     targets: list[TourTarget],
     db_path: str | None = None,
     on_progress: Optional[ProgressCallback] = None,
 ) -> tuple[str, int, int]:
     """
-    Run scrape against the given targets.
+    Run scrape against the given targets in parallel.
 
     Returns (run_id, success_count, total_count).
 
     The on_progress callback is invoked with status strings as each target
     is processed. UI layers (CLI / Streamlit) can render however they like.
+
+    Parallelism: targets are processed concurrently with up to
+    SCRAPE_MAX_WORKERS workers (default 5). Each worker handles one target's
+    full Tier 1 → sitemap → Tier 3 → meals → DB-write cycle. DB-writes are
+    serialized via lock since psycopg2 connections aren't thread-safe.
     """
+    emit_lock = threading.Lock()
+    db_lock = threading.Lock()
+
     def emit(msg: str) -> None:
         if on_progress is not None:
-            on_progress(msg)
+            with emit_lock:
+                on_progress(msg)
 
     emit("Forbinder til Firecrawl...")
     client = FirecrawlClient()  # raises RuntimeError if API key missing
@@ -73,15 +95,24 @@ def run_scrape(
             emit(f"⚠ Tier 3 ikke tilgængelig: {e}")
             emit("  Kør videre med Tier 1 only — operatører med JS-render vil mangle afgange")
 
+    max_workers = int(os.getenv("SCRAPE_MAX_WORKERS", str(DEFAULT_MAX_WORKERS)))
+    max_workers = max(1, min(max_workers, len(targets)))
+
     db = db_path or str(DEFAULT_DB_PATH)
     conn = connect(db)
     try:
         run_id = start_run(conn, target_count=len(targets))
-        emit(f"Run {run_id[:8]} startet — scraper {len(targets)} URLs (LLM-extraction)")
+        emit(f"Run {run_id[:8]} startet — scraper {len(targets)} URLs · {max_workers} workers")
 
-        success = 0
-        for i, target in enumerate(targets, 1):
-            emit(f"[{i}/{len(targets)}] {target.operator}...")
+        def process_one(i_target: tuple[int, TourTarget]) -> bool:
+            """Process a single target end-to-end. Returns True on success.
+            Designed to run concurrently; uses db_lock for DB-writes and
+            emit_lock (via emit()) for progress output.
+            """
+            i, target = i_target
+            total = len(targets)
+            emit(f"[{i}/{total}] {target.operator}...")
+
             # Tier 1: Firecrawl with LLM-driven structured extraction via schema
             result = client.scrape(
                 target.url,
@@ -90,26 +121,21 @@ def run_scrape(
             )
 
             if not result.success:
-                emit(f"[{i}/{len(targets)}] {target.operator} ✗ {result.error or 'no content'}")
-                continue
+                emit(f"[{i}/{total}] {target.operator} ✗ {result.error or 'no content'}")
+                return False
 
             parser = PARSERS.get(target.parser_key)
             if not parser:
-                emit(f"[{i}/{len(targets)}] {target.operator} ✗ no parser")
-                continue
+                emit(f"[{i}/{total}] {target.operator} ✗ no parser")
+                return False
 
             try:
                 tour_dict, departures = parser(result, target)
             except Exception as e:
-                emit(f"[{i}/{len(targets)}] {target.operator} ✗ parse error: {e}")
-                continue
+                emit(f"[{i}/{total}] {target.operator} ✗ parse error: {e}")
+                return False
 
-            # ---- Sitemap-variant discovery (replicates the n8n-agent technique) ----
-            # For operators that expose departures as URL-variants in their sitemap
-            # (Albatros), fetch the sitemap and extract every variant URL matching
-            # this product. The variant param embeds the date — so we can construct
-            # a complete departures list even when Firecrawl JSON only sees one
-            # departure on the rendered page.
+            # ---- Sitemap-variant discovery (Albatros + similar) ----
             if target.operator in OPERATOR_VARIANT_PATTERNS:
                 try:
                     variants = discover_variants(
@@ -130,7 +156,6 @@ def run_scrape(
                                 f"  ↳ Sitemap fandt {len(variants)} variant-URLs "
                                 f"({added} nye afgange tilføjet)"
                             )
-                            # Update eligibility note to reflect the merge
                             tour_dict["eligibility_notes"] = (
                                 f"Tier 1 + sitemap-variants · {len(departures)} departures "
                                 f"({added} from sitemap, rest from page)."
@@ -139,35 +164,27 @@ def run_scrape(
                     emit(f"  ↳ Sitemap-discovery fejlede: {e}")
 
             # ---- Tier 3 fallback: invoke Claude vision ----
-            # Two trigger conditions:
-            #   1. Tier 1 returned 0 departures (classic fallback)
-            #   2. Tier 1 returned a "thin" result for an operator known to
-            #      undersell departures via LLM extraction (e.g. Albatros's
-            #      React-rendered tabs). For these, vision often finds rows
-            #      Tier 1 missed. We merge results, dedup on date.
             tier_used = "T1"
             thin_result = (
                 target.vision_fallback
                 and vision is not None
-                and len(departures) < 3  # heuristic: fewer than 3 deps for a typical tour is suspicious
-                and target.operator == "Albatros Travel"  # for now, only Albatros has this issue
+                and len(departures) < 3
+                and target.operator == "Albatros Travel"
             )
             if (not departures or thin_result) and target.vision_fallback and vision is not None:
                 if departures:
-                    emit(f"  ↳ Tier 1 fandt {len(departures)} afgange — kører Tier 3 (vision) for at fange resten")
+                    emit(f"  ↳ Tier 1 fandt {len(departures)} afgange — kører Tier 3 (vision) for resten")
                 else:
                     emit(f"  ↳ Tier 1 returnerede 0 afgange — falder tilbage til Tier 3 (vision)")
                 try:
                     vision_deps = vision.extract(target.url, target.scrape_overrides)
 
-                    # Hvis vision fandt en tour-duration og T1 manglede den, brug den
                     vision_duration = getattr(vision, "last_tour_duration_days", None)
                     if vision_duration and not tour_dict.get("duration_days"):
                         tour_dict["duration_days"] = vision_duration
                         emit(f"  ↳ Tier 3: tour-duration sat til {vision_duration} dage")
 
                     if vision_deps:
-                        # Merge T1 + T3 departures, dedup on start_date (T1 wins on conflict)
                         existing_dates = {d["start_date"] for d in departures}
                         merged = list(departures)
                         added = 0
@@ -193,16 +210,10 @@ def run_scrape(
                 except Exception as e:
                     emit(f"  ↳ Tier 3 fejlede: {e}")
 
-            # Extract meals info from scraped markdown (best-effort, never raises).
-            # Pass URL så operator-detection kan vælge den rigtige extractor.
+            # Extract meals info from scraped markdown (best-effort).
             try:
                 from .meals import extract_meals
                 md = (result.markdown or "") if hasattr(result, "markdown") else ""
-
-                # Stjernegaard's måltider ligger ikke på hoved-tour-siden — de er
-                # på /dagsprogram/-undersiden som bullet-points per dag. Hent den
-                # ekstra side og concat markdown'en så meals-extractor kan tælle
-                # bullets korrekt.
                 if md and "stjernegaard-rejser.dk" in target.url:
                     dp_url = target.url.rstrip("/") + "/dagsprogram/"
                     try:
@@ -212,7 +223,6 @@ def run_scrape(
                             emit(f"  ↳ stjernegaard: dagsprogram hentet ({len(dp_result.markdown)} chars)")
                     except Exception as e:
                         emit(f"  ↳ stjernegaard: dagsprogram fetch fejlede: {e}")
-
                 if md:
                     meals = extract_meals(md, url=target.url)
                     if meals.get("mealsCount") is not None:
@@ -224,43 +234,51 @@ def run_scrape(
             except Exception as exc:
                 emit(f"  ↳ meals extraction skipped: {exc}")
 
-            upsert_tour(conn, tour_dict, run_id)
-            # Guards mod degraded scrape — beskytter DB mod Firecrawl/LLM-fejl
-            # der returnerer mangelfulde/forkerte data. To kategorier:
-            #
-            # 1. Tom liste men siden havde data: from_price_dkk er sat men
-            #    departures=[]. Parser fandt åbenbart fra-prisen men ingen
-            #    afgange — sandsynligvis en JS-render-glitch.
-            #
-            # 2. Thin result: vi har eksisterende data i DB for denne tour,
-            #    og nye scrape giver markant færre departures (< 75% af før).
-            #    Det er det mønster vi så med ITTO La Fontanella 2026-05-13:
-            #    34 → 21 + ændret pris på én. Sandsynligvis LLM-hallucination.
-            existing_deps = fetch_departures(conn, target.operator, tour_dict["tour_slug"])
-            existing_count = len(existing_deps)
-            new_count = len(departures)
-            degraded = False
-            degraded_reason = ""
+            # DB-writes serialiseret via lock — psycopg2 connection er ikke
+            # thread-safe. Tager kun ~50-200ms pr target, så serialisering
+            # er en lille fraktion af total tid.
+            with db_lock:
+                upsert_tour(conn, tour_dict, run_id)
+                existing_deps = fetch_departures(conn, target.operator, tour_dict["tour_slug"])
+                existing_count = len(existing_deps)
+                new_count = len(departures)
+                degraded = False
+                degraded_reason = ""
 
-            if not departures and tour_dict.get("from_price_dkk"):
-                degraded = True
-                degraded_reason = "0 afgange men fra-pris fundet"
-            elif existing_count >= 4 and new_count < int(existing_count * 0.75):
-                degraded = True
-                degraded_reason = f"thin result: {new_count} afgange (havde {existing_count})"
+                if not departures and tour_dict.get("from_price_dkk"):
+                    degraded = True
+                    degraded_reason = "0 afgange men fra-pris fundet"
+                elif existing_count >= 4 and new_count < int(existing_count * 0.75):
+                    degraded = True
+                    degraded_reason = f"thin result: {new_count} afgange (havde {existing_count})"
 
-            if degraded:
-                emit(f"  ↳ ⚠ degraded scrape: {degraded_reason} — behold eksisterende DB-rækker")
-                dep_count = existing_count
-            else:
-                dep_count = replace_departures(conn, target.operator, tour_dict["tour_slug"], departures, run_id)
-            success += 1
+                if degraded:
+                    emit(f"  ↳ ⚠ degraded scrape: {degraded_reason} — behold eksisterende DB-rækker")
+                    dep_count = existing_count
+                else:
+                    dep_count = replace_departures(conn, target.operator, tour_dict["tour_slug"], departures, run_id)
+
             from_str = (
                 f"fra {tour_dict.get('from_price_dkk')} kr."
                 if tour_dict.get("from_price_dkk") else "no fra-pris"
             )
             tier_marker = f"[{tier_used}-DEGRADED]" if degraded else f"[{tier_used}]"
-            emit(f"[{i}/{len(targets)}] {target.operator} ✓ {tier_marker} {dep_count} afgange · {from_str}")
+            emit(f"[{i}/{total}] {target.operator} ✓ {tier_marker} {dep_count} afgange · {from_str}")
+            return True
+
+        # Kør targets parallelt
+        success = 0
+        with ThreadPoolExecutor(max_workers=max_workers) as executor:
+            futures = [
+                executor.submit(process_one, (i, t))
+                for i, t in enumerate(targets, 1)
+            ]
+            for fut in as_completed(futures):
+                try:
+                    if fut.result():
+                        success += 1
+                except Exception as e:
+                    emit(f"  ↳ uventet fejl i worker: {e}")
 
         finish_run(conn, run_id, success)
         emit(f"{success}/{len(targets)} succeeded")

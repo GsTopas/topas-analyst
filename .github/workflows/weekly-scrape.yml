@@ -38,6 +38,10 @@ jobs:
           SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
           FIRECRAWL_API_KEY: ${{ secrets.FIRECRAWL_API_KEY }}
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          # Concurrency: Hobby = 5 max, Standard = 50 max.
+          # Sat til 5 så Hobby-trin altid virker; bump op via secret SCRAPE_MAX_WORKERS
+          # når du har Standard-plan (Settings → Secrets → SCRAPE_MAX_WORKERS = 50).
+          SCRAPE_MAX_WORKERS: ${{ secrets.SCRAPE_MAX_WORKERS || '5' }}
         run: |
           python -m topas_scraper.cli scrape
 

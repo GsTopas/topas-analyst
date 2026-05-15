@@ -662,12 +662,34 @@ def screen_competitors(
         f"{competitor_workers} parallel · {country!r} {region!r}"
     )
 
+    # Hvis vi kører i Streamlit-context, så får worker-threads ikke automatisk
+    # session-context (Streamlit's ScriptRunContext er thread-local). Det
+    # gør at on_progress-callbacks der kalder st.status/st.write crasher med
+    # NoSessionContext. Fix: propagér main-thread's context til hver worker.
+    streamlit_ctx = None
+    try:
+        from streamlit.runtime.scriptrunner import (  # noqa: PLC0415
+            get_script_run_ctx,
+            add_script_run_ctx,
+        )
+        streamlit_ctx = get_script_run_ctx()
+    except Exception:
+        # Streamlit ikke installeret eller vi kører fra CLI — fint
+        pass
+
     all_rows: list[CandidateRow] = []
     errors = 0
     rows_lock = threading.Lock()
 
     def _process(ctx: ScreeningContext) -> None:
         nonlocal errors
+        # Tilføj Streamlit-context til denne worker så emit() (som kalder
+        # st.status.update i Streamlit-kontekst) ikke crasher.
+        if streamlit_ctx is not None:
+            try:
+                add_script_run_ctx(threading.current_thread(), streamlit_ctx)
+            except Exception:
+                pass  # ikke kritisk — emit() vil bare ikke opdatere UI
         try:
             rows = _screen_one_competitor(
                 ctx, firecrawl_api_key, anthropic_client, emit,

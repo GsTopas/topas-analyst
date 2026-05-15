@@ -107,9 +107,26 @@ Examples (assume country="Italien"):
     → cykling-or-cykelferie tour AND (apulien-or-sicilien) destination.
 
 RULE FOR "high" CONFIDENCE: ALL AND-groups must match (each via at least one
-OR-alternative). Plus country must match.
+OR-alternative) — EXPLICITLY, not via interpretation. PLUS country must match.
+PLUS hasGuide must be true (Danish-speaking tour leader confirmed).
 
-RULE FOR "medium": Country matches but at least ONE AND-group has no match.
+RULE FOR "medium": Country matches AND hasGuide=true, but at least ONE
+AND-group has a marginal/partial match (still present in content, just
+not strong).
+
+RULE FOR "low" — set to low if ANY of these apply:
+  • hasGuide=false (self-guided, "på egen hånd", "no Danish guide") —
+    Topas's segment REQUIRES Danish tour leader, so without it = low.
+  • Country mismatch — even if culturally similar (Montenegro is NOT
+    Croatia, Slovenia is NOT Italy). Wrong country = low at most.
+  • An AND-group is satisfied only by a stretch interpretation (e.g.
+    "swimming opportunities" claimed as "vandring" — that's NOT walking).
+  • The match relies on minor activity mentions ("includes light walking
+    between port visits" — that's NOT a hiking tour).
+
+BE STRICT. Don't stretch interpretations to satisfy AND-groups. If a tour
+is primarily a cruise/cultural-tour/cycling-tour and the AND-keyword only
+appears as a minor side-mention, that's NOT a match — set confidence to low.
 
 Recognize activity stems by Danish: "cykel", "vandr", "trek", "hike",
 "kultur", "rundrejse", "ski". Place names are typically capitalized.
@@ -465,15 +482,29 @@ def _norm_category(v: Any) -> str:
 def _apply_duration_penalty(
     confidence: str, comp_duration: Optional[int], topas_duration: Optional[int]
 ) -> tuple[str, bool, Optional[int], Optional[int]]:
-    """Returnerer (ny_confidence, applied, range_lower, range_upper)."""
+    """Returnerer (ny_confidence, applied, range_lower, range_upper).
+
+    Two-tier downgrade:
+    - Inden for ±15% (min ±2 dage): no penalty
+    - 15-50% afvigelse: 1-step downgrade (high→medium, medium→low)
+    - >50% afvigelse: 2-step downgrade (high→low direkte)
+    """
     if not topas_duration or not comp_duration:
         return confidence, False, None, None
     tolerance = max(2, topas_duration * 0.15)
     lower = topas_duration - tolerance
     upper = topas_duration + tolerance
-    if comp_duration < lower or comp_duration > upper:
-        return _DOWNGRADE.get(confidence, confidence), True, int(lower) + 1, int(upper)
-    return confidence, False, None, None
+    if lower <= comp_duration <= upper:
+        return confidence, False, None, None
+    # Outside tolerance — compute % afvigelse
+    deviation = abs(comp_duration - topas_duration) / topas_duration
+    if deviation > 0.50:
+        # 2-step: high → low direkte, medium → low
+        new_conf = "low"
+    else:
+        # 1-step: high → medium, medium → low
+        new_conf = _DOWNGRADE.get(confidence, confidence)
+    return new_conf, True, int(lower) + 1, int(upper)
 
 
 def _normalize_matches(
@@ -540,6 +571,33 @@ def _normalize_matches(
             continue
         has_guide = _as_bool_or_none(m.get("hasGuide"))
         has_fixed = _as_bool_or_none(m.get("hasFixedDepartures"))
+        confidence = str(m.get("matchConfidence") or "")
+        notes = str(m.get("notes") or "")
+
+        # Hard cap: hvis Claude selv har erkendt at country er forkert (typisk
+        # i notes-feltet), så er det max low confidence. Topas-segmentet kræver
+        # geografisk match. Hard rule der overskriver Claude's confidence.
+        notes_lower = notes.lower()
+        country_lower = ctx.search_country.strip().lower()
+        country_mismatch_signals = [
+            "wrong country", "forkert land", "not croatia", "not kroatien",
+            "not italy", "not italien", "not portugal", "not spain", "not spanien",
+            "not france", "not frankrig", "not germany", "not tyskland",
+            f"not {country_lower}", f"(not {country_lower})", "another country",
+            "anden region/land",
+        ]
+        country_mismatch = any(sig in notes_lower for sig in country_mismatch_signals)
+        if country_mismatch and confidence in ("high", "medium"):
+            confidence = "low"
+            notes = (notes + " [Auto-downgrade: country mismatch]").strip()
+
+        # Hard cap: hvis has_guide=false (self-guided / på egen hånd), så er
+        # confidence max low. Topas-segmentet er FIXED-DEPARTURE GUIDED group
+        # tours med dansk turleder. Uden guide er det ikke en konkurrent.
+        if has_guide is False and confidence in ("high", "medium"):
+            confidence = "low"
+            notes = (notes + " [Auto-downgrade: no Danish guide]").strip()
+
         out.append(
             CandidateRow(
                 competitor_domain=ctx.competitor_domain,
@@ -556,11 +614,11 @@ def _normalize_matches(
                 tour_name=str(m.get("tourName") or ""),
                 tour_url=str(m.get("tourUrl") or ""),
                 duration_days=_to_int_or_none(m.get("durationDays")),
-                match_confidence=str(m.get("matchConfidence") or ""),
+                match_confidence=confidence,
                 has_guide=has_guide,
                 has_fixed_departures=has_fixed,
                 tour_category=_norm_category(m.get("tourCategory")),
-                notes=str(m.get("notes") or ""),
+                notes=notes,
                 searched_at=searched_at,
             )
         )

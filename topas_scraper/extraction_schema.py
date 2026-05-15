@@ -84,9 +84,19 @@ TOUR_EXTRACTION_SCHEMA: dict = {
                     "start_date": {
                         "type": "string",
                         "description": (
-                            "Departure date in ISO format YYYY-MM-DD. Convert from "
-                            "common Danish formats: '14. mar. 2027' → '2027-03-14', "
-                            "'29/10/2026' → '2026-10-29', '04.03.2027' → '2027-03-04'. "
+                            "Departure date in ISO format YYYY-MM-DD. "
+                            "ALL Danish travel sites use European DD.MM.YYYY or "
+                            "DD/MM/YYYY format — NEVER American MM/DD/YYYY. "
+                            "Conversion examples (preserve the exact day; do NOT "
+                            "subtract or add a day, do NOT adjust for timezone): "
+                            "  '14. mar. 2027' → '2027-03-14' "
+                            "  '29/10/2026'    → '2026-10-29' "
+                            "  '04.03.2027'    → '2027-03-04' "
+                            "  '06.04.2027'    → '2027-04-06' (NOT 2027-04-05) "
+                            "  '17.10.2026'    → '2026-10-17' (NOT 2026-10-16). "
+                            "If the source shows '06.04.2027 København' the departure "
+                            "is on April 6, 2027 — exactly that calendar day. Output "
+                            "must be the same day as the visible source. "
                             "CRITICAL: many sites show afgange as date RANGES (e.g. "
                             "'27. jun → 4. jul 2026' or '14. sep 2026 → 21. sep 2026' "
                             "or 'Afrejseperiode 27. jun - 4. jul'). This is ONE departure, "

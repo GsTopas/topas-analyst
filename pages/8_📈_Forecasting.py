@@ -141,28 +141,39 @@ def _fmt_kr(v) -> str:
         return ""
 
 
-# Byg DataFrame med MultiIndex-kolonner: (Maaned, Tur) og (Maaned, "DB budget forskel")
+# Byg DataFrame med MultiIndex-kolonner: (Maaned-med-total, Tur) og (..., "DB budget forskel")
+# Top-level inkluderer maaneds-total saa det vises i kolonne-headeren.
 columns = []
 data: dict[tuple, list] = {}
+month_totals: dict[int, float] = {}
 for m_num in months_with_data:
     month_name = MONTH_ORDER[m_num - 1]
     g = month_groups[m_num]
+    total = g["db_budget_diff"].sum()
+    month_totals[m_num] = total
+
+    # Header viser maanedsnavn + samlet diff (med +/- prefix)
+    sign = "+" if total >= 0 else "-"
+    header = f"{month_name}  ·  {sign}{_fmt_kr(abs(total))} kr."
+
     tour_col = list(g["tour_code"]) + [""] * (max_rows - len(g))
     diff_col = [_fmt_kr(v) for v in g["db_budget_diff"]] + [""] * (max_rows - len(g))
-    data[(month_name, "Tur")] = tour_col
-    data[(month_name, "DB budget forskel")] = diff_col
-    columns.append((month_name, "Tur"))
-    columns.append((month_name, "DB budget forskel"))
+    data[(header, "Tur")] = tour_col
+    data[(header, "DB budget forskel")] = diff_col
+    columns.append((header, "Tur"))
+    columns.append((header, "DB budget forskel"))
 
 table = pd.DataFrame(data, columns=pd.MultiIndex.from_tuples(columns))
 
-# Total-raekke: sum af db_budget_diff pr. maaned
+# Total-raekke: sum af db_budget_diff pr. maaned (redundant med header-total men holder
+# tabellens bundlinje konsistent saa man kan laese den bunden-til-bunden)
 total_row: dict[tuple, str] = {}
-for m_num in months_with_data:
-    month_name = MONTH_ORDER[m_num - 1]
-    total = month_groups[m_num]["db_budget_diff"].sum()
-    total_row[(month_name, "Tur")] = "Total"
-    total_row[(month_name, "DB budget forskel")] = _fmt_kr(total)
+for (header, sub) in columns:
+    m_num = next(mn for mn in months_with_data if MONTH_ORDER[mn - 1] in header)
+    if sub == "Tur":
+        total_row[(header, sub)] = "Total"
+    else:
+        total_row[(header, sub)] = _fmt_kr(month_totals[m_num])
 
 table.loc[len(table)] = pd.Series(total_row)
 

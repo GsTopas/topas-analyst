@@ -177,23 +177,29 @@ def _build_month_rows(g: pd.DataFrame) -> list[tuple[str, str]]:
     return rows
 
 
-# Custom CSS for alle tabellers headers (MultiIndex).
+# Custom CSS for alle tabellers headers — fed paa tvers af de 3 faner.
 st.markdown(
     """
     <style>
     [data-testid="stDataFrame"] thead tr:first-child th {
-        font-weight: 700 !important;
+        font-weight: 800 !important;
         font-size: 0.95rem !important;
         background-color: #f8fafc !important;
         color: #0f172a !important;
         border-bottom: 1px solid #cbd5e1 !important;
     }
     [data-testid="stDataFrame"] thead tr:nth-child(2) th {
-        font-weight: 600 !important;
-        color: #475569 !important;
+        font-weight: 700 !important;
+        color: #1e3a5f !important;
+        font-size: 0.9rem !important;
     }
     [data-testid="stDataFrame"] tbody td {
         font-size: 0.9rem !important;
+    }
+    /* Tab-labels selv */
+    button[data-baseweb="tab"] p {
+        font-weight: 700 !important;
+        font-size: 0.95rem !important;
     }
     </style>
     """,
@@ -221,41 +227,44 @@ def _detail_row_style(row: pd.Series) -> list[str]:
     for (_header, sub), val in row.items():
         s = ""
         if is_cat_header:
-            s = ("background-color:#1e3a5f; color:#ffffff; font-weight:700; "
+            s = ("background-color:#1e3a5f; color:#ffffff; font-weight:800; "
                  "font-size:0.95rem; letter-spacing:0.5px; padding:8px 4px;")
         elif is_subtotal:
-            s = ("font-weight:600; font-style:italic; border-top:1px dashed #94a3b8; "
+            s = ("font-weight:700; font-style:italic; border-top:1px dashed #94a3b8; "
                  "color:#475569; background-color:#f8fafc;")
         elif is_grand_total:
             s = ("background-color:#fff4e6; color:#7c2d12; font-weight:800; "
                  "font-size:1.05rem; border-top:2px solid #d97706;")
         else:
+            # Alle data-tal i fed
             if sub == "DB budget forskel" and isinstance(val, str) and val:
                 if val.startswith("-"):
-                    s = "color:#c0392b; font-weight:500;"
+                    s = "color:#c0392b; font-weight:700;"
                 elif val and val != "0":
-                    s = "color:#1e8449; font-weight:500;"
+                    s = "color:#1e8449; font-weight:700;"
+                else:
+                    s = "font-weight:700;"
+            elif sub == "Tur" and val:
+                # Turkode i semi-fed
+                s = "font-weight:600;"
         styles.append(s)
     return styles
 
 
 def _render_detail_view(df_in: pd.DataFrame, month_nums: list[int]) -> None:
-    """Detalje-tabel: alle ture pr. maaned side om side. Maaneder har forskelligt
-    antal ture saa horizontale sub-rubrikker (TOPAS/GBT/VBT) ville misaligne
-    paa tvars af kolonner. Derfor: flad raekkeliste sorteret efter hjemkomst-dato
-    + Opl/Res til sidst. Brug Maaneds-overblik for kategori-opdelt syn."""
-    # Byg pr. maaned: en flad liste af (tur, diff) sorteret efter dato, Opl/Res sidst
-    month_lists: dict[int, list[tuple[str, str]]] = {}
-    for m_num in month_nums:
-        g = df_in[df_in["month_num"] == m_num].copy()
-        g["_special"] = g["tour_code"].isin(SPECIAL_CODES)
-        g = g.sort_values(["_special", "homecoming_date", "tour_code"], na_position="last")
-        month_lists[m_num] = [
-            (r["tour_code"], _fmt_kr(r["db_budget_diff"]))
-            for _, r in g.iterrows()
-        ]
+    """Detalje-tabel: alle ture pr. maaned side om side, opdelt i kategorier
+    (TOPAS / GREENLAND BY TOPAS / VIETNAM BY TOPAS) ligesom kilde-arket.
 
-    max_rows = max(len(lst) for lst in month_lists.values())
+    NB: Maaneder har forskelligt antal ture i hver kategori, saa kategori-
+    headers aligner ikke altid horisontalt paa tvers af kolonner. Vi viser
+    dem alligevel fordi de matcher Excel-strukturen, og fed/farve-styling
+    goer dem genkendelige selv naar de er forskudt."""
+    month_rows: dict[int, list[tuple[str, str]]] = {}
+    for m_num in month_nums:
+        g = df_in[df_in["month_num"] == m_num]
+        month_rows[m_num] = _build_month_rows(g)
+
+    max_rows = max(len(r) for r in month_rows.values())
 
     columns = []
     data: dict[tuple, list] = {}
@@ -273,7 +282,7 @@ def _render_detail_view(df_in: pd.DataFrame, month_nums: list[int]) -> None:
             or_sign = "+" if opl_res >= 0 else "-"
             header += f"  (Opl/Res: {or_sign}{_fmt_kr(abs(opl_res))} kr.)"
 
-        rows = month_lists[m_num]
+        rows = month_rows[m_num]
         tour_col = [t for (t, _) in rows] + [""] * (max_rows - len(rows))
         diff_col = [d for (_, d) in rows] + [""] * (max_rows - len(rows))
         data[(header, "Tur")] = tour_col
@@ -283,7 +292,6 @@ def _render_detail_view(df_in: pd.DataFrame, month_nums: list[int]) -> None:
 
     table = pd.DataFrame(data, columns=pd.MultiIndex.from_tuples(columns))
 
-    # Grand-Total-raekke nederst
     total_row: dict[tuple, str] = {}
     for (header, sub) in columns:
         m_num = next(mn for mn in month_nums if MONTH_ORDER[mn - 1] in header)
@@ -293,40 +301,7 @@ def _render_detail_view(df_in: pd.DataFrame, month_nums: list[int]) -> None:
             total_row[(header, sub)] = _fmt_kr(month_totals[m_num])
     table.loc[len(table)] = pd.Series(total_row)
 
-    # Simplified styling: kun Total-raekken + farve-koder paa tal
-    def _flat_row_style(row: pd.Series) -> list[str]:
-        tour_cell = ""
-        for (_h, sub), val in row.items():
-            if sub == "Tur":
-                tour_cell = str(val).strip()
-                break
-        is_total = tour_cell == "Total"
-        is_opl = tour_cell in SPECIAL_CODES
-
-        styles = []
-        for (_h, sub), val in row.items():
-            s = ""
-            if is_total:
-                s = ("background-color:#fff4e6; color:#7c2d12; "
-                     "font-weight:800; font-size:1.05rem; "
-                     "border-top:2px solid #d97706;")
-            elif is_opl:
-                s = "font-style:italic; color:#475569;"
-                if sub == "DB budget forskel" and isinstance(val, str) and val:
-                    if val.startswith("-"):
-                        s += " color:#c0392b;"
-                    elif val != "0":
-                        s += " color:#1e8449;"
-            else:
-                if sub == "DB budget forskel" and isinstance(val, str) and val:
-                    if val.startswith("-"):
-                        s = "color:#c0392b; font-weight:500;"
-                    elif val != "0":
-                        s = "color:#1e8449; font-weight:500;"
-            styles.append(s)
-        return styles
-
-    styled = table.style.apply(_flat_row_style, axis=1)
+    styled = table.style.apply(_detail_row_style, axis=1)
     _row_h, _header_h = 35, 80
     _target_h = min(900, _header_h + _row_h * (len(table) + 1))
     st.dataframe(styled, use_container_width=True, hide_index=True, height=_target_h)
@@ -362,19 +337,19 @@ def _render_summary_view(df_in: pd.DataFrame, month_nums: list[int]) -> None:
         styles: list[str] = []
         for col, val in row.items():
             if col == "Måned":
-                s = "font-weight:700; color:#1e3a5f;"
+                s = "font-weight:800; color:#1e3a5f; font-size:1rem;"
             elif col == "Total DB-afvigelse":
                 if isinstance(val, (int, float)) and not pd.isna(val):
                     if val < 0:
-                        s = "color:#c0392b; font-weight:700;"
+                        s = "color:#c0392b; font-weight:800; font-size:1rem;"
                     elif val > 0:
-                        s = "color:#1e8449; font-weight:700;"
+                        s = "color:#1e8449; font-weight:800; font-size:1rem;"
                     else:
-                        s = "color:#94a3b8; font-weight:600;"
+                        s = "color:#94a3b8; font-weight:700;"
                 else:
                     s = ""
             elif col == "Oplæring / Research":
-                s = "font-style:italic;"
+                s = "font-style:italic; font-weight:700;"
                 if isinstance(val, (int, float)) and not pd.isna(val):
                     if val < 0:
                         s += " color:#c0392b;"
@@ -385,11 +360,11 @@ def _render_summary_view(df_in: pd.DataFrame, month_nums: list[int]) -> None:
             else:  # Ture
                 if isinstance(val, (int, float)) and not pd.isna(val):
                     if val < 0:
-                        s = "color:#c0392b; font-weight:500;"
+                        s = "color:#c0392b; font-weight:700;"
                     elif val > 0:
-                        s = "color:#1e8449; font-weight:500;"
+                        s = "color:#1e8449; font-weight:700;"
                     else:
-                        s = "color:#94a3b8;"
+                        s = "color:#94a3b8; font-weight:600;"
                 else:
                     s = ""
             styles.append(s)
@@ -490,10 +465,10 @@ def _render_comparison_view(df_in: pd.DataFrame, month_nums: list[int]) -> None:
         if pd.isna(v):
             return ""
         if v < 0:
-            return "color:#c0392b; font-weight:500;"
+            return "color:#c0392b; font-weight:700;"
         if v > 0:
-            return "color:#1e8449; font-weight:500;"
-        return "color:#94a3b8;"
+            return "color:#1e8449; font-weight:700;"
+        return "color:#94a3b8; font-weight:600;"
 
     fmt_dict = {col: _fmt_or_blank for col in pivot.columns}
     styled = (pivot.style.format(fmt_dict)

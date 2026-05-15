@@ -10,7 +10,8 @@ Streamlit-side hvor head of agency gennemgår n8n's screening-output:
   bruger, så pattern-synthesis senere kan bruge dem til playbook-regler
 
 Workflow:
-1. Tryk "Hent fra n8n" → pull alle rækker fra webhook → upsert i lokal cache
+1. Trig screening fra Tour-detalje (🐍 Screen via Python). Resultater
+   skrives direkte til Supabase
 2. Vælg Topas-tur fra dropdown (kun ture med kandidater vises)
 3. Gennemgå unreviewed kandidater
 4. Beslutninger persisterer; reviewed candidates kan vises samlet nederst
@@ -37,7 +38,7 @@ from topas_scraper._auth import require_auth  # noqa: E402
 require_auth()
 
 
-from topas_scraper import catalog_db, n8n_client
+from topas_scraper import catalog_db
 from topas_scraper.db import connect as connect_snapshots, fetch_topas_catalog
 
 
@@ -124,51 +125,29 @@ def _parse_departures(raw: str | None) -> list[dict[str, Any]]:
 
 st.title("📋 Review-kandidater")
 st.caption(
-    "Gennemgå konkurrent-kandidater fundet af n8n's screening-flow. "
+    "Gennemgå konkurrent-kandidater fundet via screening-pipelinen. "
     "Beslutninger gemmes i decision-loggen og fodrer pattern-synthesis "
     "(playbook-reglerne) over tid."
 )
 
 conn = _catalog_conn()
 
-col_sync, col_status = st.columns([2, 1])
-
-with col_sync:
-    if st.button("🔄 Hent fra n8n", type="primary"):
-        with st.spinner("Henter rækker fra n8n's Competitor Analysis-tabel..."):
-            try:
-                rows = n8n_client.fetch_candidates()
-            except n8n_client.N8nFetchError as exc:
-                st.error(f"Kunne ikke hente fra n8n: {exc}")
-                rows = None
-
-        if rows is not None:
-            try:
-                new_count, processed = catalog_db.upsert_n8n_candidates_bulk(conn, rows)
-                st.success(
-                    f"Hentede **{len(rows)}** rækker fra n8n · "
-                    f"processeret **{processed}** · heraf **{new_count}** nye."
-                )
-            except Exception as exc:  # noqa: BLE001
-                st.error(f"Bulk-import fejlede: {exc}")
-
-with col_status:
-    show_historical = st.toggle(
-        "Vis ældre screeninger",
-        value=False,
-        help="Som standard vises kun den seneste screening pr. konkurrent-tur. "
-        "Slå til for at se alle historiske kørsler (kan vise hallucinationer fra ældre prompts).",
-    )
-    if show_historical:
-        tour_summary = catalog_db.list_n8n_tour_codes(conn)
-    else:
-        tour_summary = catalog_db.list_latest_n8n_tour_codes(conn)
-    if tour_summary:
-        total_unrev = sum(t["unreviewed"] for t in tour_summary)
-        total = sum(t["total"] for t in tour_summary)
-        st.metric("Pending review", f"{total_unrev}/{total}")
-    else:
-        st.info("Ingen kandidater endnu — tryk **Hent fra n8n**.")
+show_historical = st.toggle(
+    "Vis ældre screeninger",
+    value=False,
+    help="Som standard vises kun den seneste screening pr. konkurrent-tur. "
+    "Slå til for at se alle historiske kørsler (kan vise hallucinationer fra ældre prompts).",
+)
+if show_historical:
+    tour_summary = catalog_db.list_n8n_tour_codes(conn)
+else:
+    tour_summary = catalog_db.list_latest_n8n_tour_codes(conn)
+if tour_summary:
+    total_unrev = sum(t["unreviewed"] for t in tour_summary)
+    total = sum(t["total"] for t in tour_summary)
+    st.metric("Pending review", f"{total_unrev}/{total}")
+else:
+    st.info("Ingen kandidater endnu — trig screening fra Tour-detalje.")
 
 st.divider()
 

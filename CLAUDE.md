@@ -29,13 +29,14 @@ Topas-segmentet er **fællesrejser med rejseleder** — ikke self-drive, ikke in
     │  Project bymurhqfcyxdh │   │                        │
     └────────────────────────┘   └────────────────────────┘
                      ▲
-                     │ writes scrape-resultater
+                     │ writes scrape- + screening-resultater
                      │
             ┌────────┴──────────────────────────────────┐
-            │  n8n workflow (eksternt)                  │
-            │  ID: x6ETjZx9qqYQ0UZJ                     │
+            │  topas_scraper.competitor_search          │
             │  Screening: finder kandidat-konkurrenter  │
-            │  via Firecrawl Search → Claude            │
+            │  via Firecrawl Search → Claude Sonnet     │
+            │  (tidligere n8n-workflow x6ETjZx9, drop-  │
+            │   ped 2026-05-15 efter side-om-side test) │
             └────────────────────────────────────────────┘
 ```
 
@@ -49,8 +50,7 @@ Topas-segmentet er **fællesrejser med rejseleder** — ikke self-drive, ikke in
 | Streamlit Cloud | share.streamlit.io | Manage panel — secrets ligger her |
 | GitHub repo | GsTopas/topas-analyst | https://github.com/GsTopas/topas-analyst |
 | Firecrawl | firecrawl.dev | `.env` FIRECRAWL_API_KEY |
-| Anthropic API (vision) | console.anthropic.com | `.env` ANTHROPIC_API_KEY |
-| n8n workflow | x6ETjZx9qqYQ0UZJ | Brugerens egen n8n-instans |
+| Anthropic API (vision + screening) | console.anthropic.com | `.env` ANTHROPIC_API_KEY |
 
 ## DB-skema (vigtigste tabeller)
 

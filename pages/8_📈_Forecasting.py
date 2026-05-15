@@ -115,23 +115,6 @@ if not months_with_data:
     st.info("Ingen rækker matcher dit filter.")
     st.stop()
 
-# Find længste maaned for at vide hvor mange raekker tabellen skal have.
-# Inden for hver maaned sorteres turkode-raekker efter homecoming_date,
-# saa placeres Oplæring + Research sidst (de har ingen dato).
-SPECIAL_CODES = {"Oplæring", "Research"}
-month_groups: dict[int, pd.DataFrame] = {}
-for m_num in months_with_data:
-    sub = df_filt[df_filt["month_num"] == m_num].copy()
-    sub["_is_special"] = sub["tour_code"].isin(SPECIAL_CODES)
-    sub = sub.sort_values(
-        ["_is_special", "homecoming_date", "tour_code"],
-        na_position="last",
-    ).drop(columns="_is_special").reset_index(drop=True)
-    month_groups[m_num] = sub
-
-max_rows = max(len(g) for g in month_groups.values())
-
-
 def _fmt_kr(v) -> str:
     if pd.isna(v) or v is None or v == "":
         return ""
@@ -141,23 +124,81 @@ def _fmt_kr(v) -> str:
         return ""
 
 
-# Byg DataFrame med MultiIndex-kolonner: (Maaned-med-total, Tur) og (..., "DB budget forskel")
-# Top-level inkluderer maaneds-total saa det vises i kolonne-headeren.
+SPECIAL_CODES = {"Oplæring", "Research"}
+
+def _categorize(code: str) -> str:
+    """Tilskriv turkode til en af de tre kategorier."""
+    if code in SPECIAL_CODES:
+        return "TOPAS"
+    if code.startswith("IG"):
+        return "GREENLAND BY TOPAS"
+    if code.startswith("IV"):
+        return "VIETNAM BY TOPAS"
+    return "TOPAS"
+
+
+CATEGORY_ORDER = ["TOPAS", "GREENLAND BY TOPAS", "VIETNAM BY TOPAS"]
+
+
+def _build_month_rows(g: pd.DataFrame) -> list[tuple[str, str]]:
+    """Returnér liste af (tur-celle, diff-celle) for én måned med kategori-
+    headere, sub-totaler og en blank linje mellem kategorier."""
+    rows: list[tuple[str, str]] = []
+    cats: dict[str, pd.DataFrame] = {
+        c: g[g["tour_code"].apply(_categorize) == c]
+        for c in CATEGORY_ORDER
+    }
+    for cat_name in CATEGORY_ORDER:
+        sub = cats[cat_name]
+        if sub.empty:
+            continue
+
+        # Sortér: dato-baserede ture først, Oplæring/Research nederst i TOPAS
+        sub = sub.copy()
+        sub["_special"] = sub["tour_code"].isin(SPECIAL_CODES)
+        sub = sub.sort_values(
+            ["_special", "homecoming_date", "tour_code"],
+            na_position="last",
+        )
+
+        rows.append((cat_name, ""))  # kategori-header
+        for _, r in sub.iterrows():
+            rows.append((r["tour_code"], _fmt_kr(r["db_budget_diff"])))
+
+        cat_total = sub["db_budget_diff"].sum()
+        rows.append((f"{cat_name} total", _fmt_kr(cat_total)))
+        rows.append(("", ""))  # spacer
+
+    # Fjern sidste spacer hvis den er der
+    while rows and rows[-1] == ("", ""):
+        rows.pop()
+    return rows
+
+
+# Byg rows pr. måned + find længste
+month_rows: dict[int, list[tuple[str, str]]] = {}
+for m_num in months_with_data:
+    g = df_filt[df_filt["month_num"] == m_num]
+    month_rows[m_num] = _build_month_rows(g)
+
+max_rows = max(len(r) for r in month_rows.values())
+
+# Byg MultiIndex-kolonner: (maaned-med-total, Tur|DB budget forskel)
 columns = []
 data: dict[tuple, list] = {}
 month_totals: dict[int, float] = {}
 for m_num in months_with_data:
     month_name = MONTH_ORDER[m_num - 1]
-    g = month_groups[m_num]
+    g = df_filt[df_filt["month_num"] == m_num]
     total = g["db_budget_diff"].sum()
     month_totals[m_num] = total
 
-    # Header viser maanedsnavn + samlet diff (med +/- prefix)
     sign = "+" if total >= 0 else "-"
     header = f"{month_name}  ·  {sign}{_fmt_kr(abs(total))} kr."
 
-    tour_col = list(g["tour_code"]) + [""] * (max_rows - len(g))
-    diff_col = [_fmt_kr(v) for v in g["db_budget_diff"]] + [""] * (max_rows - len(g))
+    rows = month_rows[m_num]
+    tour_col = [t for (t, _) in rows] + [""] * (max_rows - len(rows))
+    diff_col = [d for (_, d) in rows] + [""] * (max_rows - len(rows))
     data[(header, "Tur")] = tour_col
     data[(header, "DB budget forskel")] = diff_col
     columns.append((header, "Tur"))
@@ -165,8 +206,7 @@ for m_num in months_with_data:
 
 table = pd.DataFrame(data, columns=pd.MultiIndex.from_tuples(columns))
 
-# Total-raekke: sum af db_budget_diff pr. maaned (redundant med header-total men holder
-# tabellens bundlinje konsistent saa man kan laese den bunden-til-bunden)
+# Grand-Total-raekke nederst
 total_row: dict[tuple, str] = {}
 for (header, sub) in columns:
     m_num = next(mn for mn in months_with_data if MONTH_ORDER[mn - 1] in header)

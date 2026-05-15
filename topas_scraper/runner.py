@@ -98,6 +98,20 @@ def run_scrape(
     max_workers = int(os.getenv("SCRAPE_MAX_WORKERS", str(DEFAULT_MAX_WORKERS)))
     max_workers = max(1, min(max_workers, len(targets)))
 
+    # Hvis vi kører i Streamlit-context, så får worker-threads ikke automatisk
+    # session-context (ScriptRunContext er thread-local). Det betyder at
+    # emit() (som kalder st.status.update i Streamlit-kontekst) crasher med
+    # NoSessionContext. Fix: propagér main-thread's context til hver worker.
+    streamlit_ctx = None
+    try:
+        from streamlit.runtime.scriptrunner import (  # noqa: PLC0415
+            get_script_run_ctx,
+            add_script_run_ctx,
+        )
+        streamlit_ctx = get_script_run_ctx()
+    except Exception:
+        pass
+
     db = db_path or str(DEFAULT_DB_PATH)
     conn = connect(db)
     try:
@@ -109,6 +123,11 @@ def run_scrape(
             Designed to run concurrently; uses db_lock for DB-writes and
             emit_lock (via emit()) for progress output.
             """
+            if streamlit_ctx is not None:
+                try:
+                    add_script_run_ctx(threading.current_thread(), streamlit_ctx)
+                except Exception:
+                    pass
             i, target = i_target
             total = len(targets)
             emit(f"[{i}/{total}] {target.operator}...")

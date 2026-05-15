@@ -279,27 +279,18 @@ def _detail_row_style(row: pd.Series) -> list[str]:
 
 
 def _render_detail_view(df_in: pd.DataFrame, month_nums: list[int]) -> None:
-    """Detalje-tabel: side-om-side maaneds-kolonner med kategori-rubrikker
-    (Topas / GBT / VBT). Kategori-blokke padder til ens stoerrelse paa
-    tvers af maaneder saa rubrikker aligner horisontalt."""
-    # Beregn max-slot-size pr. kategori paa tvers af alle valgte maaneder
-    cat_slot_sizes: dict[str, int] = {}
-    for cat_name in CATEGORY_ORDER:
-        sizes = []
-        for m_num in month_nums:
-            g = df_in[df_in["month_num"] == m_num]
-            cnt = (g["tour_code"].apply(_categorize) == cat_name).sum()
-            sizes.append(cnt)
-        cat_slot_sizes[cat_name] = max(sizes) if sizes else 0
+    """Detalje-tabel: side-om-side maaneds-kolonner med Topas/GBT/VBT-rubrikker.
 
+    Hver maaned har sit eget naturlige flow - INGEN padding, INGEN horisontal
+    alignment paa tvers af maaneder. Kategori-rubrikker er bare almindelige
+    rakker med fed tekst i Tur-kolonnen (ikke en row-spanning styling)."""
     month_rows: dict[int, list[tuple[str, str]]] = {}
     for m_num in month_nums:
         g = df_in[df_in["month_num"] == m_num]
-        month_rows[m_num] = _build_month_rows(g, cat_slot_sizes=cat_slot_sizes)
+        month_rows[m_num] = _build_month_rows(g, cat_slot_sizes=None)  # ingen padding!
 
     max_rows = max(len(r) for r in month_rows.values()) if month_rows else 0
 
-    # Byg MultiIndex-kolonner: (maaned, Tur|DB budget forskel)
     columns = []
     data: dict[tuple, list] = {}
     month_totals: dict[int, float] = {}
@@ -309,6 +300,8 @@ def _render_detail_view(df_in: pd.DataFrame, month_nums: list[int]) -> None:
         month_totals[m_num] = g["db_budget_diff"].sum()
 
         rows = month_rows[m_num]
+        # Pad kun tilbage til max_rows for at fa et rektangulart DataFrame
+        # (et teknisk krav for pandas) - IKKE for alignment.
         tour_col = [t for (t, _) in rows] + [""] * (max_rows - len(rows))
         diff_col = [d for (_, d) in rows] + [""] * (max_rows - len(rows))
         data[(month_name, "Tur")] = tour_col
@@ -328,45 +321,49 @@ def _render_detail_view(df_in: pd.DataFrame, month_nums: list[int]) -> None:
             total_row[(header, sub)] = _fmt_kr(month_totals[m_num])
     table.loc[len(table)] = pd.Series(total_row)
 
-    # Styling-helper-funktion
     cat_labels = set(CATEGORY_SHORT.values())  # {"Topas", "GBT", "VBT"}
 
     def _style(row: pd.Series) -> list[str]:
-        tour_cell = ""
-        for (_h, sub), val in row.items():
-            if sub == "Tur":
-                tour_cell = str(val).strip()
-                break
-
-        is_cat_header = tour_cell in cat_labels
-        is_subtotal = tour_cell.endswith(" total") and tour_cell != "Total"
-        is_grand_total = tour_cell == "Total"
-
+        """Styling er PER CELLE, ikke per ROW.
+        Hver maaneds Tur-kolonne kan have en kategori-label paa en raekke
+        hvor en anden maaneds Tur-kolonne har en almindelig turkode.
+        Vi kan altsaa ikke applye row-spanning baggrund - styling laeses
+        for hver celle individuelt."""
         styles = []
         for (_h, sub), val in row.items():
             s = ""
-            if is_cat_header:
-                s = ("background-color:#1e3a5f; color:#ffffff; font-weight:700; "
-                     "letter-spacing:0.3px;")
-            elif is_subtotal:
-                s = ("background-color:#f1f5f9; font-style:italic; "
-                     "font-weight:700; color:#1e3a5f; "
-                     "border-top:1px dashed #94a3b8;")
-            elif is_grand_total:
-                s = ("background-color:#fff4e6; color:#7c2d12; font-weight:800; "
-                     "border-top:2px solid #d97706;")
+            val_str = str(val).strip() if val is not None else ""
+
+            if sub == "Tur":
+                # Tur-kolonnen: kategori-labels og 'X total' i fed
+                if val_str in cat_labels:
+                    s = "font-weight:700; color:#1e3a5f;"
+                elif val_str.endswith(" total") and val_str != "Total":
+                    s = "font-weight:700; color:#1e3a5f;"
+                elif val_str == "Total":
+                    s = "font-weight:800; color:#7c2d12;"
             else:
-                # Almindelige tur-rakker: ikke fede, bare farvet diff
-                if sub == "DB budget forskel" and isinstance(val, str) and val:
-                    if val.startswith("-"):
+                # DB-kolonnen
+                if val_str.replace(".", "").replace("-", "").replace(",", "").isdigit() or val_str == "0":
+                    # Total-row: find tilhoerende tur-celle for at se om denne row er Total
+                    tour_val = ""
+                    for (_h2, s2), v2 in row.items():
+                        if s2 == "Tur":
+                            tour_val = str(v2).strip()
+                            break
+                    if tour_val == "Total":
+                        s = "font-weight:800; color:#7c2d12;"
+                    elif tour_val.endswith(" total"):
+                        s = "font-weight:700; color:#1e3a5f;"
+                    elif val_str.startswith("-"):
                         s = "color:#c0392b;"
-                    elif val != "0":
+                    elif val_str != "0":
                         s = "color:#1e8449;"
             styles.append(s)
         return styles
 
     styled = table.style.apply(_style, axis=1)
-    _row_h, _header_h = 35, 70
+    _row_h, _header_h = 32, 70
     _target_h = min(900, _header_h + _row_h * (len(table) + 1))
     st.dataframe(styled, use_container_width=True, hide_index=True, height=_target_h)
 

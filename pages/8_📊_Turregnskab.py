@@ -121,6 +121,33 @@ def _fmt_kr(v) -> str:
 
 SPECIAL_CODES = {"Oplæring", "Research"}
 
+
+def _heatmap_bg(v: float | None, scale_abs: float) -> str:
+    """Returner background-color string baseret paa vaerdi + skala.
+
+    Negative vaerdier giver roed baggrund med intensitet proportional til
+    abs(v)/scale_abs. Positive giver groen. Nul/None giver intet.
+
+    scale_abs er typisk max(abs(min), abs(max)) i datasaettet, saa stoerste
+    vaerdi bliver fuldfarvet og mindre vaerdier giver svagere shade."""
+    if v is None or pd.isna(v) or v == 0 or scale_abs <= 0:
+        return ""
+    try:
+        v = float(v)
+    except (ValueError, TypeError):
+        return ""
+    intensity = min(abs(v) / scale_abs, 1.0)
+    # Justér saa selv smaa vaerdier viser mindst lidt farve (gamma 0.6)
+    intensity = intensity ** 0.6
+    if v > 0:
+        # Groen: #1e8449 ved fuld intensity, fader til hvid
+        alpha = intensity * 0.65  # max 65% saa text forbliver laesbar
+        return f"background-color: rgba(46, 139, 87, {alpha:.2f});"
+    else:
+        # Roed: #c0392b ved fuld intensity
+        alpha = intensity * 0.65
+        return f"background-color: rgba(192, 57, 43, {alpha:.2f});"
+
 def _categorize(code: str) -> str:
     """Tilskriv turkode til en af de tre kategorier."""
     if code in SPECIAL_CODES:
@@ -295,19 +322,32 @@ def _render_detail_view(df_in: pd.DataFrame, month_nums: list[int]) -> None:
 
     cat_labels = set(CATEGORY_SHORT.values())  # {"Topas", "GBT", "VBT"}
 
+    # Beregn heatmap-skala fra rawdata (kun individuelle ture, ikke totals)
+    scale = 0.0
+    for m_num in month_nums:
+        g = df_in[df_in["month_num"] == m_num]
+        for v in g["db_budget_diff"]:
+            if pd.notna(v):
+                scale = max(scale, abs(float(v)))
+
+    def _parse_kr(s: str) -> float | None:
+        """Konvertér '+159.778' eller '-15.761' tilbage til numerisk."""
+        if not s or s == "0":
+            return 0.0 if s == "0" else None
+        try:
+            return float(s.replace(".", "").replace(",", "."))
+        except (ValueError, TypeError):
+            return None
+
     def _style(row: pd.Series) -> list[str]:
-        """Styling er PER CELLE, ikke per ROW.
-        Hver maaneds Tur-kolonne kan have en kategori-label paa en raekke
-        hvor en anden maaneds Tur-kolonne har en almindelig turkode.
-        Vi kan altsaa ikke applye row-spanning baggrund - styling laeses
-        for hver celle individuelt."""
+        """Styling per celle: kategori-labels og totaler i fed,
+        diff-celler med heatmap-baggrund."""
         styles = []
         for (_h, sub), val in row.items():
             s = ""
             val_str = str(val).strip() if val is not None else ""
 
             if sub == "Tur":
-                # Tur-kolonnen: kategori-labels og 'X total' i fed
                 if val_str in cat_labels:
                     s = "font-weight:700; color:#1e3a5f;"
                 elif val_str.endswith(" total") and val_str != "Total":
@@ -315,22 +355,26 @@ def _render_detail_view(df_in: pd.DataFrame, month_nums: list[int]) -> None:
                 elif val_str == "Total":
                     s = "font-weight:800; color:#7c2d12;"
             else:
-                # DB-kolonnen
-                if val_str.replace(".", "").replace("-", "").replace(",", "").isdigit() or val_str == "0":
-                    # Total-row: find tilhoerende tur-celle for at se om denne row er Total
-                    tour_val = ""
-                    for (_h2, s2), v2 in row.items():
-                        if s2 == "Tur":
-                            tour_val = str(v2).strip()
-                            break
-                    if tour_val == "Total":
-                        s = "font-weight:800; color:#7c2d12;"
-                    elif tour_val.endswith(" total"):
-                        s = "font-weight:700; color:#1e3a5f;"
-                    elif val_str.startswith("-"):
-                        s = "color:#c0392b;"
-                    elif val_str != "0":
-                        s = "color:#1e8449;"
+                # DB-kolonnen — find tilhoerende tur-celle for at se hvilken raekke det er
+                tour_val = ""
+                for (_h2, s2), v2 in row.items():
+                    if s2 == "Tur":
+                        tour_val = str(v2).strip()
+                        break
+
+                if tour_val == "Total":
+                    s = "font-weight:800; color:#7c2d12; background-color:#fff4e6;"
+                elif tour_val.endswith(" total"):
+                    # Sub-total: ikke heatmap, bare fed
+                    s = "font-weight:700; color:#1e3a5f; background-color:#f1f5f9;"
+                elif tour_val in cat_labels:
+                    # Kategori-header row: ingen styling i DB-kolonnen
+                    s = ""
+                elif val_str:
+                    # Almindelig tur-celle: heatmap-baggrund
+                    numeric = _parse_kr(val_str)
+                    if numeric is not None and numeric != 0:
+                        s = _heatmap_bg(numeric, scale)
             styles.append(s)
         return styles
 
@@ -366,43 +410,23 @@ def _render_summary_view(df_in: pd.DataFrame, month_nums: list[int]) -> None:
         sign = "+" if v > 0 else "-"
         return f"{sign}{_fmt_kr(abs(v))}"
 
+    # Beregn skala for heatmap-koloreringen (max-abs vaerdi i tal-kolonner)
+    numeric_cols = ["Ture", "Oplæring / Research", "Total DB-afvigelse"]
+    scale = 0.0
+    for c in numeric_cols:
+        for v in summary[c]:
+            if isinstance(v, (int, float)) and not pd.isna(v):
+                scale = max(scale, abs(float(v)))
+
     def _color(row: pd.Series) -> list[str]:
         styles: list[str] = []
         for col, val in row.items():
             if col == "Måned":
-                # Foerste kolonne: fed
                 s = "font-weight:700; color:#1e3a5f;"
-            elif col == "Total DB-afvigelse":
-                # Total: ikke fed, kun farvet
-                if isinstance(val, (int, float)) and not pd.isna(val):
-                    if val < 0:
-                        s = "color:#c0392b;"
-                    elif val > 0:
-                        s = "color:#1e8449;"
-                    else:
-                        s = "color:#94a3b8;"
-                else:
-                    s = ""
             elif col == "Oplæring / Research":
-                # Italic, ikke fed
-                s = "font-style:italic;"
-                if isinstance(val, (int, float)) and not pd.isna(val):
-                    if val < 0:
-                        s += " color:#c0392b;"
-                    elif val > 0:
-                        s += " color:#1e8449;"
-                    else:
-                        s += " color:#94a3b8;"
-            else:  # Ture
-                if isinstance(val, (int, float)) and not pd.isna(val):
-                    if val < 0:
-                        s = "color:#c0392b;"
-                    elif val > 0:
-                        s = "color:#1e8449;"
-                    else:
-                        s = "color:#94a3b8;"
-                else:
-                    s = ""
+                s = "font-style:italic; " + _heatmap_bg(val, scale)
+            else:  # Ture / Total DB-afvigelse
+                s = _heatmap_bg(val, scale)
             styles.append(s)
         return styles
 
@@ -498,18 +522,32 @@ def _render_comparison_view(df_in: pd.DataFrame, month_nums: list[int]) -> None:
             return ""
         return _fmt_kr(v)
 
-    def _color_cell(v):
-        if pd.isna(v):
-            return ""
-        if v < 0:
-            return "color:#c0392b;"
-        if v > 0:
-            return "color:#1e8449;"
-        return "color:#94a3b8;"
+    # Heatmap-skala fra pivotens tal-celler (excl. YTD-kolonnen som er aggregat)
+    month_value_cols = [c for c in pivot.columns if c != "YTD"]
+    cell_scale = 0.0
+    for c in month_value_cols:
+        for v in pivot[c]:
+            if pd.notna(v):
+                cell_scale = max(cell_scale, abs(float(v)))
+    # YTD har sin egen skala (typisk stoerre vaerdier)
+    ytd_scale = 0.0
+    if "YTD" in pivot.columns:
+        for v in pivot["YTD"]:
+            if pd.notna(v):
+                ytd_scale = max(ytd_scale, abs(float(v)))
+
+    def _color_cell_month(v):
+        return _heatmap_bg(v, cell_scale)
+
+    def _color_cell_ytd(v):
+        return _heatmap_bg(v, ytd_scale)
 
     fmt_dict = {col: _fmt_or_blank for col in pivot.columns}
-    styled = (pivot.style.format(fmt_dict)
-                  .map(_color_cell, subset=pivot.columns))
+    styled = pivot.style.format(fmt_dict)
+    if month_value_cols:
+        styled = styled.map(_color_cell_month, subset=month_value_cols)
+    if "YTD" in pivot.columns:
+        styled = styled.map(_color_cell_ytd, subset=["YTD"])
     st.dataframe(styled, use_container_width=True)
 
 

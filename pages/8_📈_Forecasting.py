@@ -134,6 +134,13 @@ def _categorize(code: str) -> str:
 
 CATEGORY_ORDER = ["TOPAS", "GREENLAND BY TOPAS", "VIETNAM BY TOPAS"]
 
+# Ikon-prefix saa man straks ser at det er en underrubrik (ikke en turkode).
+CATEGORY_ICONS = {
+    "TOPAS": "▸ TOPAS",
+    "GREENLAND BY TOPAS": "▸ GREENLAND BY TOPAS",
+    "VIETNAM BY TOPAS": "▸ VIETNAM BY TOPAS",
+}
+
 
 def _build_month_rows(g: pd.DataFrame) -> list[tuple[str, str]]:
     """Returnér liste af (tur-celle, diff-celle) for én måned med kategori-
@@ -156,12 +163,12 @@ def _build_month_rows(g: pd.DataFrame) -> list[tuple[str, str]]:
             na_position="last",
         )
 
-        rows.append((cat_name, ""))  # kategori-header
+        rows.append((CATEGORY_ICONS[cat_name], ""))  # kategori-header med ikon-prefix
         for _, r in sub.iterrows():
             rows.append((r["tour_code"], _fmt_kr(r["db_budget_diff"])))
 
         cat_total = sub["db_budget_diff"].sum()
-        rows.append((f"{cat_name} total", _fmt_kr(cat_total)))
+        rows.append((f"   {cat_name} total", _fmt_kr(cat_total)))  # indent saa sub-total er visuelt under kategori
         rows.append(("", ""))  # spacer
 
     # Fjern sidste spacer hvis den er der
@@ -218,12 +225,97 @@ for (header, sub) in columns:
 
 table.loc[len(table)] = pd.Series(total_row)
 
+# === Styling ===
+CATEGORY_HEADER_VALUES = set(CATEGORY_ICONS.values())
+SUBTOTAL_SUFFIX = " total"
+
+def _row_style(row: pd.Series) -> list[str]:
+    """Returnerer CSS pr. celle for én raekke."""
+    tour_cell = ""
+    for (_header, sub), val in row.items():
+        if sub == "Tur":
+            tour_cell = str(val)
+            break
+
+    base_styles: list[str] = []
+    tour_stripped = tour_cell.strip()
+    is_cat_header = tour_cell in CATEGORY_HEADER_VALUES
+    is_subtotal = tour_stripped.endswith(SUBTOTAL_SUFFIX) and tour_stripped != "Total"
+    is_grand_total = tour_stripped == "Total"
+
+    for (_header, sub), val in row.items():
+        style = ""
+        if is_cat_header:
+            # Tydelig sub-rubrik: kraftig blaa baggrund + hvid tekst + uppercase
+            style = (
+                "background-color:#1e3a5f; "
+                "color:#ffffff; "
+                "font-weight:700; "
+                "font-size:0.95rem; "
+                "letter-spacing:0.5px; "
+                "padding:8px 4px;"
+            )
+        elif is_subtotal:
+            style = (
+                "font-weight:600; "
+                "font-style:italic; "
+                "border-top:1px dashed #94a3b8; "
+                "color:#475569; "
+                "background-color:#f8fafc;"
+            )
+        elif is_grand_total:
+            style = (
+                "background-color:#fff4e6; "
+                "color:#7c2d12; "
+                "font-weight:800; "
+                "font-size:1.05rem; "
+                "border-top:2px solid #d97706;"
+            )
+        else:
+            # Almindelige data-celler: farve negative tal roede, positive groenne
+            if sub == "DB budget forskel" and isinstance(val, str) and val:
+                if val.startswith("-"):
+                    style = "color:#c0392b; font-weight:500;"
+                elif val and val != "0":
+                    style = "color:#1e8449; font-weight:500;"
+        base_styles.append(style)
+    return base_styles
+
+
+styled = table.style.apply(_row_style, axis=1)
+
+# Custom CSS for tabellens headers (MultiIndex). Streamlit's stDataFrame
+# er Arrow-baseret, men vi kan style headers via inline CSS injection.
+st.markdown(
+    """
+    <style>
+    /* Maaneds-headers (top level) */
+    [data-testid="stDataFrame"] thead tr:first-child th {
+        font-weight: 700 !important;
+        font-size: 0.95rem !important;
+        background-color: #f8fafc !important;
+        color: #0f172a !important;
+        border-bottom: 1px solid #cbd5e1 !important;
+    }
+    /* Sub-headers (Tur / DB budget forskel) */
+    [data-testid="stDataFrame"] thead tr:nth-child(2) th {
+        font-weight: 600 !important;
+        color: #475569 !important;
+    }
+    /* Data-rows */
+    [data-testid="stDataFrame"] tbody td {
+        font-size: 0.9rem !important;
+    }
+    </style>
+    """,
+    unsafe_allow_html=True,
+)
+
 # Dybere default-hoejde saa hele tabellen er synlig uden scroll i de fleste maaneder.
-# Streamlit dataframe-row-height ~35px + ~50px header. Vi giver plads til ca. 30 rows.
 _row_h = 35
 _header_h = 80
 _target_h = min(900, _header_h + _row_h * (len(table) + 1))
-st.dataframe(table, use_container_width=True, hide_index=True, height=_target_h)
+st.dataframe(styled, use_container_width=True, hide_index=True, height=_target_h)
 
 
 with st.expander("ℹ Hvor kommer data fra?"):

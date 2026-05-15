@@ -414,23 +414,28 @@ def _render_summary_view(df_in: pd.DataFrame, month_nums: list[int]) -> None:
     scale = 0.0
     for c in numeric_cols:
         for v in summary[c]:
-            if isinstance(v, (int, float)) and not pd.isna(v):
-                scale = max(scale, abs(float(v)))
+            try:
+                if v is not None and not pd.isna(v):
+                    scale = max(scale, abs(float(v)))
+            except (ValueError, TypeError):
+                pass
 
-    def _color(row: pd.Series) -> list[str]:
-        styles: list[str] = []
-        for col, val in row.items():
-            if col == "Måned":
-                s = "font-weight:700; color:#1e3a5f;"
-            elif col == "Oplæring / Research":
-                s = "font-style:italic; " + _heatmap_bg(val, scale)
-            else:  # Ture / Total DB-afvigelse
-                s = _heatmap_bg(val, scale)
-            styles.append(s)
-        return styles
+    def _heatmap(v):
+        return _heatmap_bg(v, scale)
+
+    def _heatmap_italic(v):
+        bg = _heatmap_bg(v, scale)
+        return ("font-style:italic; " + bg) if bg else "font-style:italic;"
+
+    def _month_col(_v):
+        return "font-weight:700; color:#1e3a5f;"
 
     fmt_cols = {col: _fmt_signed for col in summary.columns if col != "Måned"}
-    styled = summary.style.format(fmt_cols).apply(_color, axis=1)
+    styled = (summary.style.format(fmt_cols)
+                            .map(_heatmap, subset=["Ture"])
+                            .map(_heatmap, subset=["Total DB-afvigelse"])
+                            .map(_heatmap_italic, subset=["Oplæring / Research"])
+                            .map(_month_col, subset=["Måned"]))
     _row_h = 35
     _target_h = min(550, 60 + _row_h * len(summary))
     st.dataframe(styled, use_container_width=True, hide_index=True, height=_target_h)

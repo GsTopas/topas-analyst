@@ -1,33 +1,61 @@
-﻿# sync_forecast.ps1 - Daglig sync af Turomkostninger 2026.xls → Supabase
-#
-# Læser K:\OFFICE\Operations\Turregnskab\Opfølgning\Turomkostninger 2026.xls
-# via Excel COM (read-only, ingen ændringer i kilde-filen) og uploader
-# data til Supabase-tabellen `tour_pl_forecast`.
+﻿# sync_forecast.ps1 - Sync af Turomkostninger 2026.xls -> Supabase
 #
 # Brug:
-#   pwsh scripts\sync_forecast.ps1            # kører sync med standardværdier
-#   pwsh scripts\sync_forecast.ps1 -DryRun    # vis hvad der ville blive uploadet
-#
-# Krav:
-#   - Excel installeret (COM-automation)
-#   - Adgang til K:-drevet
-#   - Miljøvariabler: SUPABASE_URL, SUPABASE_SERVICE_KEY
-#     (læses fra .env hvis ikke sat)
-#
-# Setup i Task Scheduler (hver dag kl. 06:00):
-#   $action = New-ScheduledTaskAction -Execute "pwsh.exe" `
-#     -Argument "-NoProfile -File `"C:\Users\gs\Downloads\topas-scraper\scripts\sync_forecast.ps1`""
-#   $trigger = New-ScheduledTaskTrigger -Daily -At "06:00"
-#   Register-ScheduledTask -TaskName "TopasForecastSync" -Action $action -Trigger $trigger
+#   pwsh scripts\sync_forecast.ps1                  # tving sync
+#   pwsh scripts\sync_forecast.ps1 -DryRun          # vis kun (ingen upload)
+#   pwsh scripts\sync_forecast.ps1 -LogonCheck      # logon-mode: skip hvis kørt i dag
 
 [CmdletBinding()]
 param(
   [string]$ExcelPath = "K:\OFFICE\Operations\Turregnskab\Opfølgning\Turomkostninger 2026.xls",
   [string]$EnvFile   = "$PSScriptRoot\..\.env",
-  [switch]$DryRun
+  [switch]$DryRun,
+  [switch]$LogonCheck
 )
 
 $ErrorActionPreference = "Stop"
+
+# Sti til lokal sync-log (én linje pr. sync med dato)
+$SyncLogFile = "$PSScriptRoot\..\.sync_state\last_forecast_sync.txt"
+
+# === Helper: Vis Windows toast-notifikation (uden eksterne moduler) ===
+function Show-Notification {
+  param([string]$Title, [string]$Message, [string]$Icon = "Warning")
+  try {
+    Add-Type -AssemblyName System.Windows.Forms -ErrorAction SilentlyContinue
+    $notify = New-Object System.Windows.Forms.NotifyIcon
+    $notify.Icon = [System.Drawing.SystemIcons]::$Icon
+    $notify.Visible = $true
+    $notify.ShowBalloonTip(15000, $Title, $Message, [System.Windows.Forms.ToolTipIcon]::$Icon)
+    Start-Sleep -Seconds 16
+    $notify.Dispose()
+  } catch {
+    # Fallback: skriv til event-log
+    Write-Warning "$Title : $Message"
+  }
+}
+
+# === LogonCheck-mode: skip hvis allerede synced i dag ===
+if ($LogonCheck) {
+  $today = (Get-Date).ToString("yyyy-MM-dd")
+  if (Test-Path $SyncLogFile) {
+    $lastDate = (Get-Content $SyncLogFile -Raw -ErrorAction SilentlyContinue).Trim()
+    if ($lastDate -eq $today) {
+      Write-Host "Forecast-sync allerede koert i dag ($today). Skipper."
+      exit 0
+    }
+  }
+
+  # Tjek K:-adgang foer sync
+  if (-not (Test-Path $ExcelPath)) {
+    Show-Notification `
+      -Title "Topas Forecast-sync mangler K:-drev" `
+      -Message "K:-drevet er ikke tilgaengeligt. Forbind drevet og koer manuelt sync, eller log paa igen senere." `
+      -Icon "Warning"
+    Write-Warning "K: ikke tilgaengeligt - sync ikke koert"
+    exit 1
+  }
+}
 
 # === Indlæs .env hvis miljøvariabler mangler ===
 function Load-DotEnv {
@@ -314,3 +342,14 @@ for ($i = 0; $i -lt $rows.Count; $i += $batchSize) {
 
 Write-Host ""
 Write-Host "Sync faerdig: $totalUploaded raekker i Supabase tour_pl_forecast"
+
+# Skriv sync-log saa LogonCheck ved at vi koerte i dag
+try {
+  $stateDir = Split-Path $SyncLogFile -Parent
+  if (-not (Test-Path $stateDir)) {
+    New-Item -ItemType Directory -Path $stateDir -Force | Out-Null
+  }
+  (Get-Date).ToString("yyyy-MM-dd") | Out-File -FilePath $SyncLogFile -Encoding utf8 -NoNewline
+} catch {
+  Write-Warning "Kunne ikke skrive sync-log: $_"
+}

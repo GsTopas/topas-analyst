@@ -29,3 +29,6 @@ data/raw/
 
 # Cached scrapes — for local debugging, never committed
 .cache/
+
+# Local sync-state (forecast sync-log)
+.sync_state/

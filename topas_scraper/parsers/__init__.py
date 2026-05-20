@@ -13,6 +13,7 @@ remain in the repository for reference but are no longer imported here.
 """
 
 from . import generic_ai
+from . import jysk as _jysk
 
 # Universal parser for every operator. Same code for Topas, Stjernegaard,
 # Albatros, all of them. Operator-specific knowledge moved to the LLM
@@ -22,7 +23,10 @@ _UNIVERSAL = generic_ai.parse
 PARSERS = {
     "topas": _UNIVERSAL,
     "smilrejser": _UNIVERSAL,
-    "jysk": _UNIVERSAL,
+    # Jysk Rejsebureau har dedikeret regex-parser fordi LLM-extraction
+    # stedse mappede 'Ledige pladser' til 'Få pladser' uanset prompt-fix.
+    # Regex parser binder status til afgangsrækken (mellem dato og pris).
+    "jysk": _jysk.parse,
     "viktorsfarmor": _UNIVERSAL,
     "ruby": _UNIVERSAL,
     "nillesgislev": _UNIVERSAL,

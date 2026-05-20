@@ -79,10 +79,23 @@ def _extract_departures(md: str) -> list[dict]:
             continue
         seen.add(key)
 
-        # Look in 'between' first, then a small window before, for status
-        head = md[max(0, m.start() - 200):m.start()] + between
-        status_match = re.search(r"(På forespørgsel|Garanteret|Få pladser|Udsolgt|Åben for booking|Ledig)", head, re.IGNORECASE)
-        status = normalize_status(status_match.group(1)) if status_match else "På forespørgsel"
+        # Look for status — Jysk's table has status text adjacent to the date.
+        # Priority: search inside 'between' (between date and price — most
+        # targeted), then fallback to small window before date.
+        # NB: 'Ledige pladser' MUST be matched before 'Få pladser' (both
+        # contain 'pladser'). Longest-pattern-first regex alternation.
+        status_pattern = r"(Ledige pladser|Få pladser|På forespørgsel|Garanteret|Udsolgt|Åben for booking|Ledig)"
+        status_match = re.search(status_pattern, between, re.IGNORECASE)
+        if not status_match:
+            pre_window = md[max(0, m.start() - 200):m.start()]
+            status_match = re.search(status_pattern, pre_window, re.IGNORECASE)
+        raw_status = status_match.group(1) if status_match else None
+        if raw_status and raw_status.lower() == "ledige pladser":
+            status = "Åben"
+        elif raw_status:
+            status = normalize_status(raw_status)
+        else:
+            status = "På forespørgsel"
 
         # Look for rejseleder name in the row
         rl_match = re.search(r"Rejseleder\s+([A-ZÆØÅ][a-zæøå]+(?:\s+[A-ZÆØÅ][a-zæøå]+)+)", between)

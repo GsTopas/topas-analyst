@@ -148,7 +148,19 @@ def _heatmap_bg(v: float | None, scale_abs: float) -> str:
         return f"background-color: rgba(192, 57, 43, {alpha:.2f});"
 
 def _categorize(code: str) -> str:
-    """Tilskriv turkode til en af de tre kategorier."""
+    """Tilskriv turkode til en af de tre kategorier.
+
+    Reglerne i prioriteret rækkefølge:
+    1. 'Budget [maaned] (GBT)' / '(VBT)' suffix overrider — disse er
+       ufordelt budget-rakker tilfoejet af sync-scriptet
+    2. SPECIAL_CODES ('Oplæring', 'Research') -> Topas
+    3. Turkode-prefix: IG -> GBT, IV -> VBT
+    4. Default -> Topas
+    """
+    if code.endswith("(GBT)"):
+        return "GREENLAND BY TOPAS"
+    if code.endswith("(VBT)"):
+        return "VIETNAM BY TOPAS"
     if code in SPECIAL_CODES:
         return "TOPAS"
     if code.startswith("IG"):

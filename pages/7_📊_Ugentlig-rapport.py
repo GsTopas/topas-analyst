@@ -210,19 +210,28 @@ def _process_departures(operator: str, tour_code: str, tour_name: str, deps: lis
         # allerede eksisterede FØR vinduet. Hvis touren selv er ny i vinduet,
         # skipper vi (ellers tæller vi 117 "nye afgange" hvergang vi første
         # gang scraper en konkurrent — ikke det Gorm vil have).
+        #
+        # Status-whitelist: kun "Garanteret" og "Åben" tæller som nyåbnede.
+        # Hvis vi ser en afgang første gang med status Udsolgt/Få pladser/
+        # Afventer pris, så er det IKKE en nyåbnet afgang — det er en gammel
+        # afgang vi opdagede sent. Operatøren kan ikke åbne en afgang og
+        # samtidig markere den som udsolgt eller restpladser.
         first_seen_str = d.get("firstSeen")
         if first_seen_str and not d.get("isArchived") and tour_existed:
             first_seen_dt = _parse_iso(first_seen_str)
             today = datetime.utcnow()
             is_future = start_dt is not None and start_dt > today
-            if first_seen_dt and first_seen_dt >= cutoff_dt and is_future:
+            current_status = (d.get("status") or "").strip()
+            is_genuinely_new = current_status in {"Garanteret", "Åben"}
+            if (first_seen_dt and first_seen_dt >= cutoff_dt
+                    and is_future and is_genuinely_new):
                 new_departures.append({
                     "operator": operator,
                     "tour_code": tour_code,
                     "tour_name": tour_name,
                     "start_date": start_iso,
                     "first_seen": first_seen_str,
-                    "current_status": d.get("status"),
+                    "current_status": current_status,
                     "current_price": d.get("priceDkk"),
                 })
 

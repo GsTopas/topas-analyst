@@ -231,6 +231,12 @@ df = pd.DataFrame(
     [dict(row) for row in catalog_rows]
 )
 
+# Filter: skjul udgaaede ture fra katalog-visningen.
+# 'Udgået' audience_segment markerer ture der ikke laengere saelges, og
+# de skal ikke fremgaa i hovedvisningen (men beholdes i DB for historik).
+if "audience_segment" in df.columns:
+    df = df[df["audience_segment"] != "Udgået"].reset_index(drop=True)
+
 # Berigning: hvilke tour-koder har vi Topas-scraped-data for?
 # Det gør at vi kan skelne mellem "scraped uden konkurrenter" og "helt unsetup".
 try:

@@ -216,23 +216,25 @@ def _process_departures(operator: str, tour_code: str, tour_name: str, deps: lis
                     "severity": anomaly.get("severity"),
                 })
 
-        # Nye afgange — afgang dukket op INDEN FOR vinduet for en tour der
-        # allerede eksisterede FØR vinduet. Hvis touren selv er ny i vinduet,
-        # skipper vi (ellers tæller vi 117 "nye afgange" hvergang vi første
-        # gang scraper en konkurrent — ikke det Gorm vil have).
+        # Nye afgange — definition:
+        #   1. Touren er kendt > 14 dage (tour_existed = vi har scrapet den foer)
+        #   2. Selve afgangen er foerst set inden for det valgte vindue
+        #   3. Afgang-dato er i fremtiden
+        #   4. Status indikerer en nyåbnet afgang (Garanteret/Åben/Afventer pris)
         #
-        # Status-whitelist: kun "Garanteret" og "Åben" tæller som nyåbnede.
-        # Hvis vi ser en afgang første gang med status Udsolgt/Få pladser/
-        # Afventer pris, så er det IKKE en nyåbnet afgang — det er en gammel
-        # afgang vi opdagede sent. Operatøren kan ikke åbne en afgang og
-        # samtidig markere den som udsolgt eller restpladser.
+        # Faa pladser og Udsolgt blacklistes — en reelt ny afgang vil ~aldrig
+        # umiddelbart vaere udsolgt eller restpladser. De forekomster er
+        # gamle afgange vi opdagede sent (fx pga parser-fix eller forsinket
+        # data fra konkurrenten). Afventer pris er derimod et klart symbol
+        # paa en ny afgang — operatoeren har annonceret datoen men ikke
+        # sat prisen endnu.
         first_seen_str = d.get("firstSeen")
         if first_seen_str and not d.get("isArchived") and tour_existed:
             first_seen_dt = _parse_iso(first_seen_str)
             today = datetime.utcnow()
             is_future = start_dt is not None and start_dt > today
             current_status = (d.get("status") or "").strip()
-            is_genuinely_new = current_status in {"Garanteret", "Åben"}
+            is_genuinely_new = current_status in {"Garanteret", "Åben", "Afventer pris"}
             if (first_seen_dt and first_seen_dt >= cutoff_dt
                     and is_future and is_genuinely_new):
                 new_departures.append({

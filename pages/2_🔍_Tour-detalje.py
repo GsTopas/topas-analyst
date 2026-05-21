@@ -332,6 +332,11 @@ except Exception as e:
     st.error(f"Kunne ikke læse Topas-katalog: {e}")
     catalog_tours = []
 
+# Skjul Udgaaet-ture (audience_segment='Udgået') fra tour-vaelgeren.
+# Samme regel som pages/4 Topas-katalog. De er stadig i DB for historisk
+# reference, men brugeren skal ikke vaelge dem fra dropdown'en.
+catalog_tours = [t for t in catalog_tours if (t.get("audience_segment") or "") != "Udgået"]
+
 if not catalog_tours:
     st.warning(
         "Topas-kataloget er tomt. Gå til **📋 Topas-katalog** og klik **Refresh** "

@@ -396,7 +396,7 @@ def _render_detail_view(df_in: pd.DataFrame, month_nums: list[int]) -> None:
 
 
 def _render_summary_view(df_in: pd.DataFrame, month_nums: list[int]) -> None:
-    """Maaneds-overblik: én række pr. maaned med Ture, Opl/Res og Total."""
+    """Maaneds-overblik: én række pr. maaned med Ture, Δ Pax, Opl/Res og Total."""
     rows = []
     for m_num in month_nums:
         month_name = MONTH_ORDER[m_num - 1]
@@ -404,16 +404,25 @@ def _render_summary_view(df_in: pd.DataFrame, month_nums: list[int]) -> None:
         ture = g[~g["tour_code"].isin(SPECIAL_CODES)]["db_budget_diff"].sum()
         opl_res = g[g["tour_code"].isin(SPECIAL_CODES)]["db_budget_diff"].sum()
         total = g["db_budget_diff"].sum()
+        # Pax-diff: sum kun for tur-rakker hvor pax_diff er populeret (ikke
+        # Opl/Res og ikke Budget [maaned]-raekker som ikke har pax)
+        pax_g = g[
+            g["pax_diff"].notna()
+            & ~g["tour_code"].isin(SPECIAL_CODES)
+            & ~g["tour_code"].str.startswith("Budget ", na=False)
+        ]
+        pax = int(pax_g["pax_diff"].sum()) if not pax_g.empty else 0
         rows.append({
             "Måned": month_name,
             "Ture": ture if ture else 0,
+            "Δ Pax": pax,
             "Oplæring / Research": opl_res if not g[g["tour_code"].isin(SPECIAL_CODES)].empty else None,
             "Total DB-afvigelse": total,
         })
 
     summary = pd.DataFrame(rows)
 
-    def _fmt_signed(v):
+    def _fmt_signed_kr(v):
         if pd.isna(v):
             return "—"
         if v == 0:
@@ -421,31 +430,54 @@ def _render_summary_view(df_in: pd.DataFrame, month_nums: list[int]) -> None:
         sign = "+" if v > 0 else "-"
         return f"{sign}{_fmt_kr(abs(v))}"
 
-    # Beregn skala for heatmap-koloreringen (max-abs vaerdi i tal-kolonner)
-    numeric_cols = ["Ture", "Oplæring / Research", "Total DB-afvigelse"]
-    scale = 0.0
-    for c in numeric_cols:
+    def _fmt_signed_pax(v):
+        if pd.isna(v) or v is None:
+            return "—"
+        if v == 0:
+            return "0"
+        return f"{int(v):+d}"
+
+    # Separate skalaer for kr-kolonner og pax-kolonne
+    kr_cols = ["Ture", "Oplæring / Research", "Total DB-afvigelse"]
+    kr_scale = 0.0
+    for c in kr_cols:
         for v in summary[c]:
             try:
                 if v is not None and not pd.isna(v):
-                    scale = max(scale, abs(float(v)))
+                    kr_scale = max(kr_scale, abs(float(v)))
             except (ValueError, TypeError):
                 pass
+    pax_scale = 0.0
+    for v in summary["Δ Pax"]:
+        try:
+            if v is not None and not pd.isna(v):
+                pax_scale = max(pax_scale, abs(float(v)))
+        except (ValueError, TypeError):
+            pass
 
-    def _heatmap(v):
-        return _heatmap_bg(v, scale)
+    def _heatmap_kr(v):
+        return _heatmap_bg(v, kr_scale)
+
+    def _heatmap_pax(v):
+        return _heatmap_bg(v, pax_scale)
 
     def _heatmap_italic(v):
-        bg = _heatmap_bg(v, scale)
+        bg = _heatmap_bg(v, kr_scale)
         return ("font-style:italic; " + bg) if bg else "font-style:italic;"
 
     def _month_col(_v):
         return "font-weight:700; color:#1e3a5f;"
 
-    fmt_cols = {col: _fmt_signed for col in summary.columns if col != "Måned"}
+    fmt_cols = {
+        "Ture": _fmt_signed_kr,
+        "Δ Pax": _fmt_signed_pax,
+        "Oplæring / Research": _fmt_signed_kr,
+        "Total DB-afvigelse": _fmt_signed_kr,
+    }
     styled = (summary.style.format(fmt_cols)
-                            .map(_heatmap, subset=["Ture"])
-                            .map(_heatmap, subset=["Total DB-afvigelse"])
+                            .map(_heatmap_kr, subset=["Ture"])
+                            .map(_heatmap_pax, subset=["Δ Pax"])
+                            .map(_heatmap_kr, subset=["Total DB-afvigelse"])
                             .map(_heatmap_italic, subset=["Oplæring / Research"])
                             .map(_month_col, subset=["Måned"]))
     _row_h = 35
@@ -455,17 +487,22 @@ def _render_summary_view(df_in: pd.DataFrame, month_nums: list[int]) -> None:
     # === YTD-bokse under tabellen ===
     st.markdown("###### YTD (akkumuleret over valgte måneder)")
     ture_ytd = sum(r["Ture"] or 0 for r in rows)
+    pax_ytd = sum(r["Δ Pax"] or 0 for r in rows)
     opl_ytd = sum((r["Oplæring / Research"] or 0) for r in rows)
     total_ytd = sum(r["Total DB-afvigelse"] or 0 for r in rows)
 
-    def _signed(v: float) -> str:
+    def _signed_kr(v: float) -> str:
         sign = "+" if v >= 0 else "-"
         return f"{sign}{_fmt_kr(abs(v))} kr."
 
-    c1, c2, c3 = st.columns(3)
-    c1.metric("Ture", _signed(ture_ytd))
-    c2.metric("Oplæring / Research", _signed(opl_ytd))
-    c3.metric("Total DB-afvigelse", _signed(total_ytd))
+    def _signed_pax(v: int) -> str:
+        return f"{int(v):+d}"
+
+    c1, c2, c3, c4 = st.columns(4)
+    c1.metric("Ture", _signed_kr(ture_ytd))
+    c2.metric("Δ Pax (ture)", _signed_pax(pax_ytd))
+    c3.metric("Oplæring / Research", _signed_kr(opl_ytd))
+    c4.metric("Total DB-afvigelse", _signed_kr(total_ytd))
 
 
 def _render_comparison_view(df_in: pd.DataFrame, month_nums: list[int]) -> None:

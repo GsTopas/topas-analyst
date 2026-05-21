@@ -146,18 +146,28 @@ anomalies: list[dict] = []        # withdrawn / fast_sellout markeret af export
 tour_name_by_code = {t.get("code"): t.get("name") for t in tours if t.get("code")}
 
 
+# Fast tour-age threshold (uafhaengig af user-valgte vindue) for at undgaa
+# paradox: et 14-dages vindue skal aldrig give faerre raekker end et 7-dages.
+# Vi kraever simpelthen at touren er kendt i mindst 14 dage foer vi accepterer
+# en af dens afgange som "ny" — uanset hvilket vindue brugeren har valgt.
+TOUR_AGE_THRESHOLD = timedelta(days=14)
+_tour_age_cutoff = datetime.utcnow() - TOUR_AGE_THRESHOLD
+
+
 def _tour_existed_before_window(deps: list[dict]) -> bool:
-    """Returnerer True hvis vi har data for denne tour fra FØR window-cutoff.
+    """Returnerer True hvis vi har data for denne tour fra mindst 14 dage tilbage.
 
     Bruges til "Nye afgange"-detection: en afgang er kun "ny" hvis touren
-    selv har eksisteret i vores katalog længere end vinduet. Ellers fanger
-    vi falske-positive fra helt nyligt scrapede tours hvor ALLE afgange
-    har firstSeen inden for vinduet bare fordi tour-data først blev hentet
-    da.
+    selv har eksisteret i vores katalog mindst 14 dage. Ellers fanger vi
+    falske-positive fra helt nyligt scrapede tours hvor ALLE afgange har
+    firstSeen kort tid tilbage bare fordi tour-data først blev hentet da.
+
+    Bruger en FIXED 14-dages threshold (TOUR_AGE_THRESHOLD), ikke det user-
+    valgte vindue. Det sikrer at laengere vindue altid ⊇ kortere vindue.
     """
     for d in deps:
         fs = _parse_iso(d.get("firstSeen"))
-        if fs is not None and fs < cutoff_dt:
+        if fs is not None and fs < _tour_age_cutoff:
             return True
     return False
 

@@ -181,11 +181,98 @@ def _build_topas_baseline(conn) -> set[tuple[str, str, tuple[int, int]]]:
 
 
 # ---------------------------------------------------------------------------
-# Lœrings-base — review_decisions
+# Lœrings-base — review_decisions med KONTEKST-bevidst klassificering
 # ---------------------------------------------------------------------------
+#
+# Vigtig pointe: Ikke alle reject-reasons er ICP-blokade.
+# Brugeren har manuelt klassificeret 185 afvisninger. Nogle er reelt
+# kontent-blokade ("Kultur ikke ICP"). Andre er bare screening-mismatch
+# ("Forkert geografi" — landet kan stadig være relevant, det var bare
+# IKKE en match for den specifikke Topas-tur de sammenlignede mod).
+#
+# Vi klassificerer hver reason i to spande:
+#  - SCREENING_NOISE: ignorér, var bare en mismatch ved screening
+#  - CONTENT_BLOCK_*: kun aktiv hvis NY tur har samme træk
+
+def _classify_rejection_reason(reason: str) -> Optional[str]:
+    """Returnér kategori for en reject-reason, eller None hvis screening-noise.
+
+    Kategorier:
+      - 'kultur'  : kultur/krydstogt/strand/højskole/padel — ikke Topas ICP
+      - 'format'  : individuel/solo/self-drive/DMC/ingen fast afgang
+      - None      : screening-noise (geografi, længde, manglende data, cykling
+                    fremfor vandring, manuel fjernelse — disse er ikke
+                    ICP-blokade og skal IGNORERES)
+    """
+    if not reason:
+        return None
+    r = reason.lower()
+
+    # === SCREENING-NOISE — alle disse IGNORERES ===
+    # Geografi-mismatches: landet kan stadig være relevant
+    if "forkert geografi" in r:
+        return None
+    # Teknisk: ingen pris/dato — vi vil re-screene
+    if "manglende data" in r:
+        return None
+    # Sammenligning-mismatch: turen var bare længere/kortere end Topas-modparten
+    if "forkert rejse-længde" in r or "for kort" in r or "for lang" in r:
+        return None
+    # Unsubscribe fra scraper, ikke kontent-blokade
+    if "manuel fjernelse" in r:
+        return None
+    # CYKLING ER ICP-VALID — afvist fordi sammenlignet med vandre-tur, ikke fordi
+    # cykling er irrelevant. Topas har faktisk cykling-ture (Apulien, Atlas, etc).
+    if ("cykling" in r or "cykel" in r or "cycling" in r) and "vandr" in r:
+        return None
+    # "Ingen tur" / "Ingen afgange" — teknisk
+    if "ingen tur" in r or "ingen afgange" in r:
+        return None
+    # "Andet" uden mere info
+    if r.startswith("andet ") and "højskole" not in r and "kultur" not in r:
+        return None
+
+    # === ÆGTE CONTENT-BLOK ===
+
+    # Kultur-blokade — Topas ICP er vandring/cykling, ikke kultur-ferie
+    if ("kultur" in r and not (("kultur ikk" in r) and ("toscan" in r or "umbri" in r))):
+        # NB: "Kultur ikke Toscana" er en geografi-detail, ikke kultur-afvisning
+        return "kultur"
+    if "krydstog" in r:
+        return "kultur"
+    if "strand" in r:
+        return "kultur"
+    if "højskole" in r or "højskolen koncept" in r or "sommerhøjskole" in r:
+        return "kultur"
+    if "padel" in r:
+        return "kultur"
+    if "kulturferie" in r or "kulturtur" in r:
+        return "kultur"
+
+    # Format-blokade — Topas ICP er guided fixed-departure group, ikke individuel
+    if "individuel" in r or "selvkør" in r or "self-drive" in r:
+        return "format"
+    if r.endswith("solo") or " solo" in r or "solo tur" in r:
+        return "format"
+    if "ungdomsrejs" in r:
+        return "format"
+    if "dmc baseret" in r or "ingen dansk guide" in r:
+        return "format"
+    if "ingen fast afgang" in r or "ingen turleder" in r or "ingen fast afrejse" in r:
+        return "format"
+    if "tog ferie" in r:
+        return "format"
+
+    # Default: ukendt → ignorér
+    return None
+
 
 def _build_rejection_patterns(conn) -> list[dict]:
-    """Hent afviste kandidater + deres reason fra review_decisions."""
+    """Hent afviste kandidater + deres reason + udledt kategori.
+
+    Hver række får 'category'-felt: 'kultur', 'format', eller None (filtreret væk
+    af _classify_rejection_reason). Vi smider None-kategorierne væk i bygge-fasen.
+    """
     rows = conn.execute("""
         SELECT rd.reason, n8c.tour_name, n8c.tour_category, n8c.search_country
         FROM review_decisions rd
@@ -194,32 +281,45 @@ def _build_rejection_patterns(conn) -> list[dict]:
           AND rd.target_kind = 'n8n_candidate'
           AND rd.reason IS NOT NULL
     """).fetchall()
-    return [dict(r) for r in rows]
+
+    out: list[dict] = []
+    for r in rows:
+        d = dict(r)
+        cat = _classify_rejection_reason(d["reason"])
+        if cat is None:
+            continue  # screening-noise — ikke meningsfuldt at vise som warning
+        d["category"] = cat
+        out.append(d)
+    return out
 
 
 def _count_rejection_similarity(
     tour: CompetitorTour,
     rejections: list[dict],
 ) -> tuple[int, list[str]]:
-    """Tæl hvor mange afviste kandidater der ligner denne tur."""
-    if not tour.country or not tour.activity:
-        return 0, []
+    """Tæl historiske afvisninger der ER relevante for denne tur.
 
-    tour_keywords = _activity_keywords(tour.activity)
-    if not tour_keywords:
+    Vi har allerede filtreret screening-noise ud i _build_rejection_patterns.
+    Her tjekker vi:
+      - Samme land (location-context)
+      - Ny tur klassificeret som hiking/biking allerede (ICP-pass), så
+        kategori 'kultur' og 'format' er kun relevante som SVAGE signaler
+        (vores classifier kunne være forkert)
+
+    Da hovedfiltret (ICP-pass) allerede har validset turen, er disse
+    rejections mere "intel"/"warnings" end hård malus.
+    Tæller alle reasons med kategori der matcher samme land.
+    """
+    if not tour.country:
         return 0, []
 
     matches: list[str] = []
     for r in rejections:
         rej_country = (r.get("search_country") or "").strip()
-        rej_category = (r.get("tour_category") or "").lower()
-
         if rej_country != tour.country:
             continue
-        rej_keywords = _activity_keywords(rej_category)
-        if rej_keywords & tour_keywords:
-            reason = r.get("reason") or "Ukendt"
-            matches.append(reason)
+        # Vi har allerede filtreret screening-noise — alle matches her er ægte
+        matches.append(f"[{r['category']}] {r['reason']}")
 
     return len(matches), matches[:5]
 
@@ -245,10 +345,23 @@ def _detect_gap(tour: CompetitorTour, topas_coverage: set) -> Optional[str]:
 
 
 def _score(tour: CompetitorTour, rejected_count: int) -> float:
-    """Score-formel for prioritering af gap-ture."""
+    """Score-formel for prioritering af gap-ture.
+
+    Formel: score = afgange-12mdr × country-priority − soft rejection-malus
+
+    Bemærk: rejection_malus er BLØD (×0.3) fordi rejections allerede er
+    filtreret til kun ægte content-blok (kultur/format-mismatches).
+    Screening-noise (geografi, manglende data, cykling-vs-vandring) er
+    fjernet i _build_rejection_patterns og giver ingen malus.
+
+    Stadig: en ICP-pass-tur SKAL allerede have bestået vores classifier,
+    så rejection-malus er primært et "vær opmærksom"-signal, ikke en
+    hård filtrering. Brugeren ser warnings i UI'et og kan tage stilling.
+    """
     base = min(tour.departure_count_next_12mo, 12) * 0.83
     country_mult = COUNTRY_PRIORITY.get(tour.country or "", 1.0)
-    rejection_malus = rejected_count * 1.0
+    # Blød malus: max -1.5 selv hvis 5 historiske afvisninger
+    rejection_malus = min(rejected_count * 0.3, 1.5)
     return max(0.0, base * country_mult - rejection_malus)
 
 

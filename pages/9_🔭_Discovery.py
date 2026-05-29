@@ -181,12 +181,17 @@ if res_meta and res_meta["result"]:
 
     st.markdown(f"## Resultat for **{op}**")
 
-    m1, m2, m3, m4, m5 = st.columns(5)
+    m1, m2, m3, m4, m5, m6 = st.columns(6)
     m1.metric("URLs fundet", result["urls_discovered"])
-    m2.metric("Klassificeret", result["tours_classified"])
-    m3.metric("ICP-pass", result["icp_passing"])
-    m4.metric("Gap-ture", len(gaps))
-    m5.metric("Metode", result["stats"]["method"])
+    m2.metric(
+        "Allerede mappet",
+        result["stats"].get("already_mapped_filtered", 0),
+        help="Fjernet før scrape: ture vi allerede tracker via approved_competitor_targets"
+    )
+    m3.metric("Klassificeret", result["tours_classified"])
+    m4.metric("ICP-pass", result["icp_passing"])
+    m5.metric("Gap-ture", len(gaps))
+    m6.metric("Metode", result["stats"]["method"])
 
     if result["stats"].get("max_urls_capped"):
         st.warning(

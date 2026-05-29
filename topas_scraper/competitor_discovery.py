@@ -125,6 +125,63 @@ class GapResult:
 
 
 # ---------------------------------------------------------------------------
+# URL-normalisering + already-mapped filter
+# ---------------------------------------------------------------------------
+
+def _normalize_url(url: str) -> str:
+    """Lower-case + strip trailing slash + drop fragment/query.
+    Bruges til at matche URLs på tværs af capitalization/trailing-slash-varianter."""
+    if not url:
+        return ""
+    u = url.strip().lower().rstrip("/")
+    # Drop fragment
+    if "#" in u:
+        u = u.split("#")[0]
+    return u
+
+
+def _fetch_mapped_urls(conn, operator: str) -> set[str]:
+    """Returnér sæt af URLs vi allerede har mappet for denne konkurrent.
+
+    Tjekker BÅDE approved_competitor_targets OG tours-tabellen (for det
+    tilfælde hvor en konkurrent er blevet un-approved men data er bevaret).
+    Bruges til at filtrere discovery-resultater så vi kun viser NYE ture.
+
+    Operator-matching er fuzzy fordi vi har varianter af konkurrent-navne:
+    'Jysk Rejsebureau' vs 'jysk-rejsebureau.dk', 'Gjøa Tours' vs 'gjoa.dk'.
+    Vi matcher på domain-fragment.
+    """
+    # Udled domæne-fragment fra operator-navn (lowercase, drop spaces/symbols)
+    op_lower = (operator or "").lower()
+    domain_hint = (op_lower
+                   .replace(" ", "")
+                   .replace("ø", "o").replace("å", "a").replace("æ", "ae")
+                   .replace("&", "")
+                   .replace(".dk", ""))
+
+    # 1) approved_competitor_targets — primær kilde
+    rows = conn.execute("""
+        SELECT tour_url
+        FROM approved_competitor_targets
+        WHERE LOWER(operator) LIKE ?
+    """, (f"%{domain_hint}%",)).fetchall()
+    urls = {_normalize_url(dict(r)["tour_url"]) for r in rows}
+
+    # 2) tours-tabellen — fanger un-approved historik
+    rows = conn.execute("""
+        SELECT url
+        FROM tours
+        WHERE LOWER(operator) LIKE ?
+          AND url IS NOT NULL
+    """, (f"%{domain_hint}%",)).fetchall()
+    urls.update({_normalize_url(dict(r)["url"]) for r in rows})
+
+    # Drop tom streng
+    urls.discard("")
+    return urls
+
+
+# ---------------------------------------------------------------------------
 # Topas baseline
 # ---------------------------------------------------------------------------
 
@@ -399,9 +456,27 @@ def run_discovery(
         sitemap_url=sitemap_url,
         firecrawl_client=fc,
     )
-    urls_to_scrape = discovery_result.tours_found[:max_urls]
-    emit(f"   Fundet {len(discovery_result.tours_found)} URLs via "
-         f"{discovery_result.method_used} (scraper top {len(urls_to_scrape)})")
+    all_found = discovery_result.tours_found
+
+    # Filter ALREADY-MAPPED URLs vaek FOER scraping — discovery handler kun om
+    # NYE ture. Hvis URL'en allerede er i approved_competitor_targets, sa har
+    # vi allerede en Topas-mapping og tracker den via cron-scrapet.
+    from ._pg_conn import connect as pg_connect
+    pg_conn = pg_connect()
+    already_mapped = _fetch_mapped_urls(pg_conn, operator)
+    pre_filter_count = len(all_found)
+    all_found = [
+        (url, slug) for (url, slug) in all_found
+        if _normalize_url(url) not in already_mapped
+    ]
+    filtered_count = pre_filter_count - len(all_found)
+    if filtered_count:
+        emit(f"   Filtreret {filtered_count} allerede-mappede URLs vaek "
+             f"(de tracker vi allerede via approved_competitor_targets)")
+
+    urls_to_scrape = all_found[:max_urls]
+    emit(f"   Fundet {pre_filter_count} URLs via {discovery_result.method_used} · "
+         f"{len(all_found)} nye efter filter · scraper top {len(urls_to_scrape)}")
 
     if not urls_to_scrape:
         return {
@@ -446,10 +521,9 @@ def run_discovery(
     emit(f"   {len(icp_tours)}/{len(tours)} passerer ICP-filter")
 
     emit("4/5: Gap-analyse mod Topas-katalog")
-    from ._pg_conn import connect as pg_connect
-    conn = pg_connect()
-    topas_coverage = _build_topas_baseline(conn)
-    rejections = _build_rejection_patterns(conn)
+    # pg_conn fra step 1 genbruges
+    topas_coverage = _build_topas_baseline(pg_conn)
+    rejections = _build_rejection_patterns(pg_conn)
     emit(f"   Topas dækker {len(topas_coverage)} (land × aktivitet × varighed)"
          f" · {len(rejections)} historiske afvisninger som lærings-base")
 
@@ -472,14 +546,16 @@ def run_discovery(
     emit(f"5/5: Fundet {len(gaps)} gap-ture (rangeret efter score)")
 
     return {
-        "urls_discovered": len(discovery_result.tours_found),
+        "urls_discovered": pre_filter_count,
+        "urls_after_mapped_filter": len(all_found),
         "tours_classified": len(tours),
         "icp_passing": len(icp_tours),
         "gaps": gaps,
         "stats": {
             "method": discovery_result.method_used,
             "errors": errors[:20],
-            "max_urls_capped": len(discovery_result.tours_found) > max_urls,
+            "max_urls_capped": len(all_found) > max_urls,
+            "already_mapped_filtered": filtered_count,
         },
     }
 

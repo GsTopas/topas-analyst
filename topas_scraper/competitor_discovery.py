@@ -401,23 +401,51 @@ def _detect_gap(tour: CompetitorTour, topas_coverage: set) -> Optional[str]:
     return f"Topas har ingen {activities_str}-tur i {tour.country} på {band[0]}-{band[1]} dage"
 
 
+def _departure_validation_score(count: int) -> float:
+    """Konverter antal afgange næste 12 mdr til markeds-validerings-score (0-10).
+
+    BEVIDST NON-LINEAR: få afgange signalerer svag markedsefterspørgsel
+    (måske test-tur, niche, eller dårligt salg). Flere afgange = valideret
+    efterspørgsel = stærkere strategisk signal.
+
+    Tærskel-tier:
+      0 afgange        → 0   (ingen markedssignal — tur er måske udgået eller pre-launch)
+      1 afgang         → 1   (test-tur / nichetur — næsten ingen validering)
+      2-3 afgange      → 3   (svag efterspørgsel — eksperimentel)
+      4-6 afgange      → 6   (god efterspørgsel — etableret tur)
+      7-11 afgange     → 8   (stærk efterspørgsel — populær tur)
+      12+ afgange      → 10  (bestseller — konkurrenten kører den hyppigt)
+    """
+    if count <= 0:
+        return 0.0
+    if count == 1:
+        return 1.0
+    if count <= 3:
+        return 3.0
+    if count <= 6:
+        return 6.0
+    if count <= 11:
+        return 8.0
+    return 10.0
+
+
 def _score(tour: CompetitorTour, rejected_count: int) -> float:
     """Score-formel for prioritering af gap-ture.
 
-    Formel: score = afgange-12mdr × country-priority − soft rejection-malus
+    Formel: score = departure_validation × country_priority − soft rejection_malus
 
-    Bemærk: rejection_malus er BLØD (×0.3) fordi rejections allerede er
-    filtreret til kun ægte content-blok (kultur/format-mismatches).
-    Screening-noise (geografi, manglende data, cykling-vs-vandring) er
-    fjernet i _build_rejection_patterns og giver ingen malus.
+    Maks: 10 × 1.5 = 15 (bestseller i Grønland)
+    Min: 0 (clamp)
 
-    Stadig: en ICP-pass-tur SKAL allerede have bestået vores classifier,
-    så rejection-malus er primært et "vær opmærksom"-signal, ikke en
-    hård filtrering. Brugeren ser warnings i UI'et og kan tage stilling.
+    Bemærk:
+    - departure_validation er NON-LINEAR (se docstring): 1 afgang = svagt signal,
+      6+ afgange = stærk markedsvalidering
+    - rejection_malus er BLØD (×0.3, max -1.5) — primært intel-signal
+    - Screening-noise (geografi, cykling-vs-vandring) er filtreret væk i
+      _build_rejection_patterns og giver ingen malus
     """
-    base = min(tour.departure_count_next_12mo, 12) * 0.83
+    base = _departure_validation_score(tour.departure_count_next_12mo)
     country_mult = COUNTRY_PRIORITY.get(tour.country or "", 1.0)
-    # Blød malus: max -1.5 selv hvis 5 historiske afvisninger
     rejection_malus = min(rejected_count * 0.3, 1.5)
     return max(0.0, base * country_mult - rejection_malus)
 

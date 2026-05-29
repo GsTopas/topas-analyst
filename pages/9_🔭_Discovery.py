@@ -237,14 +237,22 @@ if res_meta and res_meta["result"]:
     ])
 
     def _color_score(v):
+        """Heatmap-tærskler (score 0-15+):
+           >=10 → kraftig grøn (bestseller / valideret + Topas-fokus-land)
+           >=6  → mellem grøn (etableret efterspørgsel)
+           >=3  → lys grøn (svag-til-god efterspørgsel)
+           <2   → rød (test-tur eller niche — lavt signal)
+        """
         if pd.isna(v):
             return ""
-        if v >= 12:
-            return "background-color: rgba(46, 139, 87, 0.5); font-weight:700;"
+        if v >= 10:
+            return "background-color: rgba(46, 139, 87, 0.55); font-weight:700;"
         if v >= 6:
-            return "background-color: rgba(46, 139, 87, 0.3);"
-        if v < 1:
-            return "background-color: rgba(192, 57, 43, 0.3);"
+            return "background-color: rgba(46, 139, 87, 0.35);"
+        if v >= 3:
+            return "background-color: rgba(46, 139, 87, 0.15);"
+        if v < 2:
+            return "background-color: rgba(192, 57, 43, 0.35);"
         return ""
 
     styled = df.style.map(_color_score, subset=["Score"])
@@ -334,9 +342,18 @@ with st.expander("ℹ Hvordan virker Discovery?"):
    - `activity ∈ {Vandring, Trekking, Cykling, Sejlads og vandring, Højrute, ...}`
    - `duration_days ∈ [4, 25]`
 4. **Gap-analyse** — sammenlign med 49 aktive Topas-ture på `(land × aktivitet × varighed-band)`. Hvis ingen Topas-tur matcher → GAP.
-5. **Scoring** = `min(departures_12mo, 12) × 0.83 × country_priority − rejection_malus`
+5. **Scoring** = `departure_validation × country_priority − rejection_malus`
+   - `departure_validation` (NON-LINEAR markeds-validering):
+     - 0 afgange → 0 (ingen markedssignal)
+     - 1 afgang → 1 (test-tur / niche — svagt signal)
+     - 2-3 afgange → 3 (svag efterspørgsel)
+     - 4-6 afgange → 6 (god efterspørgsel — etableret tur)
+     - 7-11 afgange → 8 (stærk efterspørgsel — populær)
+     - 12+ afgange → 10 (bestseller)
    - `country_priority`: Grønland ×1.5, Italien/Spanien ×1.3, Nepal/Vietnam/Portugal/Frankrig/Kroatien ×1.2
-   - `rejection_malus`: −1 per lignende tur afvist i `review_decisions` (185 historiske afvisninger som negativ-eksempler)
+   - `rejection_malus`: blød −0.3 per lignende KONTENT-blok-afvisning (cap −1.5). Screening-noise filtreres væk.
+
+   Max score: ~15 (bestseller i Grønland). Typisk høj score: 8-12.
 
 Resultat-tabel er sorteret efter score, faldende. Højere score = mere markedsvalideret + mere strategisk værdifuld at undersøge.
 """)

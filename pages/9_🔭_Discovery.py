@@ -12,8 +12,13 @@ Workflow:
 """
 from __future__ import annotations
 
+import os
+import pickle
+import re
+import tempfile
 import threading
 import time
+from pathlib import Path
 
 import pandas as pd
 import streamlit as st
@@ -23,6 +28,65 @@ st.set_page_config(page_title="Discovery · Topas", page_icon="🔭", layout="wi
 # Password-gate
 from topas_scraper._auth import require_auth  # noqa: E402
 require_auth()
+
+
+# ---------------------------------------------------------------------------
+# Persistens — overlev hard-refresh ved at gemme til tempdir
+# ---------------------------------------------------------------------------
+#
+# Streamlit's session_state ryddes ved Ctrl+Shift+R. Vi gemmer derfor sidste
+# kørsel pr. operator i tempdir så user kan refreshe + lukke browser uden at
+# miste resultatet. Streamlit Cloud's tempdir overlever indtil container-
+# restart (typisk dage/uger). Det er fint til intel-data; ikke kritisk hvis
+# det forsvinder.
+
+_RUNS_DIR = Path(tempfile.gettempdir()) / "topas_discovery_runs"
+
+
+def _safe_slug(name: str) -> str:
+    """Lav operator-navn om til filename-safe slug."""
+    s = re.sub(r"[^a-z0-9]+", "-", name.lower()).strip("-")
+    return s or "unknown"
+
+
+def _save_run(operator: str, payload: dict) -> None:
+    """Gem en discovery-kørsel til tempdir så den overlever hard-refresh."""
+    try:
+        _RUNS_DIR.mkdir(parents=True, exist_ok=True)
+        path = _RUNS_DIR / f"{_safe_slug(operator)}.pkl"
+        with open(path, "wb") as f:
+            pickle.dump(payload, f)
+    except Exception:
+        # Bevidst silent — persistence er nice-to-have, ikke critical path
+        pass
+
+
+def _list_saved_runs() -> list[tuple[str, float, Path]]:
+    """Returnér liste af (operator_slug, mtime, path) sorteret nyeste først."""
+    if not _RUNS_DIR.exists():
+        return []
+    runs = []
+    for p in _RUNS_DIR.glob("*.pkl"):
+        try:
+            runs.append((p.stem, p.stat().st_mtime, p))
+        except OSError:
+            continue
+    return sorted(runs, key=lambda t: -t[1])
+
+
+def _load_run(path: Path) -> dict | None:
+    """Indlæs en gemt kørsel. Returnér None hvis pickle er korrupt
+    (typisk efter en backend-ændring i dataclass-skema)."""
+    try:
+        with open(path, "rb") as f:
+            return pickle.load(f)
+    except Exception:
+        # Korrupt eller skema-skift — slet stille
+        try:
+            path.unlink()
+        except OSError:
+            pass
+        return None
 
 
 COMPETITORS: dict[str, dict] = {
@@ -133,6 +197,44 @@ st.divider()
 if "discovery_result" not in st.session_state:
     st.session_state["discovery_result"] = None
 
+# Auto-restore sidste kørsel hvis session er tom (typisk efter hard-refresh)
+if st.session_state["discovery_result"] is None:
+    saved = _list_saved_runs()
+    if saved:
+        latest_slug, latest_mtime, latest_path = saved[0]
+        restored = _load_run(latest_path)
+        if restored:
+            st.session_state["discovery_result"] = restored
+            age_min = (time.time() - latest_mtime) / 60
+            age_str = (
+                f"{int(age_min)} min siden" if age_min < 60
+                else f"{age_min/60:.1f} timer siden" if age_min < 24*60
+                else f"{age_min/(24*60):.0f} dage siden"
+            )
+            st.info(
+                f"📂 Viser sidste kørsel for **{restored.get('operator', latest_slug)}** "
+                f"({age_str}). Kør discovery igen for fresh data."
+            )
+
+# Hvis vi har flere gemte kørsler — vis dem som hurtig-skift
+saved_runs = _list_saved_runs()
+if len(saved_runs) > 1:
+    with st.expander(f"📂 {len(saved_runs)} gemte kørsler — skift mellem konkurrenter"):
+        cols = st.columns(min(len(saved_runs), 4))
+        for i, (slug, mtime, path) in enumerate(saved_runs):
+            with cols[i % len(cols)]:
+                age_min = (time.time() - mtime) / 60
+                age_str = (
+                    f"{int(age_min)}m" if age_min < 60
+                    else f"{age_min/60:.0f}t" if age_min < 24*60
+                    else f"{age_min/(24*60):.0f}d"
+                )
+                if st.button(f"{slug}\n({age_str})", key=f"load_{slug}", use_container_width=True):
+                    restored = _load_run(path)
+                    if restored:
+                        st.session_state["discovery_result"] = restored
+                        st.rerun()
+
 run_clicked = st.button("🔭 Kør discovery", type="primary", use_container_width=True)
 
 if run_clicked:
@@ -161,12 +263,15 @@ if run_clicked:
                 parallelism=int(parallelism),
                 domain=op_meta.get("domain"),
             )
-            st.session_state["discovery_result"] = {
+            payload = {
                 "operator": op_name,
                 "domain": op_meta["domain"],
                 "result": result,
                 "completed_at": time.strftime("%H:%M:%S"),
             }
+            st.session_state["discovery_result"] = payload
+            # Persistér til disk så hard-refresh ikke smider resultatet væk
+            _save_run(op_name, payload)
             status.update(label=f"✓ Discovery færdig: {len(result['gaps'])} gap-ture", state="complete")
         except Exception as exc:
             status.update(label=f"✗ Discovery fejlede: {type(exc).__name__}", state="error")

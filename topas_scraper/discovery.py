@@ -57,7 +57,13 @@ TOUR_URL_PATTERNS: dict[str, list[re.Pattern]] = {
         re.compile(r"^https?://(?:www\.)?viktorsfarmor\.dk/rejsemal/[a-z0-9æøå-]+/[a-z0-9æøå-]+/[a-z0-9æøå-]+/?$", re.IGNORECASE),
     ],
     "Stjernegaard Rejser": [
-        re.compile(r"^https?://(?:www\.)?stjernegaard-rejser\.dk/[a-z0-9æøå-]+/[a-z0-9æøå-]+/?$", re.IGNORECASE),
+        # Stjernegaard bruger /{land}/{kategori}/{slug}/priser-og-datoer/
+        # Vi vil bevidst KUN matche /priser-og-datoer/-URLs fordi det er der
+        # afgangsdatoer + priser ligger (forside-slug har thin data).
+        re.compile(
+            r"^https?://(?:www\.)?stjernegaard-rejser\.dk/[a-z0-9æøå-]+/[a-z0-9æøå-]+/[a-z0-9æøå-]+/priser-og-datoer/?$",
+            re.IGNORECASE,
+        ),
     ],
     "Albatros Travel": [
         # Albatros bruger albatros.dk/rejser/{slug} med optional ?variant= for
@@ -77,10 +83,36 @@ TOUR_URL_PATTERNS: dict[str, list[re.Pattern]] = {
         re.compile(r"^https?://(?:www\.)?ruby-rejser\.dk/[a-z0-9æøå-]+/[a-z0-9æøå-]+\.html$", re.IGNORECASE),
     ],
     "Vagabond Tours": [
-        re.compile(r"^https?://(?:www\.)?vagabondtours\.dk/rejser/[a-z0-9æøå-]+/[a-z0-9æøå-]+/?$", re.IGNORECASE),
+        # Vagabond bruger ASP.NET-stil URLs: /rejsemaal/{type}/{region}/{land}/{slug}.aspx
+        # Eksempel: vagabondtours.dk/rejsemaal/faellesture/vietnam/vietnam/vietnam-fra-nord-til-syd.aspx
+        re.compile(
+            r"^https?://(?:www\.)?vagabondtours\.dk/rejsemaal/[a-z0-9æøå-]+/[a-z0-9æøå-]+/[a-z0-9æøå-]+/[a-z0-9æøå.-]+\.aspx/?$",
+            re.IGNORECASE,
+        ),
     ],
     "Kipling Travel": [
-        re.compile(r"^https?://(?:www\.)?kipling\.dk/rejser/[a-z0-9æøå-]+/[a-z0-9æøå-]+/?$", re.IGNORECASE),
+        # Kipling bruger kiplingtravel.dk/rejser/{kontinent}/{land}/{slug}
+        # Eksempel: kiplingtravel.dk/rejser/afrika/marokko/toubkal-sommerbestigning
+        re.compile(
+            r"^https?://(?:www\.)?kiplingtravel\.dk/rejser/[a-z0-9æøå-]+/[a-z0-9æøå-]+/[a-z0-9æøå.-]+/?$",
+            re.IGNORECASE,
+        ),
+    ],
+    "Gjøa Tours": [
+        # Gjoea bruger /temarejser/{land}/{slug}/
+        # Eksempel: gjoa.dk/temarejser/italien/det-sicilianske-foraar-vandring-i-monti-sicani-...
+        re.compile(
+            r"^https?://(?:www\.)?gjoa\.dk/temarejser/[a-z0-9æøå-]+/[a-z0-9æøå.-]+/?$",
+            re.IGNORECASE,
+        ),
+    ],
+    "Fyrholt Rejser": [
+        # Fyrholt bruger /rejser/{slug}/
+        # Eksempel: fyrholtrejser.dk/rejser/la-gomera/
+        re.compile(
+            r"^https?://(?:www\.)?fyrholtrejser\.dk/rejser/[a-z0-9æøå.-]+/?$",
+            re.IGNORECASE,
+        ),
     ],
 }
 

@@ -60,9 +60,15 @@ TOUR_URL_PATTERNS: dict[str, list[re.Pattern]] = {
         re.compile(r"^https?://(?:www\.)?stjernegaard-rejser\.dk/[a-z0-9æøå-]+/[a-z0-9æøå-]+/?$", re.IGNORECASE),
     ],
     "Albatros Travel": [
-        # Albatros uses /rejsemaal/destination/tour-slug or /tema/tour-slug
-        re.compile(r"^https?://(?:www\.)?albatros-travel\.dk/(?:rejsemaal|tema)/[a-z0-9æøå-]+/[a-z0-9æøå-]+/?$", re.IGNORECASE),
-        re.compile(r"^https?://(?:www\.)?albatros-travel\.dk/[a-z0-9æøå-]+/[a-z0-9æøå-]+-rejse/?$", re.IGNORECASE),
+        # Albatros bruger albatros.dk/rejser/{slug} med optional ?variant= for
+        # specifik afgang. Sitemap.xml returnerer 0 bytes (tom), saa vi er
+        # afhaengige af Firecrawl /map. Regex tillader query-string fordi
+        # Firecrawl /map kan returnere variant-URLs; deduplication sker via
+        # _slug_from_url (som stripper query).
+        re.compile(
+            r"^https?://(?:www\.)?albatros\.dk/rejser/[a-z0-9æøå.-]+/?(?:\?.*)?$",
+            re.IGNORECASE,
+        ),
     ],
     "Nilles & Gislev": [
         re.compile(r"^https?://(?:www\.)?nillesgislev\.dk/[a-z0-9æøå-]+/[a-z0-9æøå-]+/?$", re.IGNORECASE),
@@ -204,7 +210,7 @@ def discover_via_sitemap(
             return None
 
     tour_urls = [u for u in all_urls if is_likely_tour_url(operator, u)]
-    return [(u, _slug_from_url(u)) for u in tour_urls]
+    return _dedupe_by_slug([(u, _slug_from_url(u)) for u in tour_urls])
 
 
 def _try_robots_sitemap(original_sitemap_url: str) -> Optional[list[str]]:
@@ -279,7 +285,26 @@ def discover_via_firecrawl_map(
         return []
 
     tour_urls = [u for u in all_urls if is_likely_tour_url(operator, u)]
-    return [(u, _slug_from_url(u)) for u in tour_urls]
+    return _dedupe_by_slug([(u, _slug_from_url(u)) for u in tour_urls])
+
+
+def _dedupe_by_slug(items: list[tuple[str, str]]) -> list[tuple[str, str]]:
+    """Behold kun foerste URL pr. slug. Albatros's /map kan returnere flere
+    variant-URLs (?variant=XXX) for samme tur — vi vil scrape canonical-URL
+    en gang i stedet for 50 gange."""
+    seen_slugs: set[str] = set()
+    out: list[tuple[str, str]] = []
+    for url, slug in items:
+        if slug in seen_slugs:
+            continue
+        seen_slugs.add(slug)
+        # Foretraek URL uden query-string (canonical) hvis bade canonical og
+        # variant er i listen — naar vi alligevel kun beholder en, taeller den
+        # tidligere ankommer. For sikkerheds skyld: strip query her saa vi
+        # scraper canonical-siden uden variant-noise.
+        canonical = url.split("?", 1)[0]
+        out.append((canonical, slug))
+    return out
 
 
 # ---------------------------------------------------------------------------

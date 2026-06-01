@@ -110,15 +110,40 @@ def fetch_sitemap_urls(sitemap_url: str, timeout: int = 15) -> Optional[list[str
     Fetch a sitemap.xml (or sitemap index) and return all URLs.
     Returns None if fetch fails. Returns [] if sitemap is empty.
     Recursively expands sitemap-indexes (sitemaps that point to other sitemaps).
+    Handles both plain XML and gzip-compressed sitemaps (.gz or magic-byte detected).
     """
     try:
-        resp = requests.get(sitemap_url, timeout=timeout, headers={"User-Agent": "topas-scraper/1.0"})
+        resp = requests.get(
+            sitemap_url,
+            timeout=timeout,
+            headers={
+                "User-Agent": "Mozilla/5.0 (compatible; topas-scraper/1.0)",
+                "Accept-Encoding": "gzip, deflate",
+            },
+            allow_redirects=True,
+        )
         resp.raise_for_status()
     except (requests.RequestException, requests.Timeout):
         return None
 
+    # Decompress gzip if URL ends with .gz OR content starts with gzip magic bytes.
+    # requests library auto-decompresses Content-Encoding: gzip transparently, men
+    # explicitte .gz-filer arriverer ofte med Content-Type: application/gzip og
+    # rå gzip-bytes (uden Content-Encoding header).
+    content = resp.content
+    is_gzip = (
+        sitemap_url.lower().endswith(".gz")
+        or (len(content) >= 2 and content[:2] == b"\x1f\x8b")
+    )
+    if is_gzip:
+        import gzip
+        try:
+            content = gzip.decompress(content)
+        except (OSError, EOFError):
+            return None
+
     try:
-        root = ET.fromstring(resp.content)
+        root = ET.fromstring(content)
     except ET.ParseError:
         return None
 
@@ -150,15 +175,55 @@ def discover_via_sitemap(
     """
     Discover tour-URLs via sitemap.
 
+    Tries sitemap_url first. If that fails, tries robots.txt for Sitemap-hint
+    (mange sites lister deres sitemap-sti der, fx Jysk har sitemap.xml.gz).
+
     Returns list of (url, slug) tuples, or None if sitemap couldn't be loaded.
     Filters URLs to tour-detail pattern for the operator.
     """
     all_urls = fetch_sitemap_urls(sitemap_url)
-    if all_urls is None:
-        return None
+    if all_urls is None or not all_urls:
+        # Fallback: tjek robots.txt for Sitemap:-direktiv
+        all_urls = _try_robots_sitemap(sitemap_url)
+        if all_urls is None:
+            return None
 
     tour_urls = [u for u in all_urls if is_likely_tour_url(operator, u)]
     return [(u, _slug_from_url(u)) for u in tour_urls]
+
+
+def _try_robots_sitemap(original_sitemap_url: str) -> Optional[list[str]]:
+    """Forsøg at finde alternativ sitemap-sti via robots.txt.
+
+    Bruges som fallback når den primære sitemap-URL fejler (fx Jysk har
+    sitemap.xml.gz i stedet for sitemap.xml).
+    """
+    parsed = urlparse(original_sitemap_url)
+    robots_url = f"{parsed.scheme}://{parsed.netloc}/robots.txt"
+
+    try:
+        resp = requests.get(
+            robots_url,
+            timeout=10,
+            headers={"User-Agent": "Mozilla/5.0 (compatible; topas-scraper/1.0)"},
+        )
+        resp.raise_for_status()
+    except (requests.RequestException, requests.Timeout):
+        return None
+
+    # Find alle "Sitemap: <url>"-linjer
+    sitemap_lines = re.findall(r"^Sitemap:\s*(\S+)", resp.text, re.MULTILINE | re.IGNORECASE)
+    if not sitemap_lines:
+        return None
+
+    # Saml URLs fra alle annoncerede sitemaps
+    all_urls: list[str] = []
+    for sm_url in sitemap_lines:
+        urls = fetch_sitemap_urls(sm_url.strip())
+        if urls:
+            all_urls.extend(urls)
+
+    return all_urls if all_urls else None
 
 
 # ---------------------------------------------------------------------------

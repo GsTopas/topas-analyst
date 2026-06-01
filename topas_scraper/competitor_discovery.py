@@ -140,43 +140,66 @@ def _normalize_url(url: str) -> str:
     return u
 
 
-def _fetch_mapped_urls(conn, operator: str) -> set[str]:
+def _fetch_mapped_urls(conn, operator: str, domain: Optional[str] = None) -> set[str]:
     """Returnér sæt af URLs vi allerede har mappet for denne konkurrent.
 
     Tjekker BÅDE approved_competitor_targets OG tours-tabellen (for det
     tilfælde hvor en konkurrent er blevet un-approved men data er bevaret).
     Bruges til at filtrere discovery-resultater så vi kun viser NYE ture.
 
-    Operator-matching er fuzzy fordi vi har varianter af konkurrent-navne:
-    'Jysk Rejsebureau' vs 'jysk-rejsebureau.dk', 'Gjøa Tours' vs 'gjoa.dk'.
-    Vi matcher på domain-fragment.
+    Operator-matching er notorisk inkonsistent på tværs af tabeller:
+      - approved_competitor_targets.operator = 'jysk-rejsebureau.dk' (domain)
+      - tours.operator = 'Jysk Rejsebureau' (display-name med mellemrum)
+      - UI sender 'Jysk Rejsebureau'
+    Derfor matcher vi primært på TOUR_URL-substring (mest robust), og bruger
+    operator kun som fallback når domain ikke er kendt.
     """
-    # Udled domæne-fragment fra operator-navn (lowercase, drop spaces/symbols)
-    op_lower = (operator or "").lower()
-    domain_hint = (op_lower
-                   .replace(" ", "")
-                   .replace("ø", "o").replace("å", "a").replace("æ", "ae")
-                   .replace("&", "")
-                   .replace(".dk", ""))
+    urls: set[str] = set()
 
-    # 1) approved_competitor_targets — primær kilde
-    rows = conn.execute("""
-        SELECT tour_url
-        FROM approved_competitor_targets
-        WHERE LOWER(operator) LIKE ?
-    """, (f"%{domain_hint}%",)).fetchall()
-    urls = {_normalize_url(dict(r)["tour_url"]) for r in rows}
+    # Strategi 1: match på URL-substring hvis vi har domain (mest robust)
+    if domain:
+        # Normalisér: 'jysk-rejsebureau.dk' eller 'jysk-rejsebureau.dk/' → bare 'jysk-rejsebureau.dk'
+        d = domain.strip().lower().rstrip("/")
+        # Strip protocol prefix if user passed full URL
+        for prefix in ("https://", "http://", "www."):
+            if d.startswith(prefix):
+                d = d[len(prefix):]
+        like_pattern = f"%{d}%"
 
-    # 2) tours-tabellen — fanger un-approved historik
-    rows = conn.execute("""
-        SELECT url
-        FROM tours
-        WHERE LOWER(operator) LIKE ?
-          AND url IS NOT NULL
-    """, (f"%{domain_hint}%",)).fetchall()
-    urls.update({_normalize_url(dict(r)["url"]) for r in rows})
+        rows = conn.execute("""
+            SELECT tour_url FROM approved_competitor_targets
+            WHERE LOWER(tour_url) LIKE ?
+        """, (like_pattern,)).fetchall()
+        urls.update({_normalize_url(dict(r)["tour_url"]) for r in rows})
 
-    # Drop tom streng
+        rows = conn.execute("""
+            SELECT url FROM tours
+            WHERE url IS NOT NULL AND LOWER(url) LIKE ?
+        """, (like_pattern,)).fetchall()
+        urls.update({_normalize_url(dict(r)["url"]) for r in rows})
+
+    # Strategi 2: fallback til operator-match (mindre robust pga. inkonsistens)
+    # Vi koerer altid denne ogsaa, saa vi fanger eventuelle un-approved historik
+    # med variant-naming (fx 'Gjoea' vs 'Gjoea Tours' vs 'gjoa.dk').
+    op_lower = (operator or "").lower().strip()
+    if op_lower:
+        # Match paa det foerste "ord" af operator (typisk det unikke kendetegn)
+        # 'Jysk Rejsebureau' -> 'jysk', 'Gjoea Tours' -> 'gjoea', 'Nilles & Gislev' -> 'nilles'
+        first_token = re.split(r"[\s&]", op_lower)[0]
+        if len(first_token) >= 3:  # undgaa at matche "a", "i", etc
+            like_op = f"%{first_token}%"
+            rows = conn.execute("""
+                SELECT tour_url FROM approved_competitor_targets
+                WHERE LOWER(operator) LIKE ?
+            """, (like_op,)).fetchall()
+            urls.update({_normalize_url(dict(r)["tour_url"]) for r in rows})
+
+            rows = conn.execute("""
+                SELECT url FROM tours
+                WHERE url IS NOT NULL AND LOWER(operator) LIKE ?
+            """, (like_op,)).fetchall()
+            urls.update({_normalize_url(dict(r)["url"]) for r in rows})
+
     urls.discard("")
     return urls
 
@@ -461,6 +484,7 @@ def run_discovery(
     progress_callback: Optional[Callable[[str], None]] = None,
     max_urls: int = 50,
     parallelism: int = 8,
+    domain: Optional[str] = None,
 ) -> dict:
     """Kør hele discovery-flowet for én konkurrent.
 
@@ -491,7 +515,7 @@ def run_discovery(
     # vi allerede en Topas-mapping og tracker den via cron-scrapet.
     from ._pg_conn import connect as pg_connect
     pg_conn = pg_connect()
-    already_mapped = _fetch_mapped_urls(pg_conn, operator)
+    already_mapped = _fetch_mapped_urls(pg_conn, operator, domain=domain)
     pre_filter_count = len(all_found)
     all_found = [
         (url, slug) for (url, slug) in all_found
@@ -548,6 +572,51 @@ def run_discovery(
     icp_tours = [t for t in tours if t.icp_match]
     emit(f"   {len(icp_tours)}/{len(tours)} passerer ICP-filter")
 
+    # Diagnostik: tæl HVORFOR ture fejler ICP, så user kan se om classifier
+    # er for streng, eller om konkurrenten faktisk mangler ICP-content.
+    rejection_breakdown: dict[str, int] = {}
+    rejected_examples: list[dict] = []
+    for t in tours:
+        if t.icp_match:
+            continue
+        reasons: list[str] = []
+        if not t.has_guide:
+            reasons.append("no_guide")
+        if not t.has_fixed_departures:
+            reasons.append("no_fixed_departures")
+        if t.activity and t.activity not in ICP_ACTIVITIES:
+            # Vi tjekker også keyword-based match — Claude kan svare 'Mountain biking'
+            # som er valid men ikke ord-for-ord i ICP_ACTIVITIES
+            act_kw = _activity_keywords(t.activity)
+            if not act_kw:
+                reasons.append(f"wrong_activity:{t.activity}")
+        elif not t.activity:
+            reasons.append("no_activity")
+        if t.duration_days is not None:
+            lo, hi = ICP_DURATION_RANGE
+            if not (lo <= t.duration_days <= hi):
+                reasons.append(f"duration_out_of_range:{t.duration_days}d")
+        if not reasons:
+            reasons.append("classifier_said_no_but_no_reason")
+        for r in reasons:
+            rejection_breakdown[r] = rejection_breakdown.get(r, 0) + 1
+        if len(rejected_examples) < 8:
+            rejected_examples.append({
+                "url": t.url,
+                "tour_name": t.tour_name,
+                "country": t.country,
+                "activity": t.activity,
+                "duration_days": t.duration_days,
+                "has_guide": t.has_guide,
+                "has_fixed_departures": t.has_fixed_departures,
+                "reasons": reasons,
+                "classifier_notes": t.classifier_notes[:200],
+            })
+    if rejection_breakdown:
+        top = sorted(rejection_breakdown.items(), key=lambda kv: -kv[1])[:5]
+        breakdown_str = ", ".join(f"{k}={v}" for k, v in top)
+        emit(f"   Afvisnings-grunde (top 5): {breakdown_str}")
+
     emit("4/5: Gap-analyse mod Topas-katalog")
     # pg_conn fra step 1 genbruges
     topas_coverage = _build_topas_baseline(pg_conn)
@@ -584,6 +653,8 @@ def run_discovery(
             "errors": errors[:20],
             "max_urls_capped": len(all_found) > max_urls,
             "already_mapped_filtered": filtered_count,
+            "rejection_breakdown": rejection_breakdown,
+            "rejected_examples": rejected_examples,
         },
     }
 

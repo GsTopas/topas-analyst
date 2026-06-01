@@ -159,6 +159,7 @@ if run_clicked:
                 progress_callback=_emit,
                 max_urls=int(max_urls),
                 parallelism=int(parallelism),
+                domain=op_meta.get("domain"),
             )
             st.session_state["discovery_result"] = {
                 "operator": op_name,
@@ -203,6 +204,39 @@ if res_meta and res_meta["result"]:
         with st.expander(f"⚠ {len(result['stats']['errors'])} fejl under scrape"):
             for err in result["stats"]["errors"][:15]:
                 st.code(err, language="text")
+
+    # Diagnostik: hvorfor blev ture afvist af ICP-filter?
+    breakdown = result["stats"].get("rejection_breakdown") or {}
+    examples = result["stats"].get("rejected_examples") or []
+    if breakdown:
+        rejected_total = result["tours_classified"] - result["icp_passing"]
+        with st.expander(
+            f"🔍 ICP-afvisninger: {rejected_total} ture afvist — se hvorfor",
+            expanded=(result["icp_passing"] == 0),
+        ):
+            st.caption(
+                "Hvis ALLE ture afvises pga. samme grund, er classifier-prompten "
+                "muligvis for streng eller URL-pattern fanger non-tour pages. "
+                "Tjek eksemplerne nedenfor."
+            )
+            top = sorted(breakdown.items(), key=lambda kv: -kv[1])
+            st.markdown("**Afvisnings-grunde:**")
+            for reason, count in top:
+                pct = (count / rejected_total * 100) if rejected_total else 0
+                st.markdown(f"- `{reason}` — **{count}** ture ({pct:.0f}%)")
+
+            if examples:
+                st.markdown("**Eksempler (8 første afviste ture):**")
+                for ex in examples:
+                    st.markdown(
+                        f"- [{ex['tour_name'][:60]}]({ex['url']}) — "
+                        f"`{ex['country']}` / `{ex['activity']}` / "
+                        f"`{ex['duration_days']}d` / "
+                        f"guide={ex['has_guide']} fixed_dep={ex['has_fixed_departures']}"
+                    )
+                    if ex.get("classifier_notes"):
+                        st.caption(f"  └ Claude: {ex['classifier_notes']}")
+                    st.markdown(f"  └ Grunde: `{', '.join(ex['reasons'])}`")
 
     if not gaps:
         st.info(

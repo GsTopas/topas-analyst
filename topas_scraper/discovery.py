@@ -43,8 +43,14 @@ TOUR_URL_PATTERNS: dict[str, list[re.Pattern]] = {
         re.compile(r"^https?://(?:www\.)?smilrejser\.dk/[a-z0-9æøå-]+/[a-z0-9æøå-]+/?$", re.IGNORECASE),
     ],
     "Jysk Rejsebureau": [
-        # Pattern: /landenavn/category/tour-slug or /landenavn/tour-slug
-        re.compile(r"^https?://(?:www\.)?jysk-rejsebureau\.dk/[a-z0-9æøå-]+/(?:[a-z0-9æøå-]+/)*[a-z0-9æøå-]+/?$", re.IGNORECASE),
+        # Pattern: /{land}/med-dansk-rejseleder/{slug}/
+        # Jysk's sitemap indeholder ~2700 URLs (mest payment/kvitterings-sider).
+        # ALLE rigtige guided tours ligger under /{land}/med-dansk-rejseleder/
+        # som passer praecis paa Topas ICP (dansk rejseleder, fixed-departure).
+        re.compile(
+            r"^https?://(?:www\.)?jysk-rejsebureau\.dk/[a-z0-9æøå-]+/med-dansk-rejseleder/[a-z0-9æøå.-]+/?$",
+            re.IGNORECASE,
+        ),
     ],
     "Viktors Farmor": [
         # Pattern: /rejsemal/region/land/tour-slug
@@ -74,7 +80,8 @@ TOUR_URL_PATTERNS: dict[str, list[re.Pattern]] = {
 
 
 # URL fragments to exclude even if they match a tour pattern. Catches
-# common false positives like blog posts, category index pages, login.
+# common false positives like blog posts, category index pages, login,
+# og kvitterings-/betalings-/booking-sider (Jysk's sitemap har ~2000 af dem).
 EXCLUDE_FRAGMENTS = {
     "/blog/", "/nyheder/", "/news/",
     "/login", "/konto", "/min-side", "/kontakt",
@@ -84,6 +91,14 @@ EXCLUDE_FRAGMENTS = {
     "/category/", "/tag/",
     "/wp-content/", "/wp-admin/", "/wp-json/",
     ".pdf", ".jpg", ".png", ".css", ".js",
+    # Payment / kvittering / booking-flow — typisk transient pages
+    "/betaling", "/payment", "/pay/", "/checkout",
+    "/kvittering", "/receipt", "/tak-for", "/thank-you", "/thankyou",
+    "/bestilling", "/booket", "/booking-bekraeftelse",
+    "/vilkaar", "/vilkar", "/terms",
+    "/fejl", "/error", "/404", "/500",
+    "/afregning", "/faktura",
+    "/info-moede", "/info-mode", "/booket-mode",
 }
 
 

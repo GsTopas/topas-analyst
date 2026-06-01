@@ -257,6 +257,7 @@ if res_meta and res_meta["result"]:
         {
             "Score": round(g.score, 1),
             "Tur": g.tour.tour_name[:60],
+            "Link": g.tour.url,  # renderes som klikbar "🔗 Åbn" via column_config
             "Land": g.tour.country or "?",
             "Aktivitet": g.tour.activity or "?",
             "Dage": g.tour.duration_days or "?",
@@ -265,7 +266,6 @@ if res_meta and res_meta["result"]:
             "Fra-pris (kr)": f"{g.tour.from_price_dkk:,}".replace(",", ".") if g.tour.from_price_dkk else "—",
             "Gap-grund": g.gap_reason,
             "Lignende afvist": g.rejected_similar_count,
-            "URL": g.tour.url,
         }
         for g in gaps
     ])
@@ -290,7 +290,25 @@ if res_meta and res_meta["result"]:
         return ""
 
     styled = df.style.map(_color_score, subset=["Score"])
-    st.dataframe(styled, use_container_width=True, hide_index=True, height=600)
+    st.dataframe(
+        styled,
+        use_container_width=True,
+        hide_index=True,
+        height=600,
+        column_config={
+            "Link": st.column_config.LinkColumn(
+                "Link",
+                display_text="🔗 Åbn",
+                width="small",
+                help="Åbn turen på konkurrentens website",
+            ),
+            "Score": st.column_config.NumberColumn(
+                "Score",
+                format="%.1f",
+                width="small",
+            ),
+        },
+    )
 
     st.markdown("### Detalje + godkend som lead")
     selected_url = st.selectbox(

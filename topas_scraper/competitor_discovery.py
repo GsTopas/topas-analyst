@@ -599,19 +599,15 @@ def _scrape_and_classify(
     slug: str,
 ) -> Optional[CompetitorTour]:
     """Firecrawl-scrape + Claude-classify én tour-URL."""
-    from .extraction_schema import EXTRACTION_SCHEMA, EXTRACTION_PROMPT
+    from .extraction_schema import TOUR_EXTRACTION_SCHEMA
 
     try:
-        scrape_result = fc.scrape(
-            url,
-            formats=["markdown", "extract"],
-            extract_schema=EXTRACTION_SCHEMA,
-            extract_prompt=EXTRACTION_PROMPT,
-            only_main_content=True,
-            timeout_ms=30_000,
-        )
+        scrape_result = fc.scrape(url, schema=TOUR_EXTRACTION_SCHEMA)
     except Exception as exc:
         log.warning("Scrape failed for %s: %s", url, exc)
+        return None
+
+    if not scrape_result or not getattr(scrape_result, "success", False):
         return None
 
     extracted = getattr(scrape_result, "extracted", None) or {}

@@ -12,13 +12,12 @@ Workflow:
 """
 from __future__ import annotations
 
-import os
-import pickle
+import dataclasses
+import json
 import re
-import tempfile
 import threading
 import time
-from pathlib import Path
+from datetime import datetime, timezone
 
 import pandas as pd
 import streamlit as st
@@ -31,62 +30,169 @@ require_auth()
 
 
 # ---------------------------------------------------------------------------
-# Persistens — overlev hard-refresh ved at gemme til tempdir
+# Persistens — gem til Supabase (overlever Streamlit Cloud rebuilds)
 # ---------------------------------------------------------------------------
 #
-# Streamlit's session_state ryddes ved Ctrl+Shift+R. Vi gemmer derfor sidste
-# kørsel pr. operator i tempdir så user kan refreshe + lukke browser uden at
-# miste resultatet. Streamlit Cloud's tempdir overlever indtil container-
-# restart (typisk dage/uger). Det er fint til intel-data; ikke kritisk hvis
-# det forsvinder.
-
-_RUNS_DIR = Path(tempfile.gettempdir()) / "topas_discovery_runs"
-
+# Tempdir nulstilles ved hver container-rebuild (= hver git push). Vi laver
+# i stedet en discovery_runs-tabel i Supabase med JSONB. UPSERT per
+# operator_slug, saa vi har altid den nyeste koersel per konkurrent.
+#
+# Dataclasses (GapResult, CompetitorTour) konverteres til/fra dict via
+# dataclasses.asdict() ved save, og rehydreres ved load. Det betyder ogsaa
+# at vi er robuste paa tvars af kode-aendringer (default values paa nye
+# felter loader gamle runs uden krak).
 
 def _safe_slug(name: str) -> str:
-    """Lav operator-navn om til filename-safe slug."""
-    s = re.sub(r"[^a-z0-9]+", "-", name.lower()).strip("-")
+    """Lav operator-navn om til SQL-safe slug."""
+    s = re.sub(r"[^a-z0-9]+", "-", (name or "").lower()).strip("-")
     return s or "unknown"
 
 
-def _save_run(operator: str, payload: dict) -> None:
-    """Gem en discovery-kørsel til tempdir så den overlever hard-refresh."""
+def _serialize_payload(payload: dict) -> dict:
+    """Konvertér payload (med dataclasses i gaps) til pure JSON-safe dict."""
+    def _convert(obj):
+        if dataclasses.is_dataclass(obj):
+            return dataclasses.asdict(obj)
+        if isinstance(obj, (list, tuple)):
+            return [_convert(x) for x in obj]
+        if isinstance(obj, dict):
+            return {k: _convert(v) for k, v in obj.items()}
+        return obj
+    return _convert(payload)
+
+
+def _rehydrate_payload(data: dict) -> dict:
+    """Konvertér loaded dict tilbage til payload med GapResult/CompetitorTour
+    dataclasses i gaps-listen. UI-koden forventer attribut-access (g.tour.url
+    etc.) saa vi reconstruerer dataclasses fra de gemte dicts.
+
+    Defensiv: hvis loaded data er for gammel og mangler nye felter, bruges
+    default-values fra dataclasses.
+    """
+    from topas_scraper.competitor_discovery import GapResult, CompetitorTour
+
+    result = data.get("result", {})
+    raw_gaps = result.get("gaps", [])
+    rehydrated_gaps = []
+    for g in raw_gaps:
+        if not isinstance(g, dict):
+            continue
+        tour_d = g.get("tour", {}) or {}
+        try:
+            tour = CompetitorTour(
+                operator=tour_d.get("operator", ""),
+                url=tour_d.get("url", ""),
+                slug=tour_d.get("slug", ""),
+                tour_name=tour_d.get("tour_name", ""),
+                country=tour_d.get("country"),
+                activity=tour_d.get("activity"),
+                duration_days=tour_d.get("duration_days"),
+                has_guide=tour_d.get("has_guide", False),
+                has_fixed_departures=tour_d.get("has_fixed_departures", False),
+                next_departure=tour_d.get("next_departure"),
+                departure_count_next_12mo=tour_d.get("departure_count_next_12mo", 0),
+                from_price_dkk=tour_d.get("from_price_dkk"),
+                icp_match=tour_d.get("icp_match", False),
+                classifier_notes=tour_d.get("classifier_notes", ""),
+            )
+            rehydrated_gaps.append(GapResult(
+                tour=tour,
+                gap_reason=g.get("gap_reason", ""),
+                score=float(g.get("score", 0)),
+                rejected_similar_count=g.get("rejected_similar_count", 0),
+                rejected_similar_reasons=g.get("rejected_similar_reasons", []) or [],
+                near_gap_warning=g.get("near_gap_warning", ""),
+            ))
+        except (TypeError, ValueError):
+            continue
+    result["gaps"] = rehydrated_gaps
+    data["result"] = result
+    return data
+
+
+def _save_run(operator: str, domain: str | None, payload: dict) -> None:
+    """UPSERT en discovery-koersel til Supabase discovery_runs-tabellen."""
     try:
-        _RUNS_DIR.mkdir(parents=True, exist_ok=True)
-        path = _RUNS_DIR / f"{_safe_slug(operator)}.pkl"
-        with open(path, "wb") as f:
-            pickle.dump(payload, f)
+        from topas_scraper._pg_conn import connect as pg_connect
+        conn = pg_connect()
+        slug = _safe_slug(operator)
+        json_payload = json.dumps(_serialize_payload(payload), default=str)
+        conn.execute("""
+            INSERT INTO discovery_runs (operator_slug, operator, domain, result_json, completed_at)
+            VALUES (?, ?, ?, ?, NOW())
+            ON CONFLICT (operator_slug) DO UPDATE SET
+                operator = EXCLUDED.operator,
+                domain = EXCLUDED.domain,
+                result_json = EXCLUDED.result_json,
+                completed_at = EXCLUDED.completed_at
+        """, (slug, operator, domain, json_payload))
+        conn.commit()
     except Exception:
         # Bevidst silent — persistence er nice-to-have, ikke critical path
         pass
 
 
-def _list_saved_runs() -> list[tuple[str, float, Path]]:
-    """Returnér liste af (operator_slug, mtime, path) sorteret nyeste først."""
-    if not _RUNS_DIR.exists():
-        return []
-    runs = []
-    for p in _RUNS_DIR.glob("*.pkl"):
-        try:
-            runs.append((p.stem, p.stat().st_mtime, p))
-        except OSError:
-            continue
-    return sorted(runs, key=lambda t: -t[1])
-
-
-def _load_run(path: Path) -> dict | None:
-    """Indlæs en gemt kørsel. Returnér None hvis pickle er korrupt
-    (typisk efter en backend-ændring i dataclass-skema)."""
+def _list_saved_runs() -> list[tuple[str, datetime, str]]:
+    """Returnér liste af (operator_slug, completed_at, operator_display_name)
+    sorteret nyeste foerst."""
     try:
-        with open(path, "rb") as f:
-            return pickle.load(f)
+        from topas_scraper._pg_conn import connect as pg_connect
+        conn = pg_connect()
+        rows = conn.execute("""
+            SELECT operator_slug, operator, completed_at
+            FROM discovery_runs
+            ORDER BY completed_at DESC
+        """).fetchall()
+        out: list[tuple[str, datetime, str]] = []
+        for r in rows:
+            d = dict(r)
+            out.append((d["operator_slug"], d["completed_at"], d["operator"]))
+        return out
     except Exception:
-        # Korrupt eller skema-skift — slet stille
-        try:
-            path.unlink()
-        except OSError:
-            pass
+        return []
+
+
+def _load_run_by_slug(operator_slug: str) -> dict | None:
+    """Indlaes en gemt koersel via operator_slug. Returnerer rehydreret
+    payload (med dataclasses), eller None hvis ikke fundet."""
+    try:
+        from topas_scraper._pg_conn import connect as pg_connect
+        conn = pg_connect()
+        rows = conn.execute("""
+            SELECT operator, domain, result_json, completed_at
+            FROM discovery_runs
+            WHERE operator_slug = ?
+        """, (operator_slug,)).fetchall()
+        if not rows:
+            return None
+        d = dict(rows[0])
+        raw = d["result_json"]
+        if isinstance(raw, str):
+            raw = json.loads(raw)
+        payload = {
+            "operator": d["operator"],
+            "domain": d.get("domain"),
+            "result": raw.get("result", {}) if isinstance(raw, dict) else {},
+            "completed_at": d["completed_at"].strftime("%H:%M:%S") if d.get("completed_at") else "",
+        }
+        return _rehydrate_payload(payload)
+    except Exception:
         return None
+
+
+def _age_str_from_dt(dt: datetime) -> str:
+    """Format alder paa et timestamp som '5 min siden' / '2 timer siden'."""
+    if dt is None:
+        return "ukendt"
+    if dt.tzinfo is None:
+        dt = dt.replace(tzinfo=timezone.utc)
+    delta = datetime.now(timezone.utc) - dt
+    minutes = delta.total_seconds() / 60
+    if minutes < 60:
+        return f"{int(minutes)} min siden"
+    if minutes < 24 * 60:
+        return f"{minutes / 60:.1f} timer siden"
+    return f"{minutes / (24 * 60):.0f} dage siden"
 
 
 COMPETITORS: dict[str, dict] = {
@@ -207,32 +313,21 @@ _loaded = st.session_state.get("discovery_result")
 _loaded_slug = _safe_slug(_loaded.get("operator", "")) if _loaded else None
 
 if _loaded_slug != current_op_slug:
-    saved = _list_saved_runs()
-    match_path = next((p for slug, _, p in saved if slug == current_op_slug), None)
-    if match_path:
-        restored = _load_run(match_path)
-        st.session_state["discovery_result"] = restored if restored else None
-    else:
-        st.session_state["discovery_result"] = None
+    restored = _load_run_by_slug(current_op_slug)
+    st.session_state["discovery_result"] = restored
 
 # Vis banner med info om alder paa det loadede resultat
 _loaded = st.session_state.get("discovery_result")
 if _loaded:
     _saved_now = _list_saved_runs()
-    _mtime = next(
-        (mt for slug, mt, _ in _saved_now if slug == current_op_slug),
+    _completed_at = next(
+        (dt for slug, dt, _ in _saved_now if slug == current_op_slug),
         None,
     )
-    if _mtime is not None:
-        _age_min = (time.time() - _mtime) / 60
-        _age_str = (
-            f"{int(_age_min)} min siden" if _age_min < 60
-            else f"{_age_min/60:.1f} timer siden" if _age_min < 24*60
-            else f"{_age_min/(24*60):.0f} dage siden"
-        )
+    if _completed_at is not None:
         st.info(
             f"📂 Viser sidste kørsel for **{_loaded.get('operator', op_name)}** "
-            f"({_age_str}). Kør discovery igen for fresh data."
+            f"({_age_str_from_dt(_completed_at)}). Kør discovery igen for fresh data."
         )
 
 # Hvis vi har flere gemte kørsler — vis dem som hurtig-skift
@@ -240,16 +335,12 @@ saved_runs = _list_saved_runs()
 if len(saved_runs) > 1:
     with st.expander(f"📂 {len(saved_runs)} gemte kørsler — skift mellem konkurrenter"):
         cols = st.columns(min(len(saved_runs), 4))
-        for i, (slug, mtime, path) in enumerate(saved_runs):
+        for i, (slug, dt, display) in enumerate(saved_runs):
             with cols[i % len(cols)]:
-                age_min = (time.time() - mtime) / 60
-                age_str = (
-                    f"{int(age_min)}m" if age_min < 60
-                    else f"{age_min/60:.0f}t" if age_min < 24*60
-                    else f"{age_min/(24*60):.0f}d"
-                )
-                if st.button(f"{slug}\n({age_str})", key=f"load_{slug}", use_container_width=True):
-                    restored = _load_run(path)
+                short_age = _age_str_from_dt(dt).replace(" siden", "")
+                btn_label = f"{display}\n({short_age})"
+                if st.button(btn_label, key=f"load_{slug}", use_container_width=True):
+                    restored = _load_run_by_slug(slug)
                     if restored:
                         st.session_state["discovery_result"] = restored
                         # Sync dropdown ogsaa — find display-navn i payload og
@@ -294,8 +385,9 @@ if run_clicked:
                 "completed_at": time.strftime("%H:%M:%S"),
             }
             st.session_state["discovery_result"] = payload
-            # Persistér til disk så hard-refresh ikke smider resultatet væk
-            _save_run(op_name, payload)
+            # Persistér til Supabase så Streamlit Cloud rebuild ikke smider
+            # resultatet væk (tempdir nulstilles ved hver git push)
+            _save_run(op_name, op_meta.get("domain"), payload)
             status.update(label=f"✓ Discovery færdig: {len(result['gaps'])} gap-ture", state="complete")
         except Exception as exc:
             status.update(label=f"✗ Discovery fejlede: {type(exc).__name__}", state="error")

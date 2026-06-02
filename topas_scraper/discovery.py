@@ -83,10 +83,13 @@ TOUR_URL_PATTERNS: dict[str, list[re.Pattern]] = {
         re.compile(r"^https?://(?:www\.)?ruby-rejser\.dk/[a-z0-9æøå-]+/[a-z0-9æøå-]+\.html$", re.IGNORECASE),
     ],
     "Vagabond Tours": [
-        # Vagabond bruger ASP.NET-stil URLs: /rejsemaal/{type}/{region}/{land}/{slug}.aspx
-        # Eksempel: vagabondtours.dk/rejsemaal/faellesture/vietnam/vietnam/vietnam-fra-nord-til-syd.aspx
+        # Vagabond migrerede fra ASP.NET til WordPress (~2025). Nye URLs er
+        # vagabondtours.dk/tours/{slug}/ — fx /tours/gendarmstien-padborg-broager/
+        # eller /tours/luksus-vandreferie-i-tyskland-malerweg-6-dage/
+        # NB: sitemap har ogsaa /tours/test* og /tours/ (index) som ICP-filter
+        # vil weede ud baseret paa thin data.
         re.compile(
-            r"^https?://(?:www\.)?vagabondtours\.dk/rejsemaal/[a-z0-9æøå-]+/[a-z0-9æøå-]+/[a-z0-9æøå-]+/[a-z0-9æøå.-]+\.aspx/?$",
+            r"^https?://(?:www\.)?vagabondtours\.dk/tours/[a-z0-9æøå.-]+/?$",
             re.IGNORECASE,
         ),
     ],

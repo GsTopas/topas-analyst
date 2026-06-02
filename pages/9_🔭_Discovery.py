@@ -240,8 +240,10 @@ COMPETITORS: dict[str, dict] = {
     },
     "Vagabond Tours": {
         "domain": "vagabondtours.dk",
-        "homepage": "http://www.vagabondtours.dk",
-        "sitemap": None,
+        "homepage": "https://www.vagabondtours.dk",
+        # Vagabond migrerede fra ASP.NET til WordPress. Sitemap_index.xml
+        # peger paa tours-sitemap.xml (181 ture) + 7 andre sub-sitemaps.
+        "sitemap": "https://www.vagabondtours.dk/sitemap_index.xml",
     },
     "Kipling Travel": {
         "domain": "kiplingtravel.dk",

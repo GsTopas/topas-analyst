@@ -452,7 +452,7 @@ def _detect_gap(
 
     # Step 2: gap-reason
     activities_str = "/".join(sorted(activities)) or tour.activity
-    reason = f"Topas har ingen {activities_str}-tur i {tour.country} paa {band[0]}-{band[1]} dage"
+    reason = f"Topas har ingen {activities_str}-tur i {tour.country} på {band[0]}-{band[1]} dage"
 
     # Step 3: hvis Topas har andre varianter i samme (country, activity),
     # marker som near-gap med info om varianterne

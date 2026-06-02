@@ -289,8 +289,10 @@ else:
 with col_max:
     max_urls = st.number_input(
         "Max URLs",
-        min_value=5, max_value=200, value=50, step=5,
-        help="Cap på antal URLs at scrape (~1 Firecrawl credit + 1 Claude-kald pr. URL)"
+        min_value=5, max_value=2000, value=200, step=50,
+        help="Cap på antal URLs at scrape (~1 Firecrawl credit + 1 Claude-kald pr. URL). "
+             "Du har ~80k credits tilbage — sæt 500-1000 for fuld dækning af store sites "
+             "(Ruby 424 ture, Albatros 600+, Jysk 200+ efter filter)."
     )
 
 with col_par:

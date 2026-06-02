@@ -144,17 +144,46 @@ EXCLUDE_FRAGMENTS = {
 
 
 def is_likely_tour_url(operator: str, url: str) -> bool:
-    """Test if a URL matches the tour-detail pattern for the given operator."""
-    # Quick exclude
+    """Test if a URL matches the tour-detail pattern for the given operator.
+
+    For known operators (in TOUR_URL_PATTERNS), apply the specific regex.
+    For unknown operators that look like a domain (typisk custom-domain via UI
+    hvor operator = 'intrepidtravel.com'), brug permissiv heuristik:
+      - URL skal vaere paa samme domaene som operator
+      - URL maa ikke matche EXCLUDE_FRAGMENTS (payment-sider, blog etc)
+      - URL skal have 1+ path-segment (ikke bare homepage)
+    Saa kan ICP-classifier lave finkornet filtrering bagefter."""
     url_lower = url.lower()
     if any(frag in url_lower for frag in EXCLUDE_FRAGMENTS):
         return False
 
     patterns = TOUR_URL_PATTERNS.get(operator)
-    if not patterns:
-        # Unknown operator — be permissive but warn caller.
+    if patterns:
+        return any(p.match(url) for p in patterns)
+
+    # Unknown operator — kun permissiv hvis operator ligner et domaene
+    op = (operator or "").lower().strip()
+    is_domain_like = "." in op and " " not in op
+    if not is_domain_like:
         return False
-    return any(p.match(url) for p in patterns)
+
+    # URL skal vaere paa samme domaene (med eller uden www.)
+    try:
+        parsed = urlparse(url)
+    except ValueError:
+        return False
+    host = (parsed.hostname or "").lower()
+    if not host:
+        return False
+    if not (host == op or host == f"www.{op}" or host.endswith(f".{op}")):
+        return False
+
+    # Skal have 1+ path-segment (ikke bare homepage)
+    path = parsed.path.strip("/")
+    if not path:
+        return False
+
+    return True
 
 
 # ---------------------------------------------------------------------------

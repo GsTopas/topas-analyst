@@ -281,9 +281,28 @@ with col_op:
     )
 
 if op_choice == "+ Custom domain":
-    custom_home = st.text_input("Custom homepage URL", placeholder="https://example.dk")
+    custom_home = st.text_input("Custom homepage URL", placeholder="https://example.dk").strip()
+    # Auto-prefix https:// hvis user kun skrev domain (eller domain/)
+    if custom_home and not custom_home.startswith(("http://", "https://")):
+        custom_home = "https://" + custom_home
+    # Strip trailing / for cleaner display + URL-matching
+    if custom_home.endswith("/"):
+        custom_home = custom_home.rstrip("/")
     op_name = custom_home.replace("https://", "").replace("http://", "").split("/")[0] or "Custom"
-    op_meta = {"domain": op_name, "homepage": custom_home, "sitemap": None}
+    # Sitemap auto-detection: standard sitemap.xml. Discovery's robots.txt-
+    # fallback finder alternative sitemaps (sitemap_index.xml, sitemap.xml.gz)
+    # hvis denne fejler.
+    op_meta = {
+        "domain": op_name,
+        "homepage": custom_home,
+        "sitemap": f"{custom_home}/sitemap.xml" if custom_home else None,
+    }
+    if custom_home:
+        st.caption(
+            f"💡 Custom-domain mode: forsoeger `{op_meta['sitemap']}` + robots.txt-fallback. "
+            "Ukendt URL-pattern → permissiv heuristik (alle URLs paa domaenet med 1+ path-segment). "
+            "ICP-classifier filtrerer non-tour pages."
+        )
 else:
     op_name = op_choice
     op_meta = COMPETITORS[op_choice]

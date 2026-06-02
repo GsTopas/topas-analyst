@@ -352,9 +352,24 @@ def _render_detail_view(df_in: pd.DataFrame, month_nums: list[int]) -> None:
 
     def _style(row: pd.Series) -> list[str]:
         """Styling per celle: kategori-labels og totaler i fed,
-        diff-celler med heatmap-baggrund."""
+        diff-celler med heatmap-baggrund.
+
+        VIGTIGT: hver maaned har sin egen Tur-kolonne, og rakker er ikke
+        synkroniserede paa tvars af maaneder (ingen padding). For at style
+        en DB-celle korrekt skal vi finde Tur-cellen i SAMME maaned
+        (samme top-level header h) — IKKE den foerste Tur-celle i rakken.
+        Foer-fix: ITTO2604 i Maj fik bold fordi Januar's raekke 10 var
+        "Topas total" og _style tog den foerste Tur-celle den faldt over.
+        """
+        items = list(row.items())
+        # Map fra top-level header -> Tur-vaerdi for DENNE raekke
+        tur_per_header: dict[str, str] = {}
+        for (h, sub), val in items:
+            if sub == "Tur":
+                tur_per_header[h] = str(val).strip() if val is not None else ""
+
         styles = []
-        for (_h, sub), val in row.items():
+        for (h, sub), val in items:
             s = ""
             val_str = str(val).strip() if val is not None else ""
 
@@ -366,12 +381,8 @@ def _render_detail_view(df_in: pd.DataFrame, month_nums: list[int]) -> None:
                 elif val_str == "Total":
                     s = "font-weight:800; color:#7c2d12;"
             else:
-                # DB-kolonnen — find tilhoerende tur-celle for at se hvilken raekke det er
-                tour_val = ""
-                for (_h2, s2), v2 in row.items():
-                    if s2 == "Tur":
-                        tour_val = str(v2).strip()
-                        break
+                # DB-kolonnen — slaa op i SAMME maaneds Tur-celle
+                tour_val = tur_per_header.get(h, "")
 
                 if tour_val == "Total":
                     s = "font-weight:800; color:#7c2d12; background-color:#fff4e6;"

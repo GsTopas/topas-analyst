@@ -224,7 +224,9 @@ COMPETITORS: dict[str, dict] = {
     "Ruby Rejser": {
         "domain": "ruby-rejser.dk",
         "homepage": "https://ruby-rejser.dk",
-        "sitemap": "https://ruby-rejser.dk/sitemap.xml",
+        # NB: /sitemap.xml indeholder URLs fra et andet domaene (skiinstruktor.no
+        # som er soester-projekt). Ruby's egne URLs ligger i ruby_DK_sitemap.xml.
+        "sitemap": "https://ruby-rejser.dk/ruby_DK_sitemap.xml",
     },
     "Stjernegaard Rejser": {
         "domain": "stjernegaard-rejser.dk",

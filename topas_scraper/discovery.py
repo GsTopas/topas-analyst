@@ -242,6 +242,17 @@ def discover_via_sitemap(
             return None
 
     tour_urls = [u for u in all_urls if is_likely_tour_url(operator, u)]
+
+    # Defensiv fallback: sitemap returnerede URLs, men ingen matcher operator's
+    # tour-URL-pattern. Ofte er sitemap'en forkert (Ruby's /sitemap.xml havde
+    # URLs fra skiinstruktor.no-soesterprojekt). Proev robots.txt for alternativ
+    # sitemap inden vi giver op.
+    if not tour_urls:
+        robots_urls = _try_robots_sitemap(sitemap_url)
+        if robots_urls:
+            combined = list({*all_urls, *robots_urls})
+            tour_urls = [u for u in combined if is_likely_tour_url(operator, u)]
+
     return _dedupe_by_slug([(u, _slug_from_url(u)) for u in tour_urls])
 
 

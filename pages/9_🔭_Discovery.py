@@ -361,7 +361,8 @@ if res_meta and res_meta["result"]:
     df = pd.DataFrame([
         {
             "Score": round(g.score, 1),
-            "Tur": g.tour.tour_name[:60],
+            # Vis ⚠ ikon foran tur-navn hvis Topas har lignende tur i anden duration
+            "Tur": (("⚠ " if getattr(g, "near_gap_warning", "") else "") + g.tour.tour_name)[:65],
             "Link": g.tour.url,  # renderes som klikbar "🔗 Åbn" via column_config
             "Land": g.tour.country or "?",
             "Aktivitet": g.tour.activity or "?",
@@ -374,6 +375,15 @@ if res_meta and res_meta["result"]:
         }
         for g in gaps
     ])
+
+    # Tael near-gaps og oplys brugeren om ⚠-ikonet
+    near_gap_count = sum(1 for g in gaps if getattr(g, "near_gap_warning", ""))
+    if near_gap_count:
+        st.caption(
+            f"⚠ = {near_gap_count} af gap-turne har en lignende Topas-tur "
+            "i en anden varighed (samme destination, anden duration-band). "
+            "Score er reduceret med 40% for disse. Se detalje-panelet nederst for varianten."
+        )
 
     def _color_score(v):
         """Heatmap-tærskler (score 0-15+):
@@ -441,6 +451,10 @@ if res_meta and res_meta["result"]:
                 if t.from_price_dkk:
                     st.markdown(f"- Frapris: {t.from_price_dkk:,} kr.".replace(",", "."))
                 st.markdown(f"- **Gap-grund**: {selected_gap.gap_reason}")
+                # Near-gap warning: Topas har lignende destination i anden duration
+                near_gap = getattr(selected_gap, "near_gap_warning", "")
+                if near_gap:
+                    st.info(f"💡 **Lignende Topas-tur findes:** {near_gap}")
                 if t.classifier_notes:
                     st.caption(f"Classifier: {t.classifier_notes}")
                 if selected_gap.rejected_similar_count:

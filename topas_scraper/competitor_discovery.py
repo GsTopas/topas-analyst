@@ -122,6 +122,11 @@ class GapResult:
     score: float
     rejected_similar_count: int = 0
     rejected_similar_reasons: list[str] = field(default_factory=list)
+    # Near-gap warning: Topas har en lignende (samme land+aktivitet) tur,
+    # bare i anden varigheds-band. Eksempel: Viktors's 15d Patagonien-vandring
+    # mod Topas's 19d Patagonien-vandring. Ingen gap pga. duration-forskel,
+    # men reelt samme destination. Tom = clean gap.
+    near_gap_warning: str = ""
 
 
 # ---------------------------------------------------------------------------
@@ -225,8 +230,16 @@ def _activity_keywords(activity: str) -> set[str]:
     return out
 
 
-def _build_topas_baseline(conn) -> set[tuple[str, str, tuple[int, int]]]:
-    """Returnerer sæt af (country, activity-bucket, duration-band) Topas dækker."""
+def _build_topas_baseline(conn) -> dict[tuple[str, str], list[tuple[int, str]]]:
+    """Returnerer dict {(country, activity): [(duration_days, tour_name), ...]}.
+
+    Tidligere returnerede vi et SET af (country, activity, band) — men det
+    gjorde det umuligt at se hvilke varianter Topas faktisk har i et land.
+    Nu beholder vi alle Topas-ture per (country, activity) saa _detect_gap
+    kan oplyse om Topas har en lignende tur i en anden varigheds-band
+    (fx Patagonien 19d vs konkurrentens 15d — samme destination, anden
+    band — det er en near-gap, ikke en clean gap).
+    """
     rows = conn.execute("""
         SELECT tour_name, country, duration_days
         FROM topas_catalog
@@ -235,29 +248,29 @@ def _build_topas_baseline(conn) -> set[tuple[str, str, tuple[int, int]]]:
           AND duration_days IS NOT NULL
     """).fetchall()
 
-    coverage: set[tuple[str, str, tuple[int, int]]] = set()
+    baseline: dict[tuple[str, str], list[tuple[int, str]]] = {}
     for r in rows:
         d = dict(r)
-        name = (d["tour_name"] or "").lower()
+        name = (d["tour_name"] or "")
+        name_lc = name.lower()
         country = d["country"]
         days = int(d["duration_days"])
 
         activities: set[str] = set()
-        if any(k in name for k in ("vandr", "trek", "højrute")):
+        if any(k in name_lc for k in ("vandr", "trek", "højrute")):
             activities.add("vandring")
-        if any(k in name for k in ("cykl", "mountain")):
+        if any(k in name_lc for k in ("cykl", "mountain")):
             activities.add("cykling")
-        if "sejlads" in name:
+        if "sejlads" in name_lc:
             activities.add("sejlads")
         if not activities:
             # Fallback: hvis vi ikke kan udlede, antag vandring
             activities.add("vandring")
 
-        band = _band_for_duration(days)
         for act in activities:
-            coverage.add((country, act, band))
+            baseline.setdefault((country, act), []).append((days, name))
 
-    return coverage
+    return baseline
 
 
 # ---------------------------------------------------------------------------
@@ -408,20 +421,54 @@ def _count_rejection_similarity(
 # Gap detection + scoring
 # ---------------------------------------------------------------------------
 
-def _detect_gap(tour: CompetitorTour, topas_coverage: set) -> Optional[str]:
-    """Returnerer gap-grund hvis turen IKKE er dækket af Topas, ellers None."""
+def _detect_gap(
+    tour: CompetitorTour,
+    topas_baseline: dict[tuple[str, str], list[tuple[int, str]]],
+) -> tuple[Optional[str], str]:
+    """Returnerer (gap_reason, near_gap_warning).
+
+    - (None, "")     : exact band match — Topas daekker, ikke gap
+    - (reason, "")   : clean gap — Topas har INTET i (country, activity)
+    - (reason, warn) : near-gap — Topas har en variant i samme (country,
+                       activity) men i anden duration-band. Vis stadig som
+                       gap, men med warning om varianten saa brugeren ved
+                       at destinationen allerede er daekket.
+    """
     if not tour.country or not tour.duration_days or not tour.activity:
-        return None
+        return None, ""
 
     band = _band_for_duration(tour.duration_days)
     activities = _activity_keywords(tour.activity)
 
+    # Saml alle Topas-varianter i samme (country, activity) — uanset band
+    topas_variants: list[tuple[int, str]] = []
     for act in activities:
-        if (tour.country, act, band) in topas_coverage:
-            return None
+        topas_variants.extend(topas_baseline.get((tour.country, act), []))
 
+    # Step 1: exact band match -> daekket
+    for d, _name in topas_variants:
+        if _band_for_duration(d) == band:
+            return None, ""
+
+    # Step 2: gap-reason
     activities_str = "/".join(sorted(activities)) or tour.activity
-    return f"Topas har ingen {activities_str}-tur i {tour.country} på {band[0]}-{band[1]} dage"
+    reason = f"Topas har ingen {activities_str}-tur i {tour.country} paa {band[0]}-{band[1]} dage"
+
+    # Step 3: hvis Topas har andre varianter i samme (country, activity),
+    # marker som near-gap med info om varianterne
+    if topas_variants:
+        # Dedup varigheder, sortér
+        durs = sorted({d for d, _ in topas_variants})
+        # Tag tour_name fra den foerste variant for kontekst
+        first_name = topas_variants[0][1]
+        dur_str = ", ".join(f"{d}d" for d in durs)
+        warning = (
+            f"Topas har lignende {activities_str}-tur i {tour.country} "
+            f"i andre varigheder ({dur_str}): \"{first_name[:70]}\""
+        )
+        return reason, warning
+
+    return reason, ""
 
 
 def _departure_validation_score(count: int) -> float:
@@ -626,17 +673,22 @@ def run_discovery(
 
     gaps: list[GapResult] = []
     for tour in icp_tours:
-        gap_reason = _detect_gap(tour, topas_coverage)
+        gap_reason, near_gap_warning = _detect_gap(tour, topas_coverage)
         if not gap_reason:
             continue
         rej_count, rej_reasons = _count_rejection_similarity(tour, rejections)
         score = _score(tour, rej_count)
+        # Reducer score paa near-gaps — destinationen er allerede daekket,
+        # bare i anden varighed, saa strategisk vaerdi er lavere end clean gap
+        if near_gap_warning:
+            score *= 0.6
         gaps.append(GapResult(
             tour=tour,
             gap_reason=gap_reason,
             score=score,
             rejected_similar_count=rej_count,
             rejected_similar_reasons=rej_reasons,
+            near_gap_warning=near_gap_warning,
         ))
 
     gaps.sort(key=lambda g: g.score, reverse=True)

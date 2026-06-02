@@ -166,6 +166,7 @@ with col_op:
         "Konkurrent",
         options=list(COMPETITORS.keys()) + ["+ Custom domain"],
         index=0,
+        key="op_choice_key",  # giver os mulighed for at saette vaerdien programmatisk
         help="Vælg en af de 12 kendte konkurrenter, eller indtast et nyt domain."
     )
 
@@ -197,24 +198,42 @@ st.divider()
 if "discovery_result" not in st.session_state:
     st.session_state["discovery_result"] = None
 
-# Auto-restore sidste kørsel hvis session er tom (typisk efter hard-refresh)
-if st.session_state["discovery_result"] is None:
+# Sync session_state med dropdown: hvis det aktuelt loadede resultat ikke
+# matcher den valgte konkurrent, load DEN konkurrents gemte run (eller
+# clear hvis ingen findes). Saa undgaar vi at Viktors-resultatet bliver
+# staende naar user vaelger Jysk i dropdownen.
+current_op_slug = _safe_slug(op_name)
+_loaded = st.session_state.get("discovery_result")
+_loaded_slug = _safe_slug(_loaded.get("operator", "")) if _loaded else None
+
+if _loaded_slug != current_op_slug:
     saved = _list_saved_runs()
-    if saved:
-        latest_slug, latest_mtime, latest_path = saved[0]
-        restored = _load_run(latest_path)
-        if restored:
-            st.session_state["discovery_result"] = restored
-            age_min = (time.time() - latest_mtime) / 60
-            age_str = (
-                f"{int(age_min)} min siden" if age_min < 60
-                else f"{age_min/60:.1f} timer siden" if age_min < 24*60
-                else f"{age_min/(24*60):.0f} dage siden"
-            )
-            st.info(
-                f"📂 Viser sidste kørsel for **{restored.get('operator', latest_slug)}** "
-                f"({age_str}). Kør discovery igen for fresh data."
-            )
+    match_path = next((p for slug, _, p in saved if slug == current_op_slug), None)
+    if match_path:
+        restored = _load_run(match_path)
+        st.session_state["discovery_result"] = restored if restored else None
+    else:
+        st.session_state["discovery_result"] = None
+
+# Vis banner med info om alder paa det loadede resultat
+_loaded = st.session_state.get("discovery_result")
+if _loaded:
+    _saved_now = _list_saved_runs()
+    _mtime = next(
+        (mt for slug, mt, _ in _saved_now if slug == current_op_slug),
+        None,
+    )
+    if _mtime is not None:
+        _age_min = (time.time() - _mtime) / 60
+        _age_str = (
+            f"{int(_age_min)} min siden" if _age_min < 60
+            else f"{_age_min/60:.1f} timer siden" if _age_min < 24*60
+            else f"{_age_min/(24*60):.0f} dage siden"
+        )
+        st.info(
+            f"📂 Viser sidste kørsel for **{_loaded.get('operator', op_name)}** "
+            f"({_age_str}). Kør discovery igen for fresh data."
+        )
 
 # Hvis vi har flere gemte kørsler — vis dem som hurtig-skift
 saved_runs = _list_saved_runs()
@@ -233,6 +252,11 @@ if len(saved_runs) > 1:
                     restored = _load_run(path)
                     if restored:
                         st.session_state["discovery_result"] = restored
+                        # Sync dropdown ogsaa — find display-navn i payload og
+                        # set selectbox-key saa dropdownen matcher
+                        display_name = restored.get("operator")
+                        if display_name in COMPETITORS:
+                            st.session_state["op_choice_key"] = display_name
                         st.rerun()
 
 run_clicked = st.button("🔭 Kør discovery", type="primary", use_container_width=True)

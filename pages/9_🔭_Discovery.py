@@ -270,6 +270,14 @@ st.caption(
     "vandring/cykling, 4-25 dage). Læring-base: 185 historiske afvisninger."
 )
 
+# Pending-switch pattern: Streamlit forbyder at modifie op_choice_key efter
+# selectbox er instantieret. Derfor satter quick-switch-knapperne et SEPARAT
+# _pending_op_switch som vi overfoerer til op_choice_key HER (foer selectbox
+# renderer). Det er den eneste lovlige maade at programmatisk skifte widget-value.
+_pending_switch = st.session_state.pop("_pending_op_switch", None)
+if _pending_switch and _pending_switch in (list(COMPETITORS.keys()) + ["+ Custom domain"]):
+    st.session_state["op_choice_key"] = _pending_switch
+
 col_op, col_max, col_par = st.columns([3, 1, 1])
 with col_op:
     op_choice = st.selectbox(
@@ -368,11 +376,12 @@ if len(saved_runs) > 1:
                     restored = _load_run_by_slug(slug)
                     if restored:
                         st.session_state["discovery_result"] = restored
-                        # Sync dropdown ogsaa — find display-navn i payload og
-                        # set selectbox-key saa dropdownen matcher
+                        # Sat _pending_op_switch — pickup'es i toppen af scriptet
+                        # FOER selectbox renderer (vi maa ikke saette op_choice_key
+                        # direkte efter widget er instantieret).
                         display_name = restored.get("operator")
                         if display_name in COMPETITORS:
-                            st.session_state["op_choice_key"] = display_name
+                            st.session_state["_pending_op_switch"] = display_name
                         st.rerun()
 
 run_clicked = st.button("🔭 Kør discovery", type="primary", use_container_width=True)

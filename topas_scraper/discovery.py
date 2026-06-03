@@ -392,6 +392,8 @@ class DiscoveryResult:
     tours_found: list[tuple[str, str]]    # (url, slug)
     method_used: str                       # 'sitemap' | 'firecrawl-map' | 'failed'
     notes: str = ""
+    raw_url_count: int = 0                 # antal URLs FOER is_likely_tour_url-filter
+    fetch_error: str = ""                  # populeret hvis sitemap/map fejlede
 
 
 def discover_operator_tours(
@@ -406,34 +408,126 @@ def discover_operator_tours(
     Tries sitemap first (free + fast), falls back to Firecrawl /map if sitemap
     is missing or returns suspiciously few results.
     """
+    sitemap_raw_count = 0
+    sitemap_error = ""
+    sitemap_results: Optional[list[tuple[str, str]]] = None
+
     # Strategy 1 — sitemap
     if sitemap_url:
-        sitemap_results = discover_via_sitemap(operator, sitemap_url)
+        try:
+            sitemap_results, sitemap_raw_count = _discover_via_sitemap_with_count(
+                operator, sitemap_url
+            )
+        except Exception as exc:
+            sitemap_error = f"sitemap fetch error: {type(exc).__name__}: {exc}"
+            sitemap_results = None
+
         if sitemap_results is not None and len(sitemap_results) >= 5:
-            # Got a useful number of URLs from sitemap
             return DiscoveryResult(
                 operator=operator,
                 tours_found=sitemap_results,
                 method_used="sitemap",
-                notes=f"{len(sitemap_results)} tour-URLs from sitemap",
+                notes=(f"{len(sitemap_results)} tour-URLs from sitemap "
+                       f"(filtered from {sitemap_raw_count} raw URLs)"),
+                raw_url_count=sitemap_raw_count,
             )
 
     # Strategy 2 — Firecrawl /map
-    map_results = discover_via_firecrawl_map(operator, homepage_url, firecrawl_client)
+    map_raw_count = 0
+    map_error = ""
+    map_results: list[tuple[str, str]] = []
+    try:
+        map_results, map_raw_count = _discover_via_firecrawl_map_with_count(
+            operator, homepage_url, firecrawl_client
+        )
+    except Exception as exc:
+        map_error = f"firecrawl /map error: {type(exc).__name__}: {exc}"
+
     if map_results:
         return DiscoveryResult(
             operator=operator,
             tours_found=map_results,
             method_used="firecrawl-map",
-            notes=f"{len(map_results)} tour-URLs from Firecrawl map",
+            notes=(f"{len(map_results)} tour-URLs from Firecrawl /map "
+                   f"(filtered from {map_raw_count} raw URLs)"),
+            raw_url_count=map_raw_count,
         )
+
+    # Begge fejlede — saml diagnostik
+    combined_raw = sitemap_raw_count + map_raw_count
+    diag_parts = []
+    if sitemap_url:
+        diag_parts.append(
+            f"sitemap returned {sitemap_raw_count} URLs"
+            + (f" — {sitemap_error}" if sitemap_error else "")
+        )
+    diag_parts.append(
+        f"Firecrawl /map returned {map_raw_count} URLs"
+        + (f" — {map_error}" if map_error else "")
+    )
+    if combined_raw > 0:
+        diag_parts.append(
+            f"but 0 matched is_likely_tour_url for operator='{operator}' "
+            "(URL-pattern mismatch?)"
+        )
+    notes = " · ".join(diag_parts)
 
     return DiscoveryResult(
         operator=operator,
         tours_found=[],
         method_used="failed",
-        notes="Neither sitemap nor Firecrawl map yielded results",
+        notes=notes,
+        raw_url_count=combined_raw,
+        fetch_error=(sitemap_error or map_error or ""),
     )
+
+
+def _discover_via_sitemap_with_count(
+    operator: str, sitemap_url: str,
+) -> tuple[Optional[list[tuple[str, str]]], int]:
+    """Wrap discover_via_sitemap saa vi ogsaa returnerer raw URL-count (foer filter)."""
+    all_urls = fetch_sitemap_urls(sitemap_url)
+    raw_count = len(all_urls) if all_urls else 0
+
+    if all_urls is None or not all_urls:
+        all_urls = _try_robots_sitemap(sitemap_url)
+        if all_urls is None:
+            return None, 0
+        raw_count = len(all_urls)
+
+    tour_urls = [u for u in all_urls if is_likely_tour_url(operator, u)]
+
+    # Defensiv fallback (samme som discover_via_sitemap)
+    if not tour_urls:
+        robots_urls = _try_robots_sitemap(sitemap_url)
+        if robots_urls:
+            combined = list({*all_urls, *robots_urls})
+            raw_count = len(combined)
+            tour_urls = [u for u in combined if is_likely_tour_url(operator, u)]
+
+    return _dedupe_by_slug([(u, _slug_from_url(u)) for u in tour_urls]), raw_count
+
+
+def _discover_via_firecrawl_map_with_count(
+    operator: str, homepage_url: str, client: Optional[FirecrawlClient] = None,
+) -> tuple[list[tuple[str, str]], int]:
+    """Wrap discover_via_firecrawl_map saa vi ogsaa returnerer raw URL-count."""
+    if client is None:
+        client = FirecrawlClient()
+
+    result = client.client.map(homepage_url)  # exceptions propagate to caller
+    if hasattr(result, "links"):
+        all_urls = result.links
+    elif isinstance(result, dict) and "links" in result:
+        all_urls = result["links"]
+    elif isinstance(result, list):
+        all_urls = result
+    else:
+        all_urls = []
+
+    raw_count = len(all_urls)
+    tour_urls = [u for u in all_urls if is_likely_tour_url(operator, u)]
+    return _dedupe_by_slug([(u, _slug_from_url(u)) for u in tour_urls]), raw_count
 
 
 # ---------------------------------------------------------------------------

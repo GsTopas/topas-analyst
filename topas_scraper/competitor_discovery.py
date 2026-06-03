@@ -556,6 +556,9 @@ def run_discovery(
         firecrawl_client=fc,
     )
     all_found = discovery_result.tours_found
+    # Vis altid discovery.notes — indeholder raw vs filtered count + fejlmeddelelser
+    if discovery_result.notes:
+        emit(f"   {discovery_result.notes}")
 
     # Filter ALREADY-MAPPED URLs vaek FOER scraping — discovery handler kun om
     # NYE ture. Hvis URL'en allerede er i approved_competitor_targets, sa har

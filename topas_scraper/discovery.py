@@ -117,6 +117,18 @@ TOUR_URL_PATTERNS: dict[str, list[re.Pattern]] = {
             re.IGNORECASE,
         ),
     ],
+    "Bering Travel": [
+        # Bering bruger beringtravel.com (.com TLD!) med locale-prefiks /da/.
+        # URL-shape: /da/{kategori}/{land}/{slug}
+        # Eksempler: /da/vandreferie/albanien/vandreferie-albaniens-alper
+        #            /da/cykelferie/danmark/cykelferie-koebenhavn-bornholm
+        # 321 ture totalt i /da-locale (sept 2026). Kategori-roots og
+        # land-pages (depth 1-2) er ikke ture — kun depth-3 URLs matcher.
+        re.compile(
+            r"^https?://(?:www\.)?beringtravel\.com/da/[a-z0-9æøå-]+/[a-z0-9æøå-]+/[a-z0-9æøå.-]+/?$",
+            re.IGNORECASE,
+        ),
+    ],
 }
 
 

@@ -4,7 +4,7 @@ Du arbejder på **Topas Travel's prisintelligens-værktøj**. Læs hele dette do
 
 ## Hvad værktøjet er
 
-En Streamlit-app der scraper Topas + danske konkurrenter (Albatros, Stjernegaard, Viktors Farmor, Ruby, Smilrejser, Jysk Rejsebureau, Gjøa, Best Travel, Nilles & Gislev, Fyrholt, Kipling, Vagabond) og sammenligner pris + status per afgang. Bruges af head of agency (Gorm, gs@topas.dk) til at se hvornår konkurrenter ændrer pris eller bliver udsolgt.
+En Streamlit-app der scraper Topas + danske konkurrenter (Albatros, Stjernegaard, Viktors Farmor, Ruby, Smilrejser, Jysk Rejsebureau, Gjøa, Best Travel, Nilles & Gislev, Fyrholt, Kipling, Vagabond, Bering Travel) og sammenligner pris + status per afgang. Bruges af head of agency (Gorm, gs@topas.dk) til at se hvornår konkurrenter ændrer pris eller bliver udsolgt.
 
 Topas-segmentet er **fællesrejser med rejseleder** — ikke self-drive, ikke individuel, ikke på-forespørgsel. Når du filtrerer konkurrenter, så filtrér til **fixed-departure guided group tours** med synlige datoer og priser.
 

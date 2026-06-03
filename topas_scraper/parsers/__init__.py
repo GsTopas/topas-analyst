@@ -37,5 +37,6 @@ PARSERS = {
     "gjoa": _UNIVERSAL,
     "kipling": _UNIVERSAL,
     "vagabond": _UNIVERSAL,
+    "bering": _UNIVERSAL,
     "generic_ai": _UNIVERSAL,
 }

@@ -103,6 +103,12 @@ _DOMAIN_TO_OPERATOR = {
     "fyrholtrejser.dk":       "Fyrholt Rejser",
     "fyrholt":                "Fyrholt Rejser",
     "fyrholtrejser":          "Fyrholt Rejser",
+    # Bering Travel — dansktalende operator paa .com TLD (skandinavisk holding)
+    "beringtravel.com":       "Bering Travel",
+    "bering-travel.com":      "Bering Travel",
+    "beringtravel":           "Bering Travel",
+    "bering-travel":          "Bering Travel",
+    "bering":                 "Bering Travel",
 }
 
 
@@ -121,6 +127,8 @@ OPERATOR_META = {
     "Best Travel":        {"holding": "Stena Line Travel Group", "segment": "Kulturrejser m. dansk rejseleder"},
     "Gjøa Tours":         {"holding": None,                   "segment": "Aktive grupperejser"},
     "Kipling Travel":     {"holding": None,                   "segment": "Trekking — overvejende individuel"},
+    "Bering Travel":      {"holding": None,                   "segment": "Aktive ferier (vandring + cykling) — Skandinavisk DA/NO/SV/EN"},
+    "Fyrholt Rejser":     {"holding": None,                   "segment": "Vandreferier"},
 }
 
 

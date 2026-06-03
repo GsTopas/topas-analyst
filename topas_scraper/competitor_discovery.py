@@ -569,6 +569,7 @@ def run_discovery(
     max_urls: int = 50,
     parallelism: int = 8,
     domain: Optional[str] = None,
+    is_danish_override: Optional[bool] = None,
 ) -> dict:
     """Kør hele discovery-flowet for én konkurrent.
 
@@ -584,8 +585,13 @@ def run_discovery(
 
     emit(f"Discovery: {operator} — start")
 
-    # Detect dansk vs udenlandsk operator (paavirker has_guide-krav i classifier)
-    is_danish = _is_danish_operator(homepage_url)
+    # Detect dansk vs udenlandsk operator (paavirker has_guide-krav i classifier).
+    # is_danish_override fra COMPETITORS-dict har forrang over URL-detection
+    # (vigtigt for fx Bering Travel der har .com TLD men dansk-talende guides).
+    if is_danish_override is not None:
+        is_danish = bool(is_danish_override)
+    else:
+        is_danish = _is_danish_operator(homepage_url)
     if not is_danish:
         emit(f"   🌍 Udenlandsk operator detected — accepterer engelsk-talende guides "
              f"(Topas-kunder taler dansk, men intel om destinationer er stadig vaerdifuld)")

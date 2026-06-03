@@ -262,6 +262,18 @@ COMPETITORS: dict[str, dict] = {
         "homepage": "https://nillesgislev.dk",
         "sitemap": None,
     },
+    "Bering Travel": {
+        "domain": "beringtravel.com",
+        "homepage": "https://www.beringtravel.com",
+        # Sitemap ligger paa custom Magnolia-CMS-sti (ikke /sitemap.xml).
+        # Indeholder ALLE locales (da/no/sv/en, 2000 URLs totalt).
+        # is_likely_tour_url-regex filtrerer til /da-locale tour-pages (321).
+        "sitemap": "https://www.beringtravel.com/sitemaps/beringtravel/sitemap.xml",
+        # .com TLD men skandinavisk operator med danske rejseledere paa /da-locale.
+        # Eksplicit flag fordi vores _is_danish_operator(homepage)-detection
+        # ellers ville klassificere som udenlandsk pga. .com.
+        "is_danish": True,
+    },
 }
 
 
@@ -415,6 +427,9 @@ if run_clicked:
                 max_urls=int(max_urls),
                 parallelism=int(parallelism),
                 domain=op_meta.get("domain"),
+                # Eksplicit is_danish for konkurrenter hvis TLD ikke afsloerer det
+                # (fx Bering paa .com med /da-locale)
+                is_danish_override=op_meta.get("is_danish"),
             )
             payload = {
                 "operator": op_name,

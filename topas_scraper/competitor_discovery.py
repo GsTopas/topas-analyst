@@ -547,6 +547,12 @@ def run_discovery(
 
     emit(f"Discovery: {operator} — start")
 
+    # Detect dansk vs udenlandsk operator (paavirker has_guide-krav i classifier)
+    is_danish = _is_danish_operator(homepage_url)
+    if not is_danish:
+        emit(f"   🌍 Udenlandsk operator detected — accepterer engelsk-talende guides "
+             f"(Topas-kunder taler dansk, men intel om destinationer er stadig vaerdifuld)")
+
     fc = FirecrawlClient()
     emit("1/5: Henter tour-URLs (sitemap + Firecrawl-fallback)")
     discovery_result: DiscoveryResult = discover_operator_tours(
@@ -600,7 +606,8 @@ def run_discovery(
     def _classify_one(url_slug: tuple[str, str]) -> Optional[CompetitorTour]:
         url, slug = url_slug
         try:
-            return _scrape_and_classify(fc, operator, url, slug)
+            return _scrape_and_classify(fc, operator, url, slug,
+                                        is_danish_operator=is_danish)
         except Exception as exc:
             errors.append(f"{url}: {type(exc).__name__}: {exc}")
             return None
@@ -723,6 +730,7 @@ def _scrape_and_classify(
     operator: str,
     url: str,
     slug: str,
+    is_danish_operator: bool = True,
 ) -> Optional[CompetitorTour]:
     """Firecrawl-scrape + Claude-classify én tour-URL."""
     from .extraction_schema import TOUR_EXTRACTION_SCHEMA
@@ -744,6 +752,7 @@ def _scrape_and_classify(
         url=url,
         markdown=markdown[:8_000],
         extracted=extracted,
+        is_danish_operator=is_danish_operator,
     )
 
     departures = extracted.get("departures") or []
@@ -772,10 +781,46 @@ def _scrape_and_classify(
 # Claude classifier — discovery-fokuseret prompt
 # ---------------------------------------------------------------------------
 
-DISCOVERY_CLASSIFIER_PROMPT = """Du klassificerer en konkurrent-tur for Topas Travel.
+def _is_danish_operator(homepage_url: Optional[str]) -> bool:
+    """Detect om en operator er dansk baseret paa homepage-URL.
 
-Topas's ICP: FIXED-DEPARTURE GROUP TOURS med dansk-talende rejseleder, fokus
-på VANDRING og CYKLING (samt sejlads-kombi). 6-25 dage typisk.
+    Danske operatoerer (.dk) kraever dansk-talende rejseleder for ICP-match
+    (Topas's kunder taler dansk). Udenlandske operatoerer (Intrepid, G Adventures
+    etc) accepteres med ENGELSK-talende guide som intel — vi vil stadig se
+    hvilke destinationer de tilbyder selv om Topas's kunder ikke direkte ville
+    booke deres ture.
+    """
+    if not homepage_url:
+        return True  # default til strict-mode for sikkerheds skyld
+    return ".dk" in homepage_url.lower()
+
+
+def _build_classifier_prompt(
+    url: str,
+    extracted_json: str,
+    markdown_snippet: str,
+    is_danish: bool,
+) -> str:
+    """Byg classifier-prompten med korrekt guide-krav afhaengig af operator."""
+    if is_danish:
+        guide_req = "dansk-talende rejseleder/turleder/vandreleder"
+        guide_note = ""
+    else:
+        guide_req = (
+            "rejseleder/turleder/vandreleder (sprog uden betydning — "
+            "engelsk-talende guide accepteres for udenlandske operatorer som intel)"
+        )
+        guide_note = (
+            "\n\nVIGTIGT: dette er en UDENLANDSK operator. Vi kraever IKKE dansk-talende "
+            "rejseleder her — has_guide=true skal sattes hvis turen har EN guide "
+            "(uanset sprog). Vi vil se hvilke destinationer udenlandske udbydere "
+            "tilbyder som Topas kan adoptere til vores danske marked."
+        )
+
+    return f"""Du klassificerer en konkurrent-tur for Topas Travel.
+
+Topas's ICP: FIXED-DEPARTURE GROUP TOURS med rejseleder, fokus
+på VANDRING og CYKLING (samt sejlads-kombi). 6-25 dage typisk.{guide_note}
 
 ANALYSER nedenstående tour-info og udfyld JSON.
 
@@ -793,7 +838,7 @@ Returnér JSON med felterne:
                   "Højrute", "Bjergvandring", "Kultur", "Mad og vin", "Yoga",
                   "Self-drive", "Krydstogt", "Forskningsrejse", "Andet"
   duration_days: int — antal dage (null hvis ukendt)
-  has_guide: bool — har en dansk-talende rejseleder/turleder/vandreleder
+  has_guide: bool — har en {guide_req}
   has_fixed_departures: bool — har fixed publicerede afgangsdatoer + priser
   from_price_dkk: int — frapris i DKK (null hvis ikke vist)
   icp_match: bool — TRUE hvis tour passer Topas ICP (alle krav: has_guide=true,
@@ -809,6 +854,7 @@ def _claude_classify_tour(
     url: str,
     markdown: str,
     extracted: dict,
+    is_danish_operator: bool = True,
 ) -> dict:
     """Kald Claude med discovery-prompt for at klassificere én tur."""
     try:
@@ -816,10 +862,11 @@ def _claude_classify_tour(
         client = Anthropic(api_key=os.environ.get("ANTHROPIC_API_KEY"))
         import json as _json
 
-        prompt = DISCOVERY_CLASSIFIER_PROMPT.format(
+        prompt = _build_classifier_prompt(
             url=url,
             extracted_json=_json.dumps(extracted, ensure_ascii=False, default=str)[:3000],
             markdown_snippet=markdown[:3000],
+            is_danish=is_danish_operator,
         )
 
         msg = client.messages.create(

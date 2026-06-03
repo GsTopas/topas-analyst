@@ -318,10 +318,12 @@ else:
 with col_max:
     max_urls = st.number_input(
         "Max URLs",
-        min_value=5, max_value=2000, value=200, step=50,
+        min_value=5, max_value=5000, value=200, step=50,
         help="Cap på antal URLs at scrape (~1 Firecrawl credit + 1 Claude-kald pr. URL). "
-             "Du har ~80k credits tilbage — sæt 500-1000 for fuld dækning af store sites "
-             "(Ruby 424 ture, Albatros 600+, Jysk 200+ efter filter)."
+             "Du har ~80k credits tilbage. Typiske sites: Ruby 424, Albatros 600+, "
+             "Jysk 200+. Intrepid Travel: 2200+ (sæt 2500 for fuld dækning). "
+             "ICP-classifier filtrerer non-tour pages bagefter — forvent at ~30-50% "
+             "passerer for store sites med permissiv URL-pattern."
     )
 
 with col_par:

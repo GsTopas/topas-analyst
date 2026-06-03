@@ -269,10 +269,12 @@ COMPETITORS: dict[str, dict] = {
         # Indeholder ALLE locales (da/no/sv/en, 2000 URLs totalt).
         # is_likely_tour_url-regex filtrerer til /da-locale tour-pages (321).
         "sitemap": "https://www.beringtravel.com/sitemaps/beringtravel/sitemap.xml",
-        # .com TLD men skandinavisk operator med danske rejseledere paa /da-locale.
-        # Eksplicit flag fordi vores _is_danish_operator(homepage)-detection
-        # ellers ville klassificere som udenlandsk pga. .com.
-        "is_danish": True,
+        # Bering er primaert SELVGUIDEDE vandreferier ("paa egen haand uden
+        # rejseleder"). De konkurrerer ikke direkte med Topas's guided group
+        # tours men giver vaerdifuld destinations-intel — derfor intel_only.
+        # ICP-classifier accepterer ture uden has_guide=true saa laenge der er
+        # fixed-departures + hiking/cykling + 4-25 dage.
+        "intel_only": True,
     },
 }
 
@@ -428,8 +430,9 @@ if run_clicked:
                 parallelism=int(parallelism),
                 domain=op_meta.get("domain"),
                 # Eksplicit is_danish for konkurrenter hvis TLD ikke afsloerer det
-                # (fx Bering paa .com med /da-locale)
                 is_danish_override=op_meta.get("is_danish"),
+                # intel_only: drop has_guide-krav for selvguidede operatorer (Bering m.fl.)
+                intel_only=bool(op_meta.get("intel_only", False)),
             )
             payload = {
                 "operator": op_name,

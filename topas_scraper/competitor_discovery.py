@@ -570,6 +570,7 @@ def run_discovery(
     parallelism: int = 8,
     domain: Optional[str] = None,
     is_danish_override: Optional[bool] = None,
+    intel_only: bool = False,
 ) -> dict:
     """Kør hele discovery-flowet for én konkurrent.
 
@@ -592,7 +593,11 @@ def run_discovery(
         is_danish = bool(is_danish_override)
     else:
         is_danish = _is_danish_operator(homepage_url)
-    if not is_danish:
+    if intel_only:
+        emit(f"   📊 Intel-only mode: accepterer ogsaa SELVGUIDEDE ture "
+             f"(typisk Bering Travel m.fl. — destinations-intel selv om de "
+             f"ikke direkte konkurrerer med Topas's guided group tours)")
+    elif not is_danish:
         emit(f"   🌍 Udenlandsk operator detected — accepterer engelsk-talende guides "
              f"(Topas-kunder taler dansk, men intel om destinationer er stadig vaerdifuld)")
 
@@ -650,7 +655,8 @@ def run_discovery(
         url, slug = url_slug
         try:
             return _scrape_and_classify(fc, operator, url, slug,
-                                        is_danish_operator=is_danish)
+                                        is_danish_operator=is_danish,
+                                        intel_only=intel_only)
         except Exception as exc:
             errors.append(f"{url}: {type(exc).__name__}: {exc}")
             return None
@@ -774,6 +780,7 @@ def _scrape_and_classify(
     url: str,
     slug: str,
     is_danish_operator: bool = True,
+    intel_only: bool = False,
 ) -> Optional[CompetitorTour]:
     """Firecrawl-scrape + Claude-classify én tour-URL."""
     from .extraction_schema import TOUR_EXTRACTION_SCHEMA
@@ -796,6 +803,7 @@ def _scrape_and_classify(
         markdown=markdown[:8_000],
         extracted=extracted,
         is_danish_operator=is_danish_operator,
+        intel_only=intel_only,
     )
 
     departures = extracted.get("departures") or []
@@ -859,9 +867,32 @@ def _build_classifier_prompt(
     extracted_json: str,
     markdown_snippet: str,
     is_danish: bool,
+    intel_only: bool = False,
 ) -> str:
-    """Byg classifier-prompten med korrekt guide-krav afhaengig af operator."""
-    if is_danish:
+    """Byg classifier-prompten med korrekt guide-krav afhaengig af operator.
+
+    Modes:
+    - intel_only=True: SELVGUIDEDE eller alle-format-typer accepteres som intel
+      (Bering Travel m.fl. — selvguidet vandring, vi vil se destinations-data).
+      has_guide kraevet IKKE for icp_match.
+    - is_danish=True: dansk-talende rejseleder kraevet (Topas's egne kunder).
+    - is_danish=False: enhver guide accepteret (udenlandske operatorer som intel).
+    """
+    if intel_only:
+        guide_req = (
+            "rejseleder/turleder eller \"paa egen haand\"/selvguidet-format "
+            "(begge accepteret som intel)"
+        )
+        guide_note = (
+            "\n\nVIGTIGT: dette er en INTEL-ONLY operator (typisk selvguidet "
+            "vandre/cykel-operator som Bering Travel). icp_match=true skal saettes "
+            "hvis turen har fixed-departures + vandring/cykling/trekking-aktivitet "
+            "+ 4-25 dages varighed — UANSET om der er en guide eller ej. "
+            "Selvguidede ture (\"paa egen haand uden rejseleder\") accepteres som "
+            "destinations-intel selv om de ikke direkte konkurrerer med Topas's "
+            "guided group tours."
+        )
+    elif is_danish:
         guide_req = "dansk-talende rejseleder/turleder/vandreleder"
         guide_note = ""
     else:
@@ -875,6 +906,16 @@ def _build_classifier_prompt(
             "(uanset sprog). Vi vil se hvilke destinationer udenlandske udbydere "
             "tilbyder som Topas kan adoptere til vores danske marked."
         )
+
+    # icp_match-regel afhaenger af mode
+    if intel_only:
+        icp_rule = ("icp_match: bool — TRUE hvis fixed_departures=true OG "
+                    "activity er Vandring/Trekking/Cykling/relateret OG "
+                    "duration 4-25 dage. has_guide er IKKE et krav i intel-mode.")
+    else:
+        icp_rule = ("icp_match: bool — TRUE hvis tour passer Topas ICP (alle krav: "
+                    "has_guide=true, has_fixed_departures=true, activity er "
+                    "Vandring/Trekking/Cykling/relateret, duration 4-25 dage)")
 
     return f"""Du klassificerer en konkurrent-tur for Topas Travel.
 
@@ -908,9 +949,7 @@ Returnér JSON med felterne:
               site=DKK, "kr" på norsk=NOK, "kr" på svensk=SEK).
               Hvis siden er .dk og pris er i "kr.", brug "DKK".
               Hvis du IKKE kan bestemme valuta, brug "DKK" (default).
-  icp_match: bool — TRUE hvis tour passer Topas ICP (alle krav: has_guide=true,
-             has_fixed_departures=true, activity er Vandring/Trekking/Cykling/
-             relateret, duration 4-25 dage)
+  {icp_rule}
   notes: str — kort begrundelse hvis icp_match=false, eller "OK" hvis true
 
 Returnér KUN JSON, ingen markdown-fences."""
@@ -922,6 +961,7 @@ def _claude_classify_tour(
     markdown: str,
     extracted: dict,
     is_danish_operator: bool = True,
+    intel_only: bool = False,
 ) -> dict:
     """Kald Claude med discovery-prompt for at klassificere én tur."""
     try:
@@ -934,6 +974,7 @@ def _claude_classify_tour(
             extracted_json=_json.dumps(extracted, ensure_ascii=False, default=str)[:3000],
             markdown_snippet=markdown[:3000],
             is_danish=is_danish_operator,
+            intel_only=intel_only,
         )
 
         msg = client.messages.create(

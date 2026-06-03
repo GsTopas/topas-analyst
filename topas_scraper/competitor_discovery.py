@@ -82,6 +82,41 @@ DURATION_BANDS: list[tuple[int, int]] = [
     (22, 30),
 ]
 
+# Fixed currency-rates til DKK. Opdateret manuelt — vi accepterer +/-5% drift
+# for "er denne tur konkurrencedygtig?"-analyser. Live FX-API er overkill.
+# Rates pr. ~juni 2026.
+CURRENCY_RATES_TO_DKK: dict[str, float] = {
+    "DKK": 1.0,
+    "EUR": 7.46,
+    "USD": 6.85,
+    "GBP": 8.65,
+    "AUD": 4.45,
+    "CAD": 5.00,
+    "NOK": 0.65,
+    "SEK": 0.65,
+    "CHF": 7.60,
+    "JPY": 0.044,
+    "ZAR": 0.37,
+}
+
+
+def _convert_to_dkk(price: Optional[float], currency: Optional[str]) -> Optional[int]:
+    """Konvertér en pris fra given valuta til DKK med faste rates.
+
+    Returns None hvis price er None, eller hvis valuta ikke kendes (defensiv —
+    hellere ingen pris end forkert pris i sammenligningen).
+    """
+    if price is None or price <= 0:
+        return None
+    if not currency:
+        # Antag DKK hvis ingen currency er specificeret (bagudkompatibilitet
+        # med eksisterende danske operatorer der ikke har currency-felt)
+        currency = "DKK"
+    rate = CURRENCY_RATES_TO_DKK.get(currency.upper())
+    if rate is None:
+        return None
+    return int(round(float(price) * rate))
+
 
 def _band_for_duration(days: int) -> tuple[int, int]:
     """Find varigheds-bånd for en tur. Returns (low, high)."""
@@ -109,9 +144,11 @@ class CompetitorTour:
     has_fixed_departures: bool
     next_departure: Optional[str]
     departure_count_next_12mo: int
-    from_price_dkk: Optional[int]
+    from_price_dkk: Optional[int]    # DKK-omregnet pris (fra _convert_to_dkk)
     icp_match: bool
     classifier_notes: str = ""
+    from_price_native: Optional[int] = None  # raw pris fra konkurrent-siden
+    currency: Optional[str] = None           # ISO-kode: DKK, EUR, GBP, USD, etc.
 
 
 @dataclass
@@ -759,6 +796,20 @@ def _scrape_and_classify(
     next_12mo = _count_future_departures(departures, months_ahead=12)
     next_dep = _next_departure_iso(departures)
 
+    # Currency-detection + DKK-konvertering
+    # Backward-compat: hvis classifier returnerer det gamle 'from_price_dkk'-felt
+    # (fra cached prompts), brug det som DKK direkte
+    raw_price = classification.get("from_price")
+    currency = classification.get("currency") or "DKK"
+    if raw_price is None and classification.get("from_price_dkk") is not None:
+        raw_price = classification["from_price_dkk"]
+        currency = "DKK"
+    try:
+        raw_price_int = int(raw_price) if raw_price is not None else None
+    except (ValueError, TypeError):
+        raw_price_int = None
+    dkk_price = _convert_to_dkk(raw_price_int, currency)
+
     return CompetitorTour(
         operator=operator,
         url=url,
@@ -771,7 +822,9 @@ def _scrape_and_classify(
         has_fixed_departures=bool(classification.get("has_fixed_departures", False)),
         next_departure=next_dep,
         departure_count_next_12mo=next_12mo,
-        from_price_dkk=classification.get("from_price_dkk"),
+        from_price_dkk=dkk_price,
+        from_price_native=raw_price_int,
+        currency=(currency or "DKK").upper(),
         icp_match=classification.get("icp_match", False),
         classifier_notes=classification.get("notes", ""),
     )
@@ -840,7 +893,15 @@ Returnér JSON med felterne:
   duration_days: int — antal dage (null hvis ukendt)
   has_guide: bool — har en {guide_req}
   has_fixed_departures: bool — har fixed publicerede afgangsdatoer + priser
-  from_price_dkk: int — frapris i DKK (null hvis ikke vist)
+  from_price: int — frapris i den valuta siden viser (tal kun, ingen separator
+              eller symboler — fx '€2.057' → 2057, '15.500 kr.' → 15500,
+              '$3,499' → 3499)
+  currency: str — ISO-kode for valuta: "DKK", "EUR", "USD", "GBP", "AUD",
+              "CAD", "NOK", "SEK", "CHF", "JPY", "ZAR". Aflæs fra valuta-symbol
+              (€=EUR, $=USD/AUD/CAD afhængig af kontekst, £=GBP, "kr." på dansk
+              site=DKK, "kr" på norsk=NOK, "kr" på svensk=SEK).
+              Hvis siden er .dk og pris er i "kr.", brug "DKK".
+              Hvis du IKKE kan bestemme valuta, brug "DKK" (default).
   icp_match: bool — TRUE hvis tour passer Topas ICP (alle krav: has_guide=true,
              has_fixed_departures=true, activity er Vandring/Trekking/Cykling/
              relateret, duration 4-25 dage)

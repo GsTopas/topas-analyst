@@ -94,6 +94,8 @@ def _rehydrate_payload(data: dict) -> dict:
                 from_price_dkk=tour_d.get("from_price_dkk"),
                 icp_match=tour_d.get("icp_match", False),
                 classifier_notes=tour_d.get("classifier_notes", ""),
+                from_price_native=tour_d.get("from_price_native"),
+                currency=tour_d.get("currency"),
             )
             rehydrated_gaps.append(GapResult(
                 tour=tour,
@@ -510,6 +512,23 @@ if res_meta and res_meta["result"]:
         "Højere score = mere strategisk værdifuld."
     )
 
+    def _fmt_price(g) -> str:
+        """Vis DKK-pris + original-valuta hint hvis ikke DKK.
+        Eksempel: '34.231 (€4.589)' for Intrepid EUR-pris konverteret til DKK.
+        """
+        if not g.tour.from_price_dkk:
+            return "—"
+        dkk_str = f"{g.tour.from_price_dkk:,}".replace(",", ".")
+        cur = getattr(g.tour, "currency", None)
+        native = getattr(g.tour, "from_price_native", None)
+        if cur and cur != "DKK" and native:
+            sym = {"EUR": "€", "GBP": "£", "USD": "$", "AUD": "A$",
+                   "CAD": "C$", "CHF": "Fr.", "NOK": "kr", "SEK": "kr",
+                   "JPY": "¥", "ZAR": "R"}.get(cur, cur + " ")
+            native_str = f"{native:,}".replace(",", ".")
+            return f"{dkk_str} ({sym}{native_str})"
+        return dkk_str
+
     df = pd.DataFrame([
         {
             "Score": round(g.score, 1),
@@ -521,7 +540,8 @@ if res_meta and res_meta["result"]:
             "Dage": g.tour.duration_days or "?",
             "Afgange (12mdr)": g.tour.departure_count_next_12mo,
             "Næste afgang": g.tour.next_departure or "—",
-            "Fra-pris (kr)": f"{g.tour.from_price_dkk:,}".replace(",", ".") if g.tour.from_price_dkk else "—",
+            "Fra-pris (DKK)": _fmt_price(g),
+            "Valuta": getattr(g.tour, "currency", "DKK") or "DKK",
             "Gap-grund": g.gap_reason,
             "Lignende afvist": g.rejected_similar_count,
         }
@@ -601,7 +621,17 @@ if res_meta and res_meta["result"]:
                     f"(næste: {t.next_departure or '—'})"
                 )
                 if t.from_price_dkk:
-                    st.markdown(f"- Frapris: {t.from_price_dkk:,} kr.".replace(",", "."))
+                    cur = getattr(t, "currency", None) or "DKK"
+                    native = getattr(t, "from_price_native", None)
+                    dkk_str = f"{t.from_price_dkk:,}".replace(",", ".")
+                    if cur != "DKK" and native:
+                        native_str = f"{native:,}".replace(",", ".")
+                        st.markdown(
+                            f"- Frapris: **{dkk_str} kr.** "
+                            f"_(originalt {native_str} {cur} · konverteret med fast rate)_"
+                        )
+                    else:
+                        st.markdown(f"- Frapris: {dkk_str} kr.")
                 st.markdown(f"- **Gap-grund**: {selected_gap.gap_reason}")
                 # Near-gap warning: Topas har lignende destination i anden duration
                 near_gap = getattr(selected_gap, "near_gap_warning", "")

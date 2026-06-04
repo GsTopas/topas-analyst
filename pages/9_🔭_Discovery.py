@@ -294,6 +294,12 @@ _pending_switch = st.session_state.pop("_pending_op_switch", None)
 if _pending_switch and _pending_switch in (list(COMPETITORS.keys()) + ["+ Custom domain"]):
     st.session_state["op_choice_key"] = _pending_switch
 
+# Same pattern for custom-domain URL — saa quick-switch kan loade en gemt
+# custom-domain koersel (fx Intrepid) ved at saette baade dropdown OG text_input
+_pending_url = st.session_state.pop("_pending_custom_url", None)
+if _pending_url:
+    st.session_state["custom_home_input"] = _pending_url
+
 col_op, col_max, col_par = st.columns([3, 1, 1])
 with col_op:
     op_choice = st.selectbox(
@@ -305,7 +311,11 @@ with col_op:
     )
 
 if op_choice == "+ Custom domain":
-    custom_home = st.text_input("Custom homepage URL", placeholder="https://example.dk").strip()
+    custom_home = st.text_input(
+        "Custom homepage URL",
+        placeholder="https://example.dk",
+        key="custom_home_input",  # key tillader programmatisk genindlaesning
+    ).strip()
     # Auto-prefix https:// hvis user kun skrev domain (eller domain/)
     if custom_home and not custom_home.startswith(("http://", "https://")):
         custom_home = "https://" + custom_home
@@ -394,12 +404,21 @@ if len(saved_runs) > 1:
                     restored = _load_run_by_slug(slug)
                     if restored:
                         st.session_state["discovery_result"] = restored
-                        # Sat _pending_op_switch — pickup'es i toppen af scriptet
-                        # FOER selectbox renderer (vi maa ikke saette op_choice_key
-                        # direkte efter widget er instantieret).
+                        # Saet _pending_op_switch (og evt. _pending_custom_url) —
+                        # pickup'es i toppen af scriptet FOER widgets renderer.
                         display_name = restored.get("operator")
                         if display_name in COMPETITORS:
+                            # Kendt konkurrent — bare skift dropdown
                             st.session_state["_pending_op_switch"] = display_name
+                        else:
+                            # Custom domain (fx Intrepid) — skift BAADE dropdown
+                            # til "+ Custom domain" OG genindfor URL'en i text_input
+                            saved_homepage = (
+                                restored.get("homepage")
+                                or f"https://{display_name}"
+                            )
+                            st.session_state["_pending_op_switch"] = "+ Custom domain"
+                            st.session_state["_pending_custom_url"] = saved_homepage
                         st.rerun()
 
 run_clicked = st.button("🔭 Kør discovery", type="primary", use_container_width=True)
@@ -437,6 +456,10 @@ if run_clicked:
             payload = {
                 "operator": op_name,
                 "domain": op_meta["domain"],
+                # Gem homepage saa custom-domain runs kan restoreres med fuld URL
+                # i text_input — uden den ville quick-switch ikke kunne genoprette
+                # custom_home fordi op_name kun er domainet, ikke fuld URL
+                "homepage": op_meta.get("homepage"),
                 "result": result,
                 "completed_at": time.strftime("%H:%M:%S"),
             }

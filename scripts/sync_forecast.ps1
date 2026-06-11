@@ -8,15 +8,22 @@
 [CmdletBinding()]
 param(
   [string]$ExcelPath = "K:\OFFICE\Operations\Turregnskab\Opfølgning\Turomkostninger 2026.xls",
-  [string]$EnvFile   = "$PSScriptRoot\..\.env",
+  [string]$EnvFile   = "",
   [switch]$DryRun,
   [switch]$LogonCheck
 )
 
 $ErrorActionPreference = "Stop"
 
+# Beregn $PSScriptRoot-baserede stier i scriptets BODY (ikke i param-default).
+# $PSScriptRoot er tomt under param-block evaluering naar scriptet invokeres
+# med "powershell -File" - vi sender den default vaerdi til "\..\.env" og
+# Test-Path returnerer False. Computing i body er reliable.
+$ScriptDir = if ($PSScriptRoot) { $PSScriptRoot } else { Split-Path -Parent $MyInvocation.MyCommand.Path }
+if (-not $EnvFile) { $EnvFile = Join-Path $ScriptDir "..\.env" }
+
 # Sti til lokal sync-log (én linje pr. sync med dato)
-$SyncLogFile = "$PSScriptRoot\..\.sync_state\last_forecast_sync.txt"
+$SyncLogFile = Join-Path $ScriptDir "..\.sync_state\last_forecast_sync.txt"
 
 # === Helper: Vis Windows toast-notifikation (uden eksterne moduler) ===
 function Show-Notification {
@@ -58,21 +65,28 @@ if ($LogonCheck) {
 }
 
 # === Indlæs .env hvis miljøvariabler mangler ===
-function Load-DotEnv {
-  param([string]$Path)
-  if (-not (Test-Path $Path)) { return }
-  Get-Content $Path | ForEach-Object {
-    if ($_ -match '^\s*([A-Z_][A-Z0-9_]*)\s*=\s*(.+?)\s*$') {
+# Tre fælder vi har ramt:
+# 1. [Environment]::SetEnvironmentVariable() propagerer ikke konsekvent til
+#    $env: i PS 5.1.
+# 2. Get-Content | ForEach-Object {} er et nestet scope hvor Set-Item Env: er
+#    isoleret -> brug foreach-statement i stedet.
+# 3. Set-Item Env: INDE I EN FUNKTION er ogsaa scope-bundet og forsvinder naar
+#    funktionen returnerer. Loesningen er at koere loopet inline paa script-
+#    niveau (ikke wrapped i en funktion) saa env-aendringerne landeri samme
+#    scope som de senere $env:-laesninger.
+if (Test-Path $EnvFile) {
+  foreach ($line in (Get-Content $EnvFile)) {
+    if ($line -match '^\s*([A-Z_][A-Z0-9_]*)\s*=\s*(.+?)\s*$') {
       $name = $Matches[1]
       $value = $Matches[2].Trim('"').Trim("'")
-      if (-not [Environment]::GetEnvironmentVariable($name)) {
-        [Environment]::SetEnvironmentVariable($name, $value)
+      # Saet kun hvis ikke allerede sat i miljoet (laad eksterne overrides vinde)
+      $existing = (Get-Item -Path "Env:$name" -ErrorAction SilentlyContinue).Value
+      if (-not $existing) {
+        Set-Item -Path "Env:$name" -Value $value
       }
     }
   }
 }
-
-Load-DotEnv -Path $EnvFile
 
 $SUPABASE_URL  = $env:SUPABASE_URL
 $SUPABASE_KEY  = $env:SUPABASE_SERVICE_KEY

@@ -429,10 +429,12 @@ def _render_summary_view(df_in: pd.DataFrame, month_nums: list[int]) -> None:
         ture = g[is_real_tour]["db_budget_diff"].sum()
         opl_res = g[is_special]["db_budget_diff"].sum()
         budget_unallocated = g[is_budget]["db_budget_diff"].sum()
+        # Driftsresultat = Ture + Opl/Res (DB-forskel for det vi har gennemfoert,
+        # ekskluderer ufordelt budget). Meningsfuldt tal for in-progress maaneder.
+        driftsresultat = ture + opl_res
         # Total = sum af ALLE raekker (matcher Excel's M-kolonne).
         # Budget-raekker INKLUDERES — de gaar ikke til 0 ved maaneds-end,
         # de er reel ufordelt budget der modregner i grand-total DB-forskel.
-        # Marts eksempel: TUR +443k + BUDGET -243k + OPLRES +60k = +260k (Excel)
         total = ture + opl_res + budget_unallocated
         # Pax-diff: sum kun for rigtige tur-rakker
         pax_g = g[g["pax_diff"].notna() & is_real_tour]
@@ -443,6 +445,7 @@ def _render_summary_view(df_in: pd.DataFrame, month_nums: list[int]) -> None:
             "Δ Pax": pax,
             "Oplæring / Research": opl_res if is_special.any() else None,
             "Ufordelt budget": budget_unallocated if is_budget.any() else None,
+            "Driftsresultat": driftsresultat,
             "Total DB-afvigelse": total,
         })
 
@@ -467,7 +470,7 @@ def _render_summary_view(df_in: pd.DataFrame, month_nums: list[int]) -> None:
     # bruger sin EGEN skala — den staar typisk paa et helt andet niveau
     # (hundredetusinder) end de faktiske tur-diffs, og blanding ville goere
     # heatmap'et ulaeseligt for ture-kolonnen.
-    kr_cols = ["Ture", "Oplæring / Research", "Total DB-afvigelse"]
+    kr_cols = ["Ture", "Oplæring / Research", "Driftsresultat", "Total DB-afvigelse"]
     kr_scale = 0.0
     for c in kr_cols:
         for v in summary[c]:
@@ -509,11 +512,18 @@ def _render_summary_view(df_in: pd.DataFrame, month_nums: list[int]) -> None:
         bg = _heatmap_bg(v, budget_scale)
         return ("font-style:italic; " + bg) if bg else "font-style:italic;"
 
+    def _driftsresultat_style(v):
+        """Driftsresultat: fed + heatmap. Det er hoved-metriket for in-progress
+        maaneder, saa det skal staa tydeligt frem."""
+        bg = _heatmap_bg(v, kr_scale)
+        return ("font-weight:700; " + bg) if bg else "font-weight:700;"
+
     fmt_cols = {
         "Ture": _fmt_signed_kr,
         "Δ Pax": _fmt_signed_pax,
         "Oplæring / Research": _fmt_signed_kr,
         "Ufordelt budget": _fmt_signed_kr,
+        "Driftsresultat": _fmt_signed_kr,
         "Total DB-afvigelse": _fmt_signed_kr,
     }
     styled = (summary.style.format(fmt_cols)
@@ -521,6 +531,7 @@ def _render_summary_view(df_in: pd.DataFrame, month_nums: list[int]) -> None:
                             .map(_heatmap_pax, subset=["Δ Pax"])
                             .map(_heatmap_kr, subset=["Total DB-afvigelse"])
                             .map(_heatmap_italic, subset=["Oplæring / Research"])
+                            .map(_driftsresultat_style, subset=["Driftsresultat"])
                             .map(_month_col, subset=["Måned"]))
     if "Ufordelt budget" in summary.columns:
         styled = styled.map(_heatmap_budget, subset=["Ufordelt budget"])
@@ -534,6 +545,7 @@ def _render_summary_view(df_in: pd.DataFrame, month_nums: list[int]) -> None:
     pax_ytd = sum(r["Δ Pax"] or 0 for r in rows)
     opl_ytd = sum((r["Oplæring / Research"] or 0) for r in rows)
     budget_ytd = sum((r.get("Ufordelt budget") or 0) for r in rows)
+    driftsresultat_ytd = sum((r.get("Driftsresultat") or 0) for r in rows)
     total_ytd = sum(r["Total DB-afvigelse"] or 0 for r in rows)
 
     def _signed_kr(v: float) -> str:
@@ -543,14 +555,18 @@ def _render_summary_view(df_in: pd.DataFrame, month_nums: list[int]) -> None:
     def _signed_pax(v: int) -> str:
         return f"{int(v):+d}"
 
-    c1, c2, c3, c4, c5 = st.columns(5)
+    c1, c2, c3, c4, c5, c6 = st.columns(6)
     c1.metric("Ture", _signed_kr(ture_ytd))
     c2.metric("Δ Pax (ture)", _signed_pax(pax_ytd))
     c3.metric("Oplæring / Research", _signed_kr(opl_ytd))
     c4.metric("Ufordelt budget", _signed_kr(budget_ytd),
-              help="Maaneds-budget der endnu ikke er realiseret via faktiske ture. "
-                   "Negativ tidligt i maaneden, naermer sig 0 naar ture kommer hjem.")
-    c5.metric("Total DB-afvigelse", _signed_kr(total_ytd))
+              help="Maaneds-budget (GBT/VBT) der ikke er knyttet til specifikke ture. "
+                   "Modregner i Total ved Excel's M-kolonne.")
+    c5.metric("Driftsresultat", _signed_kr(driftsresultat_ytd),
+              help="DB-forskel for det vi har gennemfoert (Ture + Opl/Res). "
+                   "Meningsfuld metric for in-progress maaneder.")
+    c6.metric("Total DB-afvigelse", _signed_kr(total_ytd),
+              help="Matcher Excel's M-kolonne. Inkluderer Ufordelt budget.")
 
 
 def _render_comparison_view(df_in: pd.DataFrame, month_nums: list[int]) -> None:
@@ -661,10 +677,10 @@ tab_summary, tab_detail, tab_compare = st.tabs([
 
 with tab_summary:
     st.caption(
-        "**Ture** = realiserede ture's driftsresultat. "
-        "**Ufordelt budget** = månedsbudget (GBT/VBT) der ikke er knyttet til "
-        "specifikke ture. **Total** = Ture + Opl/Res + Ufordelt budget — "
-        "matcher Excel's M-kolonne (DB-forskel = Realiseret − Budget)."
+        "**Ture** = DB-forskel for realiserede ture. "
+        "**Ufordelt budget** = månedsbudget (GBT/VBT) der ikke er knyttet til specifikke ture. "
+        "**Driftsresultat** = Ture + Opl/Res (det meningsfulde tal for in-progress måneder). "
+        "**Total** = Driftsresultat + Ufordelt budget — matcher Excel's M-kolonne."
     )
     _render_summary_view(df_filt, months_with_data)
 

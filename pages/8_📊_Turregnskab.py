@@ -68,10 +68,8 @@ if pd.notna(synced_at):
 else:
     sync_label = "ukendt"
 
-# Grand-total = realiseret driftsresultat YTD (Ture + Opl/Res), ekskluderer
-# Ufordelt budget der ruller mod 0 ved maaneds-end.
-_grand_budget_mask = df["tour_code"].str.startswith("Budget ", na=False)
-grand_total = df[~_grand_budget_mask]["db_budget_diff"].sum()
+# Grand-total = sum af ALLE raekker (matcher Excel's M-kolonne).
+grand_total = df["db_budget_diff"].sum()
 grand_sign = "+" if grand_total >= 0 else "-"
 grand_total_str = f"{grand_sign}{abs(int(round(grand_total))):,}".replace(",", ".")
 
@@ -301,10 +299,8 @@ def _render_detail_view(df_in: pd.DataFrame, month_nums: list[int]) -> None:
     for m_num in month_nums:
         month_name = MONTH_ORDER[m_num - 1]
         g = df_in[df_in["month_num"] == m_num]
-        # Total = realiseret driftsresultat (Ture + Opl/Res), ekskluderer
-        # Ufordelt budget der ruller mod 0 ved maaneds-end
-        is_budget_row = g["tour_code"].str.startswith("Budget ", na=False)
-        total = g[~is_budget_row]["db_budget_diff"].sum()
+        # Total = sum af ALLE raekker (matcher Excel's M-kolonne).
+        total = g["db_budget_diff"].sum()
         month_totals[m_num] = total
 
         # Header: Maaned + total + Opl/Res-parentes
@@ -433,10 +429,11 @@ def _render_summary_view(df_in: pd.DataFrame, month_nums: list[int]) -> None:
         ture = g[is_real_tour]["db_budget_diff"].sum()
         opl_res = g[is_special]["db_budget_diff"].sum()
         budget_unallocated = g[is_budget]["db_budget_diff"].sum()
-        # Total = kun realiserede driftsposter (Ture + Opl/Res). Budget-raekker
-        # ekskluderes fordi de er ufordelt budget der naturligt ruller mod 0
-        # naar maanedens ture kommer hjem. Saa Total matcher Excel ved maaneds-end.
-        total = ture + opl_res
+        # Total = sum af ALLE raekker (matcher Excel's M-kolonne).
+        # Budget-raekker INKLUDERES — de gaar ikke til 0 ved maaneds-end,
+        # de er reel ufordelt budget der modregner i grand-total DB-forskel.
+        # Marts eksempel: TUR +443k + BUDGET -243k + OPLRES +60k = +260k (Excel)
+        total = ture + opl_res + budget_unallocated
         # Pax-diff: sum kun for rigtige tur-rakker
         pax_g = g[g["pax_diff"].notna() & is_real_tour]
         pax = int(pax_g["pax_diff"].sum()) if not pax_g.empty else 0
@@ -665,9 +662,9 @@ tab_summary, tab_detail, tab_compare = st.tabs([
 with tab_summary:
     st.caption(
         "**Ture** = realiserede ture's driftsresultat. "
-        "**Ufordelt budget** = månedsbudget (GBT/VBT) der endnu ikke er realiseret "
-        "— ruller mod 0 når ture kommer hjem og noteres i Excel. "
-        "**Total** = Ture + Opl/Res (kun realiseret) — matcher Excel ved måneds-end."
+        "**Ufordelt budget** = månedsbudget (GBT/VBT) der ikke er knyttet til "
+        "specifikke ture. **Total** = Ture + Opl/Res + Ufordelt budget — "
+        "matcher Excel's M-kolonne (DB-forskel = Realiseret − Budget)."
     )
     _render_summary_view(df_filt, months_with_data)
 

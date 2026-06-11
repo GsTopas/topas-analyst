@@ -12,7 +12,7 @@ from __future__ import annotations
 
 import json
 import os
-from datetime import datetime, timezone
+from datetime import date, datetime, timezone
 
 import pandas as pd
 import streamlit as st
@@ -429,9 +429,23 @@ def _render_summary_view(df_in: pd.DataFrame, month_nums: list[int]) -> None:
         ture = g[is_real_tour]["db_budget_diff"].sum()
         opl_res = g[is_special]["db_budget_diff"].sum()
         budget_unallocated = g[is_budget]["db_budget_diff"].sum()
-        # Driftsresultat = Ture + Opl/Res (DB-forskel for det vi har gennemfoert,
-        # ekskluderer ufordelt budget). Meningsfuldt tal for in-progress maaneder.
-        driftsresultat = ture + opl_res
+        # Driftsresultat = ægte realiseret DB-forskel.
+        # - Ture: altid med (de er kommet hjem)
+        # - Opl/Res: kun med naar MAANEDEN ER AFSLUTTET. For in-progress
+        #   maaneder er Opl/Res-diff bare unspent budget (=falsk savings).
+        # Maaneden er afsluttet hvis sidste dag (fra Budget-raekkernes
+        # homecoming_date som altid er maanedens sidste dag) er i fortiden.
+        month_closed = False
+        budget_rows = g[is_budget]
+        if not budget_rows.empty:
+            last_day_str = budget_rows.iloc[0]["homecoming_date"]
+            if last_day_str:
+                try:
+                    last_day = pd.to_datetime(last_day_str).date()
+                    month_closed = last_day < date.today()
+                except (ValueError, TypeError):
+                    pass
+        driftsresultat = ture + (opl_res if month_closed else 0)
         # Total = sum af ALLE raekker (matcher Excel's M-kolonne).
         # Budget-raekker INKLUDERES — de gaar ikke til 0 ved maaneds-end,
         # de er reel ufordelt budget der modregner i grand-total DB-forskel.

@@ -225,7 +225,7 @@ if df.empty:
 df["seasons_set"] = df["maaneder"].apply(_tour_seasons)
 
 # Filter-bar
-col_season, col_op, col_search = st.columns([2, 2, 2])
+col_season, col_format, col_op, col_search = st.columns([1.5, 1.5, 1.5, 1.5])
 with col_season:
     selected_seasons = st.multiselect(
         "Sæson",
@@ -233,21 +233,35 @@ with col_season:
         default=SEASONS,
         format_func=lambda s: SEASON_LABELS[s],
     )
+with col_format:
+    # Tour-format filter — vigtig for at sammenligne aebler/aebler:
+    # Topas laver kun Faellesrejser; konkurrenter har ofte ogsaa "Rejs paa
+    # egen haand" og krydstogter som ikke er direkte sammenlignelige.
+    all_formats = sorted(df["tour_format"].dropna().unique().tolist())
+    default_formats = ["Fællesrejse"] if "Fællesrejse" in all_formats else all_formats
+    selected_formats = st.multiselect(
+        "Type",
+        options=all_formats,
+        default=default_formats,
+        help="Topas laver kun Fællesrejser. Konkurrenter har også "
+             "'Rejs på egen hånd' og krydstogter — vælg den type du vil "
+             "sammenligne med.",
+    )
 with col_op:
     all_operators = sorted(df["operator"].dropna().unique().tolist())
-    # Topas først
     if "Topas" in all_operators:
         all_operators = ["Topas"] + [o for o in all_operators if o != "Topas"]
     selected_ops = st.multiselect(
         "Operator", options=all_operators, default=all_operators
     )
 with col_search:
-    search = st.text_input("🔎 Søg i tur-navn", placeholder="fx Diskobugten, Ilulissat")
+    search = st.text_input("🔎 Søg i tur-navn", placeholder="fx Ilulissat")
 
 # Apply filters
 selected_seasons_set = set(selected_seasons)
 filtered = df[
     df["operator"].isin(selected_ops)
+    & df["tour_format"].fillna("").isin(selected_formats)
     & df["seasons_set"].apply(lambda s: bool(s & selected_seasons_set))
 ].copy()
 
@@ -339,8 +353,8 @@ def _render_season(season: str, tours: pd.DataFrame) -> None:
             "Link": st.column_config.LinkColumn(
                 "Link", display_text="🔗", width="small",
             ),
-            "Afgange": st.column_config.NumberColumn(width="small"),
-            "Dage": st.column_config.NumberColumn(width="small"),
+            "Afgange": st.column_config.NumberColumn(width="small", format="%d"),
+            "Dage": st.column_config.NumberColumn(width="small", format="%d"),
             "Format": st.column_config.TextColumn(width="small"),
         },
     )

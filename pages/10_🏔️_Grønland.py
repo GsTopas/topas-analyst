@@ -81,8 +81,10 @@ def _load_greenland_tours() -> pd.DataFrame:
                 t.from_price_dkk,
                 t.tour_format
             FROM tours t
-            -- Eksakt match paa kendte country-vaerdier (ikke %gr%nland%
-            -- som ogsaa fangede "Graekenland" pga wildcard-greediness)
+            -- Eksakt match paa kendte country-vaerdier (ikke LIKE-wildcard
+            -- som ogsaa fangede "Graekenland" pga greediness).
+            -- NB: alle '%' escapes som '%%' fordi psycopg2 ellers parser dem
+            -- som parameter-placeholders -> IndexError.
             WHERE LOWER(t.country) IN ('grønland', 'groenland', 'greenland')
                -- Fallback: tours hvor scraper ikke extrahede 'Grønland' som
                -- country (typisk Greenland-specialister), men competes_with
@@ -91,7 +93,7 @@ def _load_greenland_tours() -> pd.DataFrame:
                -- at undgaa falsk match paa fx Topas-koder der ogsaa starter
                -- med GL men ikke er Groenlands-ture.
                OR (t.competes_with IS NOT NULL
-                   AND t.competes_with LIKE 'GL%'
+                   AND t.competes_with LIKE 'GL%%'
                    AND COALESCE(t.country, '') IN ('', 'Grønland', 'Greenland', 'Groenland'))
         ),
         topas_extra AS (

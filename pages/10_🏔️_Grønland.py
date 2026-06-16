@@ -84,6 +84,10 @@ def _load_greenland_tours() -> pd.DataFrame:
             WHERE LOWER(t.country) LIKE '%grønland%'
                OR LOWER(t.country) LIKE '%groenland%'
                OR LOWER(t.country) LIKE '%greenland%'
+               -- Fallback: tours hvor scraper ikke extrahede 'Grønland' som
+               -- country (typisk Greenland-specialister), men competes_with
+               -- peger paa en Topas GL-kode (GLBL/GLFS/.../GLXS)
+               OR (t.competes_with IS NOT NULL AND t.competes_with LIKE 'GL%')
         ),
         topas_extra AS (
             -- Topas-ture i topas_catalog som ikke har tours-row endnu

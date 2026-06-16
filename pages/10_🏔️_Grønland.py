@@ -81,10 +81,10 @@ def _load_greenland_tours() -> pd.DataFrame:
                 t.from_price_dkk,
                 t.tour_format
             FROM tours t
-            -- Eksakt match paa kendte country-vaerdier (ikke LIKE-wildcard
+            -- Eksakt match paa kendte country-vaerdier (ikke wildcard-LIKE
             -- som ogsaa fangede "Graekenland" pga greediness).
-            -- NB: alle '%' escapes som '%%' fordi psycopg2 ellers parser dem
-            -- som parameter-placeholders -> IndexError.
+            -- NB: literale procent-tegn escapes som dobbelt-procent fordi
+            -- psycopg2 ellers parser dem som parameter-placeholders.
             WHERE LOWER(t.country) IN ('grønland', 'groenland', 'greenland')
                -- Fallback: tours hvor scraper ikke extrahede 'Grønland' som
                -- country (typisk Greenland-specialister), men competes_with

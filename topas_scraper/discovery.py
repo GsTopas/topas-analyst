@@ -129,6 +129,15 @@ TOUR_URL_PATTERNS: dict[str, list[re.Pattern]] = {
             re.IGNORECASE,
         ),
     ],
+    "Greenland Travel": [
+        # Greenland Travel WordPress: /rejser/{slug}/ (DA) eller /trips/{slug}/ (EN).
+        # Mange URLs er add-ons (forsikring, transfers, hotel-opgraderinger) som
+        # ICP-classifier filtrerer fra. URLs kan have %-encoded tegn (em-dash etc).
+        re.compile(
+            r"^https?://(?:www\.)?greenland-travel\.dk/(?:rejser|trips)/[a-z0-9æøå%.-]+/?$",
+            re.IGNORECASE,
+        ),
+    ],
 }
 
 

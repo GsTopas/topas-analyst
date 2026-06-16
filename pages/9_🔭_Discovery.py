@@ -276,6 +276,19 @@ COMPETITORS: dict[str, dict] = {
         # fixed-departures + hiking/cykling + 4-25 dage.
         "intel_only": True,
     },
+    "Greenland Travel": {
+        "domain": "greenland-travel.dk",
+        "homepage": "https://www.greenland-travel.dk",
+        # WordPress med Yoast SEO sitemap-index. 5 product-sitemaps.
+        # Tour-URL-shape: /rejser/{slug}/ (dansk) eller /trips/{slug}/ (engelsk).
+        # NB: Mange URLs er add-ons (forsikring, hotel-opgradering, transfers)
+        # som ICP-classifier filtrerer fra.
+        "sitemap": "https://www.greenland-travel.dk/sitemap_index.xml",
+        # Greenland-specialist — alle deres ture er i Groenland. Nogle har
+        # dansk rejseleder, andre er pakke-rejser (transport+hotel+udflugter)
+        # uden tour-leder. intel_only saa vi faar et bredt billede.
+        "intel_only": True,
+    },
 }
 
 

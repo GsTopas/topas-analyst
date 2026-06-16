@@ -109,6 +109,11 @@ _DOMAIN_TO_OPERATOR = {
     "beringtravel":           "Bering Travel",
     "bering-travel":          "Bering Travel",
     "bering":                 "Bering Travel",
+    # Greenland Travel — Groenland-specialist (greenland-travel.dk)
+    "greenland-travel.dk":    "Greenland Travel",
+    "greenlandtravel.dk":     "Greenland Travel",
+    "greenland-travel":       "Greenland Travel",
+    "greenlandtravel":        "Greenland Travel",
 }
 
 
@@ -129,6 +134,7 @@ OPERATOR_META = {
     "Kipling Travel":     {"holding": None,                   "segment": "Trekking — overvejende individuel"},
     "Bering Travel":      {"holding": None,                   "segment": "Aktive ferier (vandring + cykling) — Skandinavisk DA/NO/SV/EN"},
     "Fyrholt Rejser":     {"holding": None,                   "segment": "Vandreferier"},
+    "Greenland Travel":   {"holding": None,                   "segment": "Groenland-specialist — pakke-rejser + dansk rejseleder-ture"},
 }
 
 

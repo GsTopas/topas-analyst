@@ -39,5 +39,6 @@ PARSERS = {
     "vagabond": _UNIVERSAL,
     "bering": _UNIVERSAL,
     "greenlandtravel": _UNIVERSAL,
+    "profilrejser": _UNIVERSAL,
     "generic_ai": _UNIVERSAL,
 }

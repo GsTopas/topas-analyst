@@ -114,6 +114,11 @@ _DOMAIN_TO_OPERATOR = {
     "greenlandtravel.dk":     "Greenland Travel",
     "greenland-travel":       "Greenland Travel",
     "greenlandtravel":        "Greenland Travel",
+    # Profil Rejser — pakkerejser med dansk rejseleder (profil-rejser.dk)
+    "profil-rejser.dk":       "Profil Rejser",
+    "profilrejser.dk":        "Profil Rejser",
+    "profil-rejser":          "Profil Rejser",
+    "profilrejser":           "Profil Rejser",
 }
 
 
@@ -135,6 +140,7 @@ OPERATOR_META = {
     "Bering Travel":      {"holding": None,                   "segment": "Aktive ferier (vandring + cykling) — Skandinavisk DA/NO/SV/EN"},
     "Fyrholt Rejser":     {"holding": None,                   "segment": "Vandreferier"},
     "Greenland Travel":   {"holding": None,                   "segment": "Groenland-specialist — pakke-rejser + dansk rejseleder-ture"},
+    "Profil Rejser":      {"holding": None,                   "segment": "Pakkerejser m. dansk rejseleder — bred destinations-bredde"},
 }
 
 

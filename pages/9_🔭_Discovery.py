@@ -289,6 +289,15 @@ COMPETITORS: dict[str, dict] = {
         # uden tour-leder. intel_only saa vi faar et bredt billede.
         "intel_only": True,
     },
+    "Profil Rejser": {
+        "domain": "profil-rejser.dk",
+        "homepage": "https://www.profil-rejser.dk",
+        # WordPress med Yoast SEO sitemap-index (9 sub-sitemaps).
+        # Tour-URL-shape: /rejser/{land}/{slug}/
+        # 202 travel-packages i travel_package-sitemap.xml.
+        "sitemap": "https://www.profil-rejser.dk/sitemap_index.xml",
+        # Pakkerejser med dansk rejseleder — mix af kultur, vandring, krydstogt.
+    },
 }
 
 

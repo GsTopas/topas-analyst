@@ -138,6 +138,15 @@ TOUR_URL_PATTERNS: dict[str, list[re.Pattern]] = {
             re.IGNORECASE,
         ),
     ],
+    "Profil Rejser": [
+        # Profil Rejser WordPress: /rejser/{land}/{slug}/
+        # Eksempler: /rejser/groenland/magi-i-diskobugten/
+        #            /rejser/bali/bali-for-livsnydere-i-egen-poolvilla/
+        re.compile(
+            r"^https?://(?:www\.)?profil-rejser\.dk/rejser/[a-z0-9æøå-]+/[a-z0-9æøå-]+/?$",
+            re.IGNORECASE,
+        ),
+    ],
 }
 
 

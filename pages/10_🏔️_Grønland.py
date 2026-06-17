@@ -6,8 +6,8 @@ Hovedformaal: hvordan ligger Topas ift. konkurrenterne paa Groenland?
 - Topas's 13 Groenlandsture i context af konkurrent-udbud
 
 Saeson-bestemmelse pr. tur via dens departure-maaneder:
-- Hoejsaeson: jun-sep (6,7,8,9)
-- Mellemsaeson: feb-maj (2,3,4,5)
+- Hoejsaeson: jun-aug (6,7,8)
+- Mellemsaeson: feb-maj + sep (2,3,4,5,9)
 - Lavsaeson: okt-jan (1,10,11,12)
 En tur kan tilhoere flere saesoner.
 
@@ -34,13 +34,13 @@ SEASON_MID = "❄️ Mellemsæson"
 SEASON_LOW = "🌑 Lavsæson"
 SEASONS = [SEASON_HIGH, SEASON_MID, SEASON_LOW]
 SEASON_LABELS = {
-    SEASON_HIGH: "Højsæson (jun-sep)",
-    SEASON_MID: "Mellemsæson (feb-maj)",
+    SEASON_HIGH: "Højsæson (jun-aug)",
+    SEASON_MID: "Mellemsæson (feb-maj + sep)",
     SEASON_LOW: "Lavsæson (okt-jan)",
 }
 SEASON_MONTHS = {
-    SEASON_HIGH: {6, 7, 8, 9},
-    SEASON_MID: {2, 3, 4, 5},
+    SEASON_HIGH: {6, 7, 8},
+    SEASON_MID: {2, 3, 4, 5, 9},
     SEASON_LOW: {1, 10, 11, 12},
 }
 
@@ -376,8 +376,8 @@ Alle ture hvor `country` matcher Grønland/Groenland/Greenland.
 
 **Sæson-bestemmelse pr. tur:** baseret på `start_date`-måneder for
 departures i de næste 12 måneder.
-- 🌞 Højsæson: jun-sep (6, 7, 8, 9)
-- ❄️ Mellemsæson: feb-maj (2, 3, 4, 5)
+- 🌞 Højsæson: jun-aug (6, 7, 8)
+- ❄️ Mellemsæson: feb-maj + sep (2, 3, 4, 5, 9)
 - 🌑 Lavsæson: okt-jan (1, 10, 11, 12)
 
 En tur kan tilhøre flere sæsoner (fx Trekking med afgange i både juni og juli).

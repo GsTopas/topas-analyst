@@ -183,6 +183,36 @@ def _tour_seasons(months_str: str) -> set[str]:
     return out
 
 
+def _seasons_from_tour_name(name: str) -> set[str]:
+    """Infer sæson(er) fra tour-navn for ture uden faste afgange
+    (typisk Topas's 7 individuelle rejseforslag). Uden departures kan
+    vi ikke aflæse maaneder fra DB.
+
+    Eksempler:
+      "Forår og midnatssol i Grønland"        → Mid + Høj
+      "Efterår og nordlys i Grønland"         → Mid (sep) + Lav (okt)
+      "Hundeslæde, Iglo Lodge og nordlys"     → Lav (vinter)
+      "Diskoøen, isbjerge og Eqi Gletsjer"   → alle (ingen sæson-keyword)
+    """
+    if not name:
+        return set(SEASONS)
+    n = name.lower()
+    seasons: set[str] = set()
+    if any(k in n for k in ("sommer", "midnatssol", "lyse nætter", "lyse naetter")):
+        seasons.add(SEASON_HIGH)
+    if any(k in n for k in ("forår", "foraar")):
+        seasons |= {SEASON_MID, SEASON_HIGH}
+    if "efterår" in n or "efteraar" in n:
+        seasons |= {SEASON_MID, SEASON_LOW}
+    if any(k in n for k in ("vinter", "nordlys", "iglo", "igloo",
+                             "hundeslæde", "hundeslaede", "aurora",
+                             "nytår", "nytar", "sne", "is og iglo")):
+        seasons.add(SEASON_LOW)
+    if "påske" in n or "paaske" in n:
+        seasons.add(SEASON_MID)
+    return seasons or set(SEASONS)  # default: alle sæsoner
+
+
 def _fmt_dkk(v) -> str:
     if pd.isna(v) or v is None:
         return "—"
@@ -229,8 +259,12 @@ if df.empty:
     st.warning("Ingen Grønlandsture i databasen.")
     st.stop()
 
-# Beregn saesoner pr. tur
-df["seasons_set"] = df["maaneder"].apply(_tour_seasons)
+# Beregn saesoner pr. tur. For ture uden departures (typisk Topas's
+# individuelle rejseforslag) udledes saesoner fra tour-navnet.
+df["seasons_set"] = df.apply(
+    lambda r: _tour_seasons(r["maaneder"]) or _seasons_from_tour_name(r["tour_name"]),
+    axis=1,
+)
 
 # Filter-bar
 col_season, col_format, col_op, col_search = st.columns([1.5, 1.5, 1.5, 1.5])

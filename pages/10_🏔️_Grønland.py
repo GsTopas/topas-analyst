@@ -234,18 +234,18 @@ with col_season:
         format_func=lambda s: SEASON_LABELS[s],
     )
 with col_format:
-    # Tour-format filter — vigtig for at sammenligne aebler/aebler:
-    # Topas laver kun Faellesrejser; konkurrenter har ofte ogsaa "Rejs paa
-    # egen haand" og krydstogter som ikke er direkte sammenlignelige.
+    # Tour-format filter — Gorm vil se BAADE faellesrejser og individuelle som
+    # default (jf. user-feedback: "Vi vil baade ha informationen omkring
+    # gruppe rejser samt individuelle rejser"). Filter er stadig der hvis man
+    # vil snaevre ned til aebler/aebler-sammenligning med Topas's faellesrejser.
     all_formats = sorted(df["tour_format"].dropna().unique().tolist())
-    default_formats = ["Fællesrejse"] if "Fællesrejse" in all_formats else all_formats
     selected_formats = st.multiselect(
         "Type",
         options=all_formats,
-        default=default_formats,
-        help="Topas laver kun Fællesrejser. Konkurrenter har også "
-             "'Rejs på egen hånd' og krydstogter — vælg den type du vil "
-             "sammenligne med.",
+        default=all_formats,
+        help="Default viser alle typer. Topas laver kun Fællesrejser; "
+             "konkurrenter har også 'Rejs på egen hånd' og krydstogter. "
+             "Fravælg en type for at fokusere sammenligningen.",
     )
 with col_op:
     all_operators = sorted(df["operator"].dropna().unique().tolist())

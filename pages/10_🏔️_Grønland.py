@@ -97,7 +97,9 @@ def _load_greenland_tours() -> pd.DataFrame:
                    AND COALESCE(t.country, '') IN ('', 'Grønland', 'Greenland', 'Groenland'))
         ),
         topas_extra AS (
-            -- Topas-ture i topas_catalog som ikke har tours-row endnu
+            -- Topas-ture i topas_catalog som ikke har tours-row endnu.
+            -- audience_segment='Individuel' = rejseforslag uden faste afgange
+            -- (Topas's 7 individuelle Groenlandsrejser). Andre = Faellesrejse.
             SELECT
                 'Topas' AS operator,
                 NULL AS tour_slug,
@@ -105,7 +107,10 @@ def _load_greenland_tours() -> pd.DataFrame:
                 tc.url,
                 tc.duration_days,
                 tc.from_price_dkk,
-                'Fællesrejse' AS tour_format
+                CASE
+                    WHEN tc.audience_segment = 'Individuel' THEN 'Rejs på egen hånd'
+                    ELSE 'Fællesrejse'
+                END AS tour_format
             FROM topas_catalog tc
             WHERE tc.country = 'Grønland'
               AND (tc.audience_segment IS NULL OR tc.audience_segment != 'Udgået')

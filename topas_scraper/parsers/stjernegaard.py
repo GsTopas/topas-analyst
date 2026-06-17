@@ -49,8 +49,9 @@ def parse(scrape, target):
     md_focused = _scope_to_first_card(md)
 
     departures = _extract_departures(md_focused)
+    tour_format = _extract_tour_format(md_focused)
 
-    notes = "Aller Leisure brand. Rundrejse med dansk rejseleder — Fællesrejse-eligible."
+    notes = f"Aller Leisure brand. Badge: {tour_format}."
     if not departures:
         notes = (
             "No departures parsed. Check Firecrawl output for this URL — "
@@ -62,6 +63,7 @@ def parse(scrape, target):
         operator="Stjernegaard Rejser",
         duration_days=_extract_duration(md),  # use full md for duration headline
         from_price_dkk=_extract_from_price(md),
+        tour_format=tour_format,
         eligibility_notes=notes,
     )
 
@@ -187,6 +189,27 @@ def _extract_departures(md: str) -> list[dict]:
 
     departures.sort(key=lambda d: d["start_date"])
     return departures
+
+
+def _extract_tour_format(md: str) -> str:
+    """Detect tour_format from Stjernegaard's visual badge on each card.
+
+    Stjernegaards listing-cards har en badge der ligger umiddelbart efter
+    tour-titlen + landenavn:
+
+      ### [<tour-name>](url)GrønlandRundrejse med dansk rejseleder
+      ### [<tour-name>](url)GrønlandTilkøb udflugter m/ dansktalende guide
+
+    "Rundrejse med dansk rejseleder" (pink ikon)   = Fællesrejse
+    "Tilkøb udflugter m/ dansktalende guide" (gul) = Rejs på egen hånd
+
+    Defaulter til Fællesrejse hvis badgen ikke kan findes (sjældent — kun ved
+    nye/ukendte produkt-typer).
+    """
+    if re.search(r"tilk[øo]b\s+udflugter\s+m/?\s*dansktalende\s+guide",
+                 md, re.IGNORECASE):
+        return "Rejs på egen hånd"
+    return "Fællesrejse"
 
 
 def _normalize_stjernegaard_status(raw: str) -> str:

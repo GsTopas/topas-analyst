@@ -132,8 +132,11 @@ def _load_greenland_tours() -> pd.DataFrame:
                 SUM(CASE WHEN d.availability_status = 'Åben' THEN 1 ELSE 0 END) AS aaben,
                 STRING_AGG(DISTINCT EXTRACT(MONTH FROM d.start_date::date)::int::text, ',') AS maaneder
             FROM departures d
+            -- 24 mdr vindue saa vi fanger naeste sommer-saeson uanset
+            -- hvilken maaned man kigger fra (12 mdr clippede 2027-aug-afgange
+            -- vaek og fik tael til at vise faerre end konkurrentens hjemmeside).
             WHERE d.start_date::date >= CURRENT_DATE
-              AND d.start_date::date <= CURRENT_DATE + INTERVAL '12 months'
+              AND d.start_date::date <= CURRENT_DATE + INTERVAL '24 months'
               AND d.price_dkk IS NOT NULL
             GROUP BY d.operator, d.tour_slug
         )
@@ -287,7 +290,7 @@ st.divider()
 m1, m2, m3, m4, m5 = st.columns(5)
 m1.metric("Operatorer", len(filtered["operator"].unique()))
 m2.metric("Ture", len(filtered))
-m3.metric("Afgange (12 mdr)", int(filtered["antal_afgange"].sum()))
+m3.metric("Afgange (24 mdr)", int(filtered["antal_afgange"].sum()))
 all_prices = filtered[filtered["min_pris"].notna()]
 if not all_prices.empty:
     m4.metric(
@@ -316,7 +319,7 @@ def _render_season(season: str, tours: pd.DataFrame) -> None:
 
     st.markdown(f"## {SEASON_LABELS[season]}")
     st.caption(
-        f"{tour_count} ture fra {op_count} operatør(er) · {afg} afgange næste 12 mdr"
+        f"{tour_count} ture fra {op_count} operatør(er) · {afg} afgange næste 24 mdr"
     )
 
     display_df = in_season.assign(

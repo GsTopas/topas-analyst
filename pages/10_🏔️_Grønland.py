@@ -183,34 +183,43 @@ def _tour_seasons(months_str: str) -> set[str]:
     return out
 
 
-def _seasons_from_tour_name(name: str) -> set[str]:
-    """Infer sæson(er) fra tour-navn for ture uden faste afgange
-    (typisk Topas's 7 individuelle rejseforslag). Uden departures kan
-    vi ikke aflæse maaneder fra DB.
+# Eksplicit maaned-mapping for Topas's 7 individuelle rejseforslag, bekraeftet
+# via deres "Hvornaar er det bedst at rejse"-sektion paa topas.dk. Bruges naar
+# en tur ikke har departures (rejseforslag uden faste afgange) — saa kan vi
+# ikke aflaese maaneder fra DB. Maerk URL-slug for at undgaa fragile name-match.
+_TOPAS_INDIVIDUEL_MAANEDER: dict[str, set[int]] = {
+    # Diskoøen, isbjerge og Eqi Gletsjer  →  jun-aug ("sommermaanederne juni, juli og august")
+    "diskooeen-isbjerge-og-eqi-gletsjer": {6, 7, 8},
+    # Efterår og nordlys                  →  sep-nov ("fra september til november")
+    "efteraar-og-nordlys-i-groenland":    {9, 10, 11},
+    # Forår og midnatssol                 →  maj-jun ("forsommeren i maj og juni")
+    "foraar-og-midnatssol-i-groenland":   {5, 6},
+    # Fra Nuuk til Sydgrønland            →  jun-sep ("i perioden juni til september")
+    "fra-nuuk-til-sydgroenland":          {6, 7, 8, 9},
+    # Hundeslæde, Iglo Lodge              →  jan-mar ("perioden fra januar til marts")
+    "hundeslaede-iglo-lodge-og-nordlys-i-ilulissat": {1, 2, 3},
+    # Unik rundrejse i Diskobugten        →  jun-sep ("sommermaanederne fra juni til september")
+    "unik-rundrejse-i-diskobugten":       {6, 7, 8, 9},
+    # Nuuk og Ilulissat med kystskib      →  maj-dec ("fra maj til december")
+    "nuuk-og-ilulissat-med-kystskib":     {5, 6, 7, 8, 9, 10, 11, 12},
+}
 
-    Eksempler:
-      "Forår og midnatssol i Grønland"        → Mid + Høj
-      "Efterår og nordlys i Grønland"         → Mid (sep) + Lav (okt)
-      "Hundeslæde, Iglo Lodge og nordlys"     → Lav (vinter)
-      "Diskoøen, isbjerge og Eqi Gletsjer"   → alle (ingen sæson-keyword)
+
+def _seasons_from_url(url: str) -> set[str]:
+    """Slå sæson(er) op fra URL-slug for Topas's individuelle rejseforslag.
+
+    Bruges for ture uden departures hvor vi har explicit kortlagt maanederne
+    fra deres egen "Hvornaar er det bedst at rejse"-sektion. Defaulter til
+    alle sæsoner hvis sluggen ikke er kortlagt (saa ukendte ture er stadig synlige).
     """
-    if not name:
+    if not url:
         return set(SEASONS)
-    n = name.lower()
-    seasons: set[str] = set()
-    if any(k in n for k in ("sommer", "midnatssol", "lyse nætter", "lyse naetter")):
-        seasons.add(SEASON_HIGH)
-    if any(k in n for k in ("forår", "foraar")):
-        seasons |= {SEASON_MID, SEASON_HIGH}
-    if "efterår" in n or "efteraar" in n:
-        seasons |= {SEASON_MID, SEASON_LOW}
-    if any(k in n for k in ("vinter", "nordlys", "iglo", "igloo",
-                             "hundeslæde", "hundeslaede", "aurora",
-                             "nytår", "nytar", "sne", "is og iglo")):
-        seasons.add(SEASON_LOW)
-    if "påske" in n or "paaske" in n:
-        seasons.add(SEASON_MID)
-    return seasons or set(SEASONS)  # default: alle sæsoner
+    for slug, months in _TOPAS_INDIVIDUEL_MAANEDER.items():
+        if slug in url:
+            out = {_month_to_season(m) for m in months}
+            out.discard("")
+            return out
+    return set(SEASONS)
 
 
 def _fmt_dkk(v) -> str:
@@ -260,9 +269,10 @@ if df.empty:
     st.stop()
 
 # Beregn saesoner pr. tur. For ture uden departures (typisk Topas's
-# individuelle rejseforslag) udledes saesoner fra tour-navnet.
+# individuelle rejseforslag) bruges eksplicit URL-slug → maaned-mapping
+# (bekraeftet via topas.dk's egen "Hvornaar er det bedst at rejse"-tekst).
 df["seasons_set"] = df.apply(
-    lambda r: _tour_seasons(r["maaneder"]) or _seasons_from_tour_name(r["tour_name"]),
+    lambda r: _tour_seasons(r["maaneder"]) or _seasons_from_url(r["url"]),
     axis=1,
 )
 

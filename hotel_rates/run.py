@@ -103,7 +103,12 @@ def run_rate_scrape_many(
             except Exception:
                 pass
         hotel, night = job
+        # Booking-engines render-flaker af og til (tom prisliste trods ledige
+        # værelser — verificeret på SynXis). Ét gen-forsøg fanger de fleste.
         result = scrape_night(client, hotel, night)
+        if not result.success:
+            emit(f"  {hotel.name} {night.isoformat()} ⟳ fejlede, prøver igen...")
+            result = scrape_night(client, hotel, night)
         if not result.success:
             emit(f"  {hotel.name} {night.isoformat()} ✗ {result.error}")
             return False

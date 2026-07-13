@@ -73,25 +73,23 @@ HOTELS: dict[str, HotelTarget] = {
         scrape_overrides={"wait_for": 10000},
         arrive_offset_days=1,
     ),
-    # Knækket 2026-07-09 — men via bestwestern.COM, ikke .dk!
-    # .dk's booking-path ignorerer dato-params (viser statiske fra-priser —
-    # verificeret: vinterdato og ingen-dato gav identiske priser; 25 mis-
-    # visende rækker fra run 79d36b2b0050 slettet fra DB).
-    # .com-motoren ekkoer datoerne og er den live bookable engine.
-    # NB: BW Ilulissat kører p.t. flade årsrater (jul 2026 = feb 2027) —
-    # det er reel prissætning, ikke en fejl. Udsolgt-detektion + fremtidige
-    # prisændringer fanges stadig dato-for-dato.
+    # Re-knækket 2026-07-13: .dk booking-path VIRKER — med startDate/endDate
+    # (ISO), ikke checkin/checkout som først antaget. Verificeret mod Gorms
+    # manuelle booking-flow: samme priser på øre (2.815 medlem / 3.125 flex
+    # for 14.-15. jul). Andre param-navne falder tilbage til dagens dato.
+    # bestwestern.COM blev droppet igen: den sælger kun et DELSORTIMENT af
+    # det danske lager (viste 'No rooms available' + kun Executive, mens .dk
+    # havde Standard ledigt samme nat) — gav falske UDSOLGT-rækker.
     "hotel-ilulissat": HotelTarget(
         key="hotel-ilulissat",
         name="Best Western Plus Hotel Ilulissat",
-        booking_engine="Best Western central (bestwestern.com)",
+        booking_engine="Best Western booking-path (.dk, startDate/endDate)",
         url_template=(
-            "https://www.bestwestern.com/en_US/book/hotel-rooms.96100.html"
-            "?checkinDate={arrive}&checkoutDate={depart}"
-            "&numberOfAdults=2&numberOfRooms=1"
+            "https://www.bestwestern.dk/booking-path/hotel-rooms/"
+            "best-western-plus-hotel-ilulissat-ilulissat-96100"
+            "?startDate={arrive}&endDate={depart}&rooms=1&adults=2"
         ),
         scrape_overrides={"wait_for": 12000},
-        date_format="%m/%d/%Y",
     ),
 }
 

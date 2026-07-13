@@ -58,6 +58,9 @@ def scrape_night(
     overrides = dict(hotel.scrape_overrides or {})
     if wait_bump_ms:
         overrides["wait_for"] = overrides.get("wait_for", 8000) + wait_bump_ms
+        # Firecrawl kræver waitFor <= timeout/2 — hæv timeout tilsvarende,
+        # ellers afvises retry'et med Bad Request (set 13/7 ved 18s wait).
+        overrides["timeout"] = overrides["wait_for"] * 2 + 5000
 
     result = client.scrape(
         url,

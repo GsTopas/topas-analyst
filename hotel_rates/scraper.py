@@ -39,8 +39,13 @@ def scrape_night(
     client: FirecrawlClient,
     hotel: HotelTarget,
     stay_date: date,
+    wait_bump_ms: int = 0,
 ) -> NightResult:
-    """Scrape prisen for én nat (check-in stay_date, check-ud dagen efter)."""
+    """Scrape prisen for én nat (check-in stay_date, check-ud dagen efter).
+
+    wait_bump_ms lægges oven i hotellets wait_for — bruges af retry-logikken
+    til at give render-flakede nætter mere tid i andet forsøg.
+    """
     # arrive_offset_days kompenserer for engines der UTC-forskyder datoen
     # (BookYourStay viser arrivaldate minus 1 dag i Grønlands-tid).
     # date_format: ISO for de fleste; bestwestern.com kræver MM/DD/YYYY.
@@ -50,9 +55,13 @@ def scrape_night(
         depart=(arrive + timedelta(days=1)).strftime(hotel.date_format),
     )
 
+    overrides = dict(hotel.scrape_overrides or {})
+    if wait_bump_ms:
+        overrides["wait_for"] = overrides.get("wait_for", 8000) + wait_bump_ms
+
     result = client.scrape(
         url,
-        overrides=hotel.scrape_overrides,
+        overrides=overrides,
         schema=RATE_EXTRACTION_SCHEMA,
     )
 

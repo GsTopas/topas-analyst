@@ -104,11 +104,12 @@ def run_rate_scrape_many(
                 pass
         hotel, night = job
         # Booking-engines render-flaker af og til (tom prisliste trods ledige
-        # værelser — verificeret på SynXis). Ét gen-forsøg fanger de fleste.
+        # værelser — verificeret på SynXis). Ét gen-forsøg med +6s ekstra
+        # render-tid fanger de fleste.
         result = scrape_night(client, hotel, night)
         if not result.success:
-            emit(f"  {hotel.name} {night.isoformat()} ⟳ fejlede, prøver igen...")
-            result = scrape_night(client, hotel, night)
+            emit(f"  {hotel.name} {night.isoformat()} ⟳ fejlede, prøver igen med +6s...")
+            result = scrape_night(client, hotel, night, wait_bump_ms=6000)
         if not result.success:
             emit(f"  {hotel.name} {night.isoformat()} ✗ {result.error}")
             return False

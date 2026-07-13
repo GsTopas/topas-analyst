@@ -40,7 +40,9 @@ HOTELS: dict[str, HotelTarget] = {
             "https://be.synxis.com/?chain=34919&hotel=97238"
             "&arrive={arrive}&depart={depart}&adult=2&rooms=1&locale=en-US"
         ),
-        scrape_overrides={"wait_for": 9000},
+        # 12s — 9s var marginal: enkelte nætter render-flakede konsekvent
+        # (2026-07-20 fejlede ved 9s men gav priser ved 12s, set 13/7).
+        scrape_overrides={"wait_for": 12000},
     ),
     # Knækket 2026-07-09 via JS-bundle-analyse: deeplinkService læser
     # 'arrivaldate' + 'lengthofstay' (fundet i main-*.js). Priser renderer

@@ -21,7 +21,8 @@ st.set_page_config(page_title="Hotel-benchmark · Topas", page_icon="🏨", layo
 from topas_scraper._auth import require_auth  # noqa: E402
 require_auth()
 
-from hotel_rates.config import HOTELS  # noqa: E402
+from hotel_rates.config import HOTELS, active_hotels  # noqa: E402
+from hotel_rates.run import run_rate_scrape_many  # noqa: E402
 from topas_scraper._pg_conn import connect  # noqa: E402
 
 st.markdown("# 🏨 Hotel-benchmark — Ilulissat")
@@ -69,11 +70,48 @@ def _fmt_price(v: object) -> str:
     return f"{int(v):,}".replace(",", ".")
 
 
+# ---------------------------------------------------------------------------
+# Scrape-knap: kør et nyt scrape direkte fra siden (som Tour-detalje).
+# Nætterne fordeles på 5 parallelle workers (Firecrawl hobby-plan-grænsen).
+# ---------------------------------------------------------------------------
+
+with st.expander("🔄 Opdater data — kør nyt scrape", expanded=False):
+    col_start, col_nights, col_info = st.columns([1, 1, 2])
+    with col_start:
+        scrape_start = st.date_input("Fra dato", value=date.today())
+    with col_nights:
+        scrape_nights = st.number_input(
+            "Nætter", min_value=1, max_value=90, value=14,
+            help="Antal nætter frem fra startdatoen",
+        )
+    n_hotels = len(active_hotels())
+    n_calls = n_hotels * int(scrape_nights)
+    with col_info:
+        st.caption(
+            f"{n_hotels} hoteller × {int(scrape_nights)} nætter = "
+            f"**{n_calls} Firecrawl-kald** · ca. {max(1, n_calls * 13 // 60 // 5)}-"
+            f"{max(2, n_calls * 16 // 60 // 5)} min (5 parallelle)"
+        )
+    if st.button("Start scrape", type="primary"):
+        with st.status(f"Scraper {n_calls} nætter...", expanded=True) as status:
+            try:
+                run_rate_scrape_many(
+                    [h.key for h in active_hotels()],
+                    scrape_start,
+                    int(scrape_nights),
+                    on_progress=st.write,
+                )
+                status.update(label="Scrape færdig ✓", state="complete", expanded=False)
+            except Exception as exc:  # noqa: BLE001
+                status.update(label=f"Scrape fejlede: {exc}", state="error")
+                st.stop()
+        _load_rates.clear()
+        st.rerun()
+
 df = _load_rates()
 if df.empty:
     st.warning(
-        "Ingen hotel-rates i databasen endnu. Kør en scrape først — "
-        "se kommandoen nederst på siden."
+        "Ingen hotel-rates i databasen endnu. Kør en scrape med knappen ovenfor."
     )
     st.stop()
 

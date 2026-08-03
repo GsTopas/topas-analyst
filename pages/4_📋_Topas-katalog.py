@@ -104,7 +104,14 @@ with tab_refresh:
 
                 st.write(f"Gemmer {len(tours)} unikke ture i database...")
                 conn = connect()
-                new_count, updated_count, removed_count = upsert_topas_catalog(conn, tours)
+                try:
+                    new_count, updated_count, removed_count = upsert_topas_catalog(conn, tours)
+                except ValueError as guard_err:
+                    # Shrink-guard i db.py: delvist fejlet scrape må ikke
+                    # slette ture — kataloget er urørt, vis besked og stop.
+                    status.update(label="Refresh afvist (delvist scrape)", state="error")
+                    st.error(str(guard_err))
+                    st.stop()
 
                 status.update(
                     label=(

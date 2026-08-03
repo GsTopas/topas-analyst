@@ -38,20 +38,33 @@ DISPLAY_NAMES = {k: h.name for k, h in HOTELS.items()}
 
 @st.cache_data(ttl=600)
 def _load_rates() -> pd.DataFrame:
-    """Nyeste observation pr. (hotel, nat, værelse) fra Supabase.
+    """Seneste komplette snapshot pr. (hotel, nat) fra Supabase.
 
-    DISTINCT ON tager den seneste observed_at — ældre snapshots bevares i
-    tabellen som historik (samme princip som tur-snapshots), men kalenderen
-    viser altid det aktuelle billede.
+    VIGTIGT: dedup skal ske pr. RUN, ikke pr. værelsesnavn. Ellers overlever
+    gamle pris-rækker når en nat senere skifter til udsolgt (udsolgt-rækken
+    har room_name=NULL og er en anden nøgle end pris-rækkerne) — og kalenderen
+    ville vise en forældet pris som aktuel. CTE'en finder det nyeste run for
+    hver (hotel, nat) og returnerer KUN det runs rækker.
+
+    Kun nætter fra i dag og frem — fortiden bevares i tabellen som historik
+    men hører ikke hjemme i en fremadskuende pris-kalender.
     """
     conn = connect()
     cur = conn.execute(
         """
-        SELECT DISTINCT ON (hotel, stay_date, room_name)
-               hotel, stay_date, room_name, price_dkk,
-               availability_status, observed_at
-        FROM hotel_rate_snapshots
-        ORDER BY hotel, stay_date, room_name, observed_at DESC
+        WITH latest AS (
+          SELECT DISTINCT ON (hotel, stay_date) hotel, stay_date, run_id
+          FROM hotel_rate_snapshots
+          WHERE stay_date >= CURRENT_DATE
+          ORDER BY hotel, stay_date, observed_at DESC, id DESC
+        )
+        SELECT s.hotel, s.stay_date, s.room_name, s.price_dkk,
+               s.availability_status, s.observed_at
+        FROM hotel_rate_snapshots s
+        JOIN latest l
+          ON s.hotel = l.hotel AND s.stay_date = l.stay_date
+         AND s.run_id = l.run_id
+        ORDER BY s.hotel, s.stay_date, s.price_dkk NULLS LAST
         """
     )
     rows = [dict(r) for r in cur.fetchall()]
@@ -126,11 +139,15 @@ cheapest = (
     available.groupby(["stay_date", "hotel"])["price_dkk"].min().unstack("hotel")
 )
 
-# Udsolgt-detektion: nætter hvor hotellet HAR snapshots men ingen bookbare offers
+# Udsolgt-detektion: nætter hvor hotellet HAR snapshots men ingen bookbare
+# offers. Reindex på BÅDE index og columns — et hotel der er udsolgt alle
+# nætter i vinduet har ingen kolonne i `cheapest` og ville ellers forsvinde
+# helt fra kalenderen (i stedet for at stå som UDSOLGT). fillna+astype(bool)
+# fordi alignment ellers giver NaN-celler, og bool(NaN) er True i Python.
 observed = df.groupby(["stay_date", "hotel"]).size().unstack("hotel")
-sold_out_mask = observed.notna() & cheapest.reindex(observed.index).isna()
+calendar = cheapest.reindex(index=observed.index, columns=observed.columns)
+sold_out_mask = (observed.notna() & calendar.isna()).fillna(False).astype(bool)
 
-calendar = cheapest.reindex(observed.index)
 calendar = calendar.rename(columns=DISPLAY_NAMES)
 sold_out_mask = sold_out_mask.rename(columns=DISPLAY_NAMES)
 

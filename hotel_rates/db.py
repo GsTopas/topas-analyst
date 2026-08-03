@@ -28,35 +28,42 @@ def insert_rates(
     én række med room_name=NULL, price_dkk=NULL, status='Udsolgt' — så
     kalenderen kan skelne 'udsolgt' fra 'ikke scrapet'.
     """
-    if not rooms:
-        conn.execute(
-            "INSERT INTO hotel_rate_snapshots "
-            "(run_id, hotel, stay_date, room_name, price_dkk, currency, availability_status) "
-            "VALUES (?, ?, ?, NULL, NULL, ?, 'Udsolgt')",
-            (run_id, hotel_key, stay_date.isoformat(), currency),
-        )
-        conn.commit()
-        return 1
+    try:
+        if not rooms:
+            conn.execute(
+                "INSERT INTO hotel_rate_snapshots "
+                "(run_id, hotel, stay_date, room_name, price_dkk, currency, availability_status) "
+                "VALUES (?, ?, ?, NULL, NULL, ?, 'Udsolgt')",
+                (run_id, hotel_key, stay_date.isoformat(), currency),
+            )
+            conn.commit()
+            return 1
 
-    count = 0
-    for room in rooms:
-        conn.execute(
-            "INSERT INTO hotel_rate_snapshots "
-            "(run_id, hotel, stay_date, room_name, price_dkk, currency, availability_status) "
-            "VALUES (?, ?, ?, ?, ?, ?, ?)",
-            (
-                run_id,
-                hotel_key,
-                stay_date.isoformat(),
-                room["room_name"],
-                room["price"],
-                currency,
-                room["availability_status"],
-            ),
-        )
-        count += 1
-    conn.commit()
-    return count
+        count = 0
+        for room in rooms:
+            conn.execute(
+                "INSERT INTO hotel_rate_snapshots "
+                "(run_id, hotel, stay_date, room_name, price_dkk, currency, availability_status) "
+                "VALUES (?, ?, ?, ?, ?, ?, ?)",
+                (
+                    run_id,
+                    hotel_key,
+                    stay_date.isoformat(),
+                    room["room_name"],
+                    room["price"],
+                    currency,
+                    room["availability_status"],
+                ),
+            )
+            count += 1
+        conn.commit()
+        return count
+    except Exception:
+        # Rollback så én fejlet nat ikke efterlader den delte forbindelse i
+        # 'aborted transaction' — ellers fejler alle efterfølgende nætter i
+        # samme run (og sidens egen load på den cachede forbindelse).
+        conn.rollback()
+        raise
 
 
 def fetch_nightly_min(conn: PgConnection, hotel_key: str, run_id: str) -> list[dict]:

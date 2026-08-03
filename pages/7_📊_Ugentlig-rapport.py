@@ -285,7 +285,12 @@ st.divider()
 
 if anomalies:
     st.markdown("## 🚨 Bemærkelsesværdige ændringer")
-    for a in sorted(anomalies, key=lambda x: x.get("severity", "low") + x.get("changed_at", ""), reverse=True):
+    # Severity-rang eksplicit: tekst-sortering gav 'medium' > 'high' (omvendt
+    # rækkefølge) og crashede på None. Højeste severity først, nyeste først
+    # (to-trins stabil sortering).
+    _sev_rank = {"high": 0, "medium": 1}
+    _by_date = sorted(anomalies, key=lambda x: x.get("changed_at") or "", reverse=True)
+    for a in sorted(_by_date, key=lambda x: _sev_rank.get(x.get("severity"), 2)):
         sev_emoji = "🚨" if a["severity"] == "high" else "⚡"
         # Beregn tidsvindue mellem sidste observation af forrige status og nuværende
         prev_obs_dt = _parse_iso(a.get("previous_observed_at"))

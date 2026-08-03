@@ -873,6 +873,11 @@ elif selected_op_filter:
 else:
     scope_comps = eligible_comps
 
+# Markeds-kalender bruger samme scope. Defineres HER (ikke længere nede) fordi
+# kalender-overskriften i operator-filter-mode læser den før kalender-sektionen
+# — en senere definition gav NameError ved valg af operatør i pickeren.
+calendar_comps = scope_comps
+
 # Show ineligible separately for transparency. Distinguish three cases:
 #   - parser_failed: tour has no departures AND no from_price (data extraction failed)
 #   - data_limited: tour has from_price but no departures (e.g. Albatros JS-render limit)
@@ -1240,10 +1245,6 @@ for d in topas_deps:
         "Måltider": _format_meals(selected_tour),
         "Detaljer": "",
     })
-
-# Markeds-kalender bruger scope_comps direkte — det er allerede sat efter pickeren
-# til at respektere ALL/operator/single-tur-modes konsistent.
-calendar_comps = scope_comps
 
 for comp in calendar_comps:
     for d in comp.get("departures", []):

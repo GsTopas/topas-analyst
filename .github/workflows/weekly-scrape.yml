@@ -1,12 +1,10 @@
 name: Weekly scrape
 
 on:
-  # Mandag morgen kl. 06:00 dansk tid.
-  # Cron er i UTC: 05:00 UTC = 06:00 CET (vinter) / 07:00 CEST (sommer).
-  # Vi accepterer 1-times skift hen over året — alternativt to triggers.
-  schedule:
-    - cron: "0 5 * * 1"
-  # Tillad manuel trigger fra GitHub UI ("Actions" → "Run workflow")
+  # KUN manuel start (GitHub → Actions → "Weekly scrape" → Run workflow).
+  # Auto-cron fjernet 2026-08-03: værktøjet er ikke i drift endnu, og
+  # skedulerede kørsler brænder Firecrawl-credits af uden at nogen bruger
+  # dataene. Genindfør "schedule: cron '0 5 * * 1'" når det tages i drift.
   workflow_dispatch:
 
 # Tillad at jobbet skriver til repoet (committer rapporten bagefter)

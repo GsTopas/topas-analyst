@@ -59,7 +59,15 @@ def cmd_scrape(args) -> int:
         print(f"✗ {e}", file=sys.stderr)
         return 1
 
-    return 0 if success == total else 1
+    # Exit 0 ved delvis succes: ét flaky site må ikke vælte hele pipelinen
+    # (rapport-generering + commit i workflowet skippes ellers). Kun total
+    # fiasko (0 targets lykkedes) er en reel fejl.
+    if success == 0 and total > 0:
+        print(f"✗ Alle {total} targets fejlede", file=sys.stderr)
+        return 1
+    if success < total:
+        print(f"⚠ {total - success}/{total} targets fejlede — fortsætter med delvist resultat")
+    return 0
 
 
 def cmd_report(args) -> int:

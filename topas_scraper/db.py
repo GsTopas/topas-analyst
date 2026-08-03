@@ -261,6 +261,12 @@ def replace_departures(
                 """,
                 snap_rows,
             )
+    except Exception:
+        # Uden rollback efterlades forbindelsen i 'aborted transaction' og
+        # ALLE efterfølgende writes i samme kørsel fejler med
+        # InFailedSqlTransaction — én flaky tur må ikke vælte resten af runnet.
+        conn.rollback()
+        raise
     finally:
         raw_cur.close()
 
@@ -542,52 +548,67 @@ def upsert_topas_catalog(conn: Connection, tours: list[dict]) -> tuple[int, int,
     except Exception:
         mapped_codes = set()
 
-    # Wipe and rebuild — fresh refresh is authoritative
-    conn.execute("DELETE FROM topas_catalog")
+    # Shrink-guard: refresh-scraperen sluger fejl pr. URL og kan returnere en
+    # KORT liste ved delvist netværks-/parse-svigt. Da strategien er
+    # truncate+insert ville det permanent slette de manglende ture. Nægt
+    # derfor at erstatte et etableret katalog med en markant mindre liste —
+    # kald hellere igen når scrapet lykkes helt.
+    valid_tours = [t for t in tours if t.get("url")]
+    if existing_count >= 10 and len(valid_tours) < int(existing_count * 0.75):
+        raise ValueError(
+            f"Katalog-refresh afvist: kun {len(valid_tours)} ture hentet mod "
+            f"{existing_count} eksisterende (<75%). Ligner et delvist fejlet "
+            f"scrape — kataloget er IKKE ændret. Prøv igen."
+        )
 
     new_count = 0
     updated_count = 0
+    try:
+        # Wipe and rebuild — fresh refresh is authoritative
+        conn.execute("DELETE FROM topas_catalog")
 
-    for t in tours:
-        url = t.get("url")
-        if not url:
-            continue
+        for t in valid_tours:
+            url = t["url"]
+            tour_code = t.get("tour_code")
+            has_mapping = 1 if (tour_code and tour_code in mapped_codes) else 0
 
-        tour_code = t.get("tour_code")
-        has_mapping = 1 if (tour_code and tour_code in mapped_codes) else 0
+            # Preserve discovered_at: prefer match on tour_code, fall back to URL
+            if tour_code and tour_code in existing_by_code:
+                discovered_at = existing_by_code[tour_code]
+                updated_count += 1
+            elif url in existing_by_url:
+                discovered_at = existing_by_url[url]
+                updated_count += 1
+            else:
+                discovered_at = now
+                new_count += 1
 
-        # Preserve discovered_at: prefer match on tour_code, fall back to URL
-        if tour_code and tour_code in existing_by_code:
-            discovered_at = existing_by_code[tour_code]
-            updated_count += 1
-        elif url in existing_by_url:
-            discovered_at = existing_by_url[url]
-            updated_count += 1
-        else:
-            discovered_at = now
-            new_count += 1
-
-        conn.execute(
-            """
-            INSERT INTO topas_catalog (
-                tour_code, tour_name, url, country, duration_days,
-                from_price_dkk, audience_segment,
-                discovered_at, last_seen_at, has_competitor_mapping
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-            """,
-            (
-                tour_code,
-                t.get("tour_name"),
-                url,
-                t.get("country"),
-                t.get("duration_days"),
-                t.get("from_price_dkk"),
-                t.get("audience_segment"),
-                discovered_at,
-                now,
-                has_mapping,
-            ),
-        )
+            conn.execute(
+                """
+                INSERT INTO topas_catalog (
+                    tour_code, tour_name, url, country, duration_days,
+                    from_price_dkk, audience_segment,
+                    discovered_at, last_seen_at, has_competitor_mapping
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                (
+                    tour_code,
+                    t.get("tour_name"),
+                    url,
+                    t.get("country"),
+                    t.get("duration_days"),
+                    t.get("from_price_dkk"),
+                    t.get("audience_segment"),
+                    discovered_at,
+                    now,
+                    has_mapping,
+                ),
+            )
+    except Exception:
+        # DELETE+inserts er én transaktion — rul tilbage så kataloget står
+        # urørt og forbindelsen ikke efterlades i aborted state.
+        conn.rollback()
+        raise
 
     conn.commit()
     removed_count = existing_count - updated_count

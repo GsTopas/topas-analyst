@@ -205,23 +205,38 @@ with tab_add:
 
 conn = connect()
 
-# Auto-sync has_competitor_mapping mod approved_competitor_targets ved hver
-# page-load. Tidligere blev kolonnen kun opdateret ved katalog-refresh, så den
-# blev stale når reviewer godkendte nye konkurrenter. Cheap query (~10ms).
-try:
-    conn.execute(
-        """
-        UPDATE topas_catalog tc
-        SET has_competitor_mapping = CASE
-          WHEN EXISTS (
-            SELECT 1 FROM approved_competitor_targets a
-            WHERE a.topas_tour_code = tc.tour_code
-          ) THEN 1 ELSE 0 END
-        """
-    )
-    conn.commit()
-except Exception:
-    pass  # silent — bare vis det vi har
+
+# Auto-sync has_competitor_mapping mod approved_competitor_targets. Cached
+# 60s: tidligere kørte UPDATE'en ved HVER rerun — dvs. én skrive-transaktion
+# pr. tastetryk i søgefeltet. 60s er friskt nok til review-flowet.
+@st.cache_data(ttl=60, show_spinner=False)
+def _sync_mapping_flags() -> bool:
+    _c = connect()
+    try:
+        _c.execute(
+            """
+            UPDATE topas_catalog tc
+            SET has_competitor_mapping = CASE
+              WHEN EXISTS (
+                SELECT 1 FROM approved_competitor_targets a
+                WHERE a.topas_tour_code = tc.tour_code
+              ) THEN 1 ELSE 0 END
+            """
+        )
+        _c.commit()
+        return True
+    except Exception:
+        # Rollback så forbindelsen ikke står i aborted transaction — resten
+        # af siden læser på samme delte forbindelse.
+        try:
+            _c.rollback()
+        except Exception:
+            pass
+        return False
+
+
+if not _sync_mapping_flags():
+    st.caption("⚠ Kunne ikke synkronisere konkurrent-markeringer — viser seneste kendte.")
 
 catalog_rows = fetch_topas_catalog(conn)
 

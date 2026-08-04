@@ -20,14 +20,24 @@ def insert_rates(
     stay_date: date,
     rooms: list[dict],
     currency: str,
+    sold_out: bool,
 ) -> int:
     """Indsæt snapshot-rækker for én nat. Returnerer antal rækker.
 
     rooms: [{room_name, price, availability_status}, ...] fra extraction.
-    En udsolgt nat (rooms=[] men sold_out=True hos kalderen) indsættes som
-    én række med room_name=NULL, price_dkk=NULL, status='Udsolgt' — så
-    kalenderen kan skelne 'udsolgt' fra 'ikke scrapet'.
+    En udsolgt nat (rooms=[] OG sold_out=True) indsættes som én række med
+    room_name=NULL, price_dkk=NULL, status='Udsolgt' — så kalenderen kan
+    skelne 'udsolgt' fra 'ikke scrapet'.
+
+    sold_out er EKSPLICIT: en tom rooms-liste uden engine-bekræftet udsolgt
+    (fx hvis validering frasorterede alle rækker) må aldrig blive til en
+    falsk Udsolgt-række — det afvises med ValueError.
     """
+    if not rooms and not sold_out:
+        raise ValueError(
+            f"{hotel_key} {stay_date.isoformat()}: 0 rooms uden eksplicit "
+            "sold_out — nægter at skrive falsk Udsolgt-række"
+        )
     try:
         if not rooms:
             conn.execute(

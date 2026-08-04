@@ -1,11 +1,12 @@
 """
-CLI-runner: scrape et dato-vindue for et hotel og gem i Supabase.
+Hotel-rate scrape: parallel motor + CLI.
 
     python -m hotel_rates.run --hotel hotel-arctic --start 2026-07-20 --nights 5
 
-Kører nætterne sekventielt (skånsomt mod booking-engines — 1 request pr.
-nat med Firecrawl imellem). Parallelisering kan tilføjes som i
-topas_scraper.runner når vinduet vokser til 60-90 dage.
+run_rate_scrape_many() er den ENESTE scrape-motor — bruges af både
+Streamlit-sidens knap (on_progress → st.status) og CLI'en her. Kører op
+til 5 nætter parallelt (Firecrawl hobby-grænsen) med ét +6s-retry pr.
+render-flaket nat.
 """
 from __future__ import annotations
 
@@ -116,6 +117,7 @@ def run_rate_scrape_many(
         with db_lock:
             rows = insert_rates(
                 conn, run_id, hotel.key, night, result.rooms, result.currency,
+                sold_out=result.sold_out,
             )
         bookable = [
             r["price"] for r in result.rooms
@@ -144,59 +146,28 @@ def run_rate_scrape_many(
     return run_id
 
 
-def run_rate_scrape(hotel_key: str, start: date, nights: int) -> str:
-    """Scrape `nights` nætter fra `start` og gem snapshots. Returnerer run_id."""
-    hotel = HOTELS.get(hotel_key)
-    if hotel is None:
-        raise ValueError(f"Ukendt hotel-key {hotel_key!r}. Kendte: {sorted(HOTELS)}")
-    if not hotel.enabled:
-        raise ValueError(f"{hotel.name} er ikke aktiveret endnu: {hotel.notes}")
-
-    client = FirecrawlClient()
-    conn = connect()
-    run_id = uuid.uuid4().hex[:12]
-    print(f"Run {run_id} — {hotel.name} · {nights} nætter fra {start.isoformat()}")
-
-    ok = 0
-    for i in range(nights):
-        night = start + timedelta(days=i)
-        result = scrape_night(client, hotel, night)
-        if not result.success:
-            print(f"  {night.isoformat()}  ✗ {result.error}")
-            continue
-        rows = insert_rates(
-            conn, run_id, hotel.key, night, result.rooms, result.currency,
-        )
-        ok += 1
-        # Kun bookbare værelser tæller som pris — engines viser ofte udsolgte
-        # værelser MED pris + 'Sold Out'-badge (BW, BookYourStay gør begge).
-        bookable = [r["price"] for r in result.rooms if r["availability_status"] != "Udsolgt"]
-        if bookable:
-            print(
-                f"  {night.isoformat()}  ✓ {rows} offers · "
-                f"billigste {min(bookable)} {result.currency}"
-            )
-        else:
-            print(f"  {night.isoformat()}  UDSOLGT ({rows} værelser, alle optaget)")
-
-    print(f"\n{ok}/{nights} nætter gemt. Benchmark (billigste pr. nat):")
-    for row in fetch_nightly_min(conn, hotel.key, run_id):
-        price = row["min_price_dkk"]
-        label = f"{price} DKK" if price is not None else "UDSOLGT"
-        print(f"  {row['stay_date']}  {label}  ({row['offers']} offers)")
-
-    conn._conn.close()  # scripts lukker eksplicit (PgConnection.close er no-op)
-    return run_id
-
-
 def main() -> int:
-    parser = argparse.ArgumentParser(description="Hotel-rate scrape (pilot)")
+    """CLI: samme motor som Streamlit-knappen (run_rate_scrape_many) —
+    tidligere havde CLI'en sin egen sekventielle kopi UDEN retry-logikken,
+    så manuel kørsel fik flere render-flake-huller end knappen."""
+    parser = argparse.ArgumentParser(description="Hotel-rate scrape")
     parser.add_argument("--hotel", required=True, help="fx hotel-arctic")
     parser.add_argument("--start", required=True, help="ISO-dato, fx 2026-07-20")
     parser.add_argument("--nights", type=int, default=5)
     args = parser.parse_args()
 
-    run_rate_scrape(args.hotel, date.fromisoformat(args.start), args.nights)
+    run_id = run_rate_scrape_many(
+        [args.hotel], date.fromisoformat(args.start), args.nights,
+        on_progress=print,
+    )
+
+    print("\nBenchmark (billigste bookbare pr. nat):")
+    conn = connect()
+    for row in fetch_nightly_min(conn, args.hotel, run_id):
+        price = row["min_price_dkk"]
+        label = f"{price} DKK" if price is not None else "UDSOLGT"
+        print(f"  {row['stay_date']}  {label}  ({row['offers']} offers)")
+    conn._conn.close()  # CLI lukker eksplicit (PgConnection.close er no-op)
     return 0
 
 

@@ -7,6 +7,7 @@ og Best Western, der sandsynligvis kræver screenshot-fallback.
 """
 from __future__ import annotations
 
+import re
 from datetime import date, timedelta
 
 from topas_scraper.client import FirecrawlClient
@@ -75,6 +76,25 @@ def scrape_night(
     rooms = extracted.get("rooms") or []
     sold_out = bool(extracted.get("sold_out"))
     currency = extracted.get("currency") or "DKK"
+
+    # Dato-kanariefugl: arrive_offset_days er en statisk kompensation for
+    # BookYourStay's UTC-forskydning. Hvis engine'en en dag retter sin bug,
+    # ville alle priser stille forskydes én dag. Schemaet udtrækker derfor
+    # den VISTE ankomstdato (aldrig URL'ens), og vi fejler natten ved mismatch
+    # frem for at gemme forskudte data.
+    shown = extracted.get("arrival_date_shown")
+    if shown:
+        shown_iso = str(shown).strip()[:10]
+        if re.fullmatch(r"\d{4}-\d{2}-\d{2}", shown_iso) and shown_iso != stay_date.isoformat():
+            return NightResult(
+                stay_date,
+                success=False,
+                error=(
+                    f"dato-kanariefugl: siden viser ankomst {shown_iso}, "
+                    f"forventede {stay_date.isoformat()} — tjek "
+                    f"arrive_offset_days for {hotel.key}"
+                ),
+            )
 
     # Valider room-rækker defensivt — LLM-output er extern data.
     clean: list[dict] = []

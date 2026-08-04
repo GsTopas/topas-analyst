@@ -96,7 +96,12 @@ def compute_status_change(snapshots):
 
     def cat(s):
         sl = (s or "").strip().lower()
-        if sl in ("aaben", "ledig", "garanteret"):
+        # Garanteret har sin EGEN kategori: den vigtigste overgang overhovedet
+        # (Åben → Garanteret = afgang sikret) var usynlig da begge lå i
+        # 'selling' og compute_status_change kun reagerer på kategori-skift.
+        if "garant" in sl:
+            return "guaranteed"
+        if sl in ("aaben", "ledig"):
             return "selling"
         if sl == "faa pladser":
             return "late_selling"

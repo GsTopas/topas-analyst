@@ -274,6 +274,25 @@ def replace_departures(
     return len(deps)
 
 
+def touch_departures_run(conn: Connection, operator: str, tour_slug: str, run_id: str) -> int:
+    """Markér en turs eksisterende departure-rækker som set i dette run.
+
+    Bruges af runner'ens degraded-scrape-branch: rækkerne beholdes, men
+    export.py regner kun rækker med det AKTUELLE run-id som aktive — uden
+    denne touch ville de bevarede afgange fremstå arkiverede.
+    """
+    try:
+        cur = conn.execute(
+            "UPDATE departures SET last_seen_run = ? WHERE operator = ? AND tour_slug = ?",
+            (run_id, operator, tour_slug),
+        )
+        conn.commit()
+        return cur.rowcount
+    except Exception:
+        conn.rollback()
+        raise
+
+
 def latest_run_id(conn: Connection) -> Optional[str]:
     row = conn.execute("SELECT run_id FROM scraper_runs ORDER BY started_at DESC LIMIT 1").fetchone()
     return row["run_id"] if row else None

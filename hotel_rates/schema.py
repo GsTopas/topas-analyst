@@ -19,6 +19,18 @@ RATE_EXTRACTION_SCHEMA: dict = {
                 "'DKK 2,690' means currency='DKK'. If no prices visible, null."
             ),
         },
+        "arrival_date_shown": {
+            "type": ["string", "null"],
+            "description": (
+                "The check-in/arrival date the page VISIBLY DISPLAYS for this "
+                "search, converted to ISO YYYY-MM-DD (e.g. 'Arrival: September "
+                "15, 2026' → '2026-09-15', 'Jul 22' with the year from context "
+                "→ '2026-07-22'). CRITICAL: read it from the page's rendered "
+                "text/labels ONLY — NEVER from the URL or link parameters (the "
+                "URL may deliberately contain a different date). If no arrival "
+                "date is visibly displayed on the page, return null."
+            ),
+        },
         "sold_out": {
             "type": "boolean",
             "description": (

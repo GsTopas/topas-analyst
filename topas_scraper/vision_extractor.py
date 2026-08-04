@@ -147,23 +147,25 @@ class VisionExtractor:
         self._model = model
         self._firecrawl = firecrawl_client
 
-    def extract(self, url: str, scrape_overrides: Optional[dict] = None) -> list[dict]:
+    def extract(
+        self, url: str, scrape_overrides: Optional[dict] = None
+    ) -> tuple[list[dict], Optional[int]]:
         """Capture a screenshot of url and ask Claude vision to extract departures.
 
-        Returns list of dicts with start_date, price_dkk, availability_status.
-        Returns [] if no departures could be extracted (no error).
+        Returns (departures, tour_duration_days). departures er [] hvis intet
+        kunne udtrækkes (ikke en fejl); duration er None hvis ikke fundet.
 
-        Side-effect: gemmer extracted tour_duration_days på self.last_tour_duration_days
-        så caller (runner.py) kan læse det og opdatere tour_dict["duration_days"].
+        Returnerer duration som værdi frem for at gemme den på self —
+        instansen deles mellem worker-threads i runner.py, og delt mutable
+        tilstand kunne lande én operatørs varighed på en anden operatørs tur.
         """
-        self.last_tour_duration_days: Optional[int] = None
         screenshot_b64 = self._capture_screenshot(url, scrape_overrides)
         if not screenshot_b64:
-            return []
+            return [], None
 
         raw = self._call_claude_vision(screenshot_b64)
         if not raw:
-            return []
+            return [], None
 
         return self._parse_response(raw)
 
@@ -259,13 +261,13 @@ class VisionExtractor:
         match = re.search(r"\{[\s\S]*\}", cleaned)
         if not match:
             log.warning("vision: no JSON found in response: %s", raw[:200])
-            return []
+            return [], None
 
         try:
             data = json.loads(match.group(0))
         except json.JSONDecodeError:
             log.exception("vision: JSON parse error. Raw: %s", raw[:200])
-            return []
+            return [], None
 
         # Gem tour-level duration så caller kan opdatere tour_dict.
         #
@@ -274,10 +276,11 @@ class VisionExtractor:
         # selv lave "+1" på nætter-tal, så vi flyttede arithmetikken ud af prompten.
         # Bagudkompat: ældre prompts returnerede tour_duration_days direkte;
         # respekter det hvis det stadig findes.
+        duration: Optional[int] = None
         legacy_days = data.get("tour_duration_days")
         try:
             if legacy_days is not None and int(legacy_days) > 0:
-                self.last_tour_duration_days = int(legacy_days)
+                duration = int(legacy_days)
         except (TypeError, ValueError):
             pass
 
@@ -293,19 +296,19 @@ class VisionExtractor:
                 #   uge/week      → ×7
                 #   uger/weeks    → ×7
                 if unit in ("nætter", "nights", "natter"):
-                    self.last_tour_duration_days = n + 1
+                    duration = n + 1
                 elif unit in ("dage", "days"):
-                    self.last_tour_duration_days = n
+                    duration = n
                 elif unit in ("uge", "week"):
-                    self.last_tour_duration_days = n * 7
+                    duration = n * 7
                 elif unit in ("uger", "weeks"):
-                    self.last_tour_duration_days = n * 7
+                    duration = n * 7
         except (TypeError, ValueError):
             pass
 
         raw_departures = data.get("departures", [])
         if not isinstance(raw_departures, list):
-            return []
+            return [], duration
 
         # Convert to standard departure dict format used by the rest of the system.
         # Accepterer null-pris for ikke-bookbare statuses (Udsolgt, Afventer pris) —
@@ -342,7 +345,7 @@ class VisionExtractor:
             })
 
         result.sort(key=lambda x: x["start_date"])
-        return result
+        return result, duration
 
     @staticmethod
     def _normalize_date(value) -> Optional[str]:

@@ -31,7 +31,7 @@ from .client import FirecrawlClient
 from .config import TARGETS, DEFAULT_DB_PATH, TourTarget, load_active_targets
 from .db import (
     connect, start_run, finish_run, upsert_tour, replace_departures,
-    fetch_departures,
+    fetch_departures, touch_departures_run,
 )
 from .export import export
 from .extraction_schema import TOUR_EXTRACTION_SCHEMA
@@ -196,14 +196,22 @@ def run_scrape(
                 else:
                     emit(f"  ↳ Tier 1 returnerede 0 afgange — falder tilbage til Tier 3 (vision)")
                 try:
-                    vision_deps = vision.extract(target.url, target.scrape_overrides)
+                    # extract() returnerer (deps, duration) — duration som
+                    # returværdi, ikke instans-tilstand: VisionExtractor deles
+                    # mellem worker-threads.
+                    vision_deps, vision_duration = vision.extract(
+                        target.url, target.scrape_overrides
+                    )
 
-                    vision_duration = getattr(vision, "last_tour_duration_days", None)
                     if vision_duration and not tour_dict.get("duration_days"):
                         tour_dict["duration_days"] = vision_duration
                         emit(f"  ↳ Tier 3: tour-duration sat til {vision_duration} dage")
 
                     if vision_deps:
+                        # had_t1 SKAL fanges før merge — efter `departures = merged`
+                        # er listen aldrig tom, så tier-label og note baseret på
+                        # `not departures` var altid forkerte.
+                        had_t1 = bool(departures)
                         existing_dates = {d["start_date"] for d in departures}
                         merged = list(departures)
                         added = 0
@@ -213,10 +221,10 @@ def run_scrape(
                                 existing_dates.add(vd["start_date"])
                                 added += 1
                         merged.sort(key=lambda d: d["start_date"])
-                        if added > 0 or not departures:
+                        if added > 0 or not had_t1:
                             departures = merged
-                            tier_used = "T3" if not departures else "T1+T3"
-                            if not departures:
+                            tier_used = "T1+T3" if had_t1 else "T3"
+                            if not had_t1:
                                 tour_dict["eligibility_notes"] = (
                                     f"Extracted via Tier 3 vision (Firecrawl JSON returned 0). "
                                     f"{len(vision_deps)} departures recovered."
@@ -274,6 +282,12 @@ def run_scrape(
                 if degraded:
                     emit(f"  ↳ ⚠ degraded scrape: {degraded_reason} — behold eksisterende DB-rækker")
                     dep_count = existing_count
+                    # KRITISK: upsert_tour har allerede sat tours.last_seen_run
+                    # til det nye run. Uden touch her beholder de bevarede
+                    # departure-rækker det GAMLE run-id, og export regner dem
+                    # som arkiverede → turen fremstår tom (det stik modsatte
+                    # af hensigten med degraded-beskyttelsen).
+                    touch_departures_run(conn, target.operator, tour_dict["tour_slug"], run_id)
                 else:
                     dep_count = replace_departures(conn, target.operator, tour_dict["tour_slug"], departures, run_id)
 

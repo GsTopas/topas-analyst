@@ -28,7 +28,7 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 from typing import Callable, Optional
 
 from .client import FirecrawlClient
-from .config import TARGETS, DEFAULT_DB_PATH, TourTarget, load_active_targets
+from .config import DEFAULT_DB_PATH, TourTarget, load_active_targets
 from .db import (
     connect, start_run, finish_run, upsert_tour, replace_departures,
     fetch_departures, touch_departures_run,

@@ -8,8 +8,9 @@ The parser_key field on TourTarget is preserved as a forward-compatibility
 hook in case future operators need custom pre/post-processing. For v0.8,
 every key maps to generic_ai.parse.
 
-The legacy operator-specific parser files (topas.py, smilrejser.py, etc.)
-remain in the repository for reference but are no longer imported here.
+De 8 legacy regex-parsere (topas.py, smilrejser.py, m.fl.) blev slettet i
+oprydningen 2026-08 — de var døde siden v0.8 og findes i git-historikken
+hvis der nogensinde bliver brug for reference.
 """
 
 from . import generic_ai

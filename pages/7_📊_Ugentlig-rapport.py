@@ -46,35 +46,10 @@ st.caption(
 # ved gentagne page-views.
 # ---------------------------------------------------------------------------
 
-JSON_PATH = Path(tempfile.gettempdir()) / "topas_dashboard.json"
-
-
-@st.cache_data(ttl=600)
-def _load_dashboard() -> Optional[dict]:
-    """Generér dashboard-payload fra Supabase. Cached 10 min for hurtig nav."""
-    try:
-        from topas_scraper.export import export as _export  # noqa: PLC0415
-        _export(output=JSON_PATH)
-        return json.loads(JSON_PATH.read_text(encoding="utf-8"))
-    except Exception as exc:  # noqa: BLE001
-        st.error(
-            f"⚠ Export fra Supabase fejlede ({type(exc).__name__}). "
-            "Falder tilbage til committed `data/dashboard.json` (kan være gammel). "
-            "Tjek server-logs for detaljer."
-        )
-        # Vis kun fuld trace lokalt — kan lække DSN-fragmenter i prod.
-        if os.getenv("APP_DEBUG"):
-            import traceback  # noqa: PLC0415
-            with st.expander("Stack trace (debug)", expanded=False):
-                st.code(traceback.format_exc())
-
-        fallback = Path("data/dashboard.json")
-        if fallback.exists():
-            try:
-                return json.loads(fallback.read_text(encoding="utf-8"))
-            except (json.JSONDecodeError, OSError):
-                return None
-        return None
+# Delt loader i topas_scraper.ui — samme cache som Tour-detalje, så en
+# scrape dér invaliderer også rapporten (før havde siderne hver sin cache
+# og delte temp-fil = race + op til 10 min stale rapport efter scrape).
+from topas_scraper.ui import load_dashboard as _load_dashboard  # noqa: E402
 
 
 data = _load_dashboard()
@@ -371,7 +346,7 @@ if price_changes:
             }
             for p in price_drops
         ])
-        st.dataframe(df_drops, use_container_width=True, hide_index=True)
+        st.dataframe(df_drops, width="stretch", hide_index=True)
 
     if price_rises:
         st.markdown(f"## 🔺 Pris-stigninger ({len(price_rises)})")
@@ -389,7 +364,7 @@ if price_changes:
             }
             for p in price_rises
         ])
-        st.dataframe(df_rises, use_container_width=True, hide_index=True)
+        st.dataframe(df_rises, width="stretch", hide_index=True)
 
     st.divider()
 
@@ -418,7 +393,7 @@ if new_departures:
         }
         for n in sorted(new_departures, key=lambda x: x.get("first_seen", ""), reverse=True)
     ])
-    st.dataframe(df_new, use_container_width=True, hide_index=True)
+    st.dataframe(df_new, width="stretch", hide_index=True)
 
     st.divider()
 

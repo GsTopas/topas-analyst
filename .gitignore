@@ -14,12 +14,11 @@ env/
 *.egg-info/
 .pytest_cache/
 
-# Data — DB stays local only, but dashboard.json is committed by the scraper
-# (and consumed by the dashboard via fetch())
+# Data — alt datalag bor i Supabase; intet committes
 data/*.db
 data/raw/
+data/dashboard.json
 !data/.gitkeep
-!data/dashboard.json
 
 # IDE
 .vscode/
@@ -32,3 +31,12 @@ data/raw/
 
 # Local sync-state (forecast sync-log)
 .sync_state/
+
+# Claude Code — worktrees, lokale settings, launch-config (aldrig committes;
+# indeholder maskinspecifikke stier og op til flere MB embedded git-repos)
+.claude/
+
+# Lokale backups + debug-artefakter
+*.local-backup
+debug_*.png
+debug_*.txt

@@ -431,7 +431,7 @@ def _render_detail_view(df_in: pd.DataFrame, month_nums: list[int]) -> None:
     styled = table.style.apply(_style, axis=1)
     _row_h, _header_h = 32, 70
     _target_h = min(900, _header_h + _row_h * (len(table) + 1))
-    st.dataframe(styled, use_container_width=True, hide_index=True, height=_target_h)
+    st.dataframe(styled, width="stretch", hide_index=True, height=_target_h)
 
 
 def _render_summary_view(df_in: pd.DataFrame, month_nums: list[int]) -> None:
@@ -533,7 +533,7 @@ def _render_summary_view(df_in: pd.DataFrame, month_nums: list[int]) -> None:
                                 .map(_month_col, subset=["Måned"]))
     _row_h = 35
     _target_h = min(550, 60 + _row_h * len(display_df))
-    st.dataframe(styled, use_container_width=True, hide_index=True, height=_target_h)
+    st.dataframe(styled, width="stretch", hide_index=True, height=_target_h)
 
     # === YTD-bokse under tabellen ===
     st.markdown("###### YTD (akkumuleret over valgte måneder)")
@@ -650,7 +650,7 @@ def _render_comparison_view(df_in: pd.DataFrame, month_nums: list[int]) -> None:
         styled = styled.map(_color_cell_month, subset=month_value_cols)
     if "YTD" in pivot.columns:
         styled = styled.map(_color_cell_ytd, subset=["YTD"])
-    st.dataframe(styled, use_container_width=True)
+    st.dataframe(styled, width="stretch")
 
 
 # === Tabs ===

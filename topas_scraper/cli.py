@@ -28,14 +28,12 @@ if hasattr(sys.stdout, "reconfigure"):
 
 from dotenv import load_dotenv
 
-from .client import FirecrawlClient
-from .config import TARGETS, DEFAULT_DB_PATH
+from .config import DEFAULT_DB_PATH
 from .db import (
-    connect, start_run, finish_run, upsert_tour, replace_departures,
+    connect,
     latest_run_id, previous_run_id, fetch_tours, fetch_departures, fetch_snapshot_for_run,
 )
 from .export import export
-from .parsers import PARSERS
 from .runner import run_scrape_all, run_scrape_for_tour
 
 

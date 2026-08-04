@@ -78,14 +78,17 @@ st.markdown("### Værktøjet")
 
 st.markdown(
     """
-Tre sider — vælg i sidebaren:
+Vælg side i sidebaren:
 
-- **📊 Tour-overblik** — alle Topas-tours med nærmeste konkurrent, spænd, og flag
 - **🔍 Tour-detalje** — dyk ned i én tour, sammenlign mod alle konkurrenter, kør **live scrape**
-- **🏢 Konkurrent-overblik** — alle konkurrenter med portefølje-overlap og placering
+- **📋 Topas-katalog** — Topas's egne fællesrejse-produkter
+- **📋 Review-kandidater / ✅ Godkendte-konkurrenter** — screening-flowet for nye konkurrenter
+- **📊 Ugentlig rapport** — pris-/status-ændringer siden sidst
+- **📊 Turregnskab** — forecast-tal pr. tur
+- **🏨 Hotel-benchmark** — Ilulissat-hotellernes natpriser pr. kalenderdag
 
-Værktøjet bygger på den methodologi der ligger i `methodology.md` og `taxonomy.md`. Sammenligninger
-er kun gyldige inden for `tour_format = Fællesrejse` — segmenter som 30-50 år, Individuelle, og
+Klassifikations-reglerne ligger i `taxonomy.md`. Sammenligninger er kun gyldige
+inden for `tour_format = Fællesrejse` — segmenter som 30-50 år, Individuelle og
 Privat gruppe er ekskluderet.
 """
 )

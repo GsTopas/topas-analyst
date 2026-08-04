@@ -50,41 +50,10 @@ st.markdown("# 🔍 Tour-detalje")
 # så side-navigation ikke forsinkes; den bliver invalidatet automatisk
 # efter en scrape (eller manuelt via R-tasten).
 # ---------------------------------------------------------------------------
-import tempfile
-
-JSON_PATH = Path(tempfile.gettempdir()) / "topas_dashboard.json"
-
-
-@st.cache_data(ttl=600)
-def load_data() -> Optional[dict]:
-    """Generér dashboard-payload fra Supabase. Cached 10 min for hurtig nav."""
-    try:
-        from topas_scraper.export import export as _export
-        _export(output=JSON_PATH)
-        return json.loads(JSON_PATH.read_text(encoding="utf-8"))
-    except Exception as exc:  # noqa: BLE001
-        # Vis fejlen eksplicit i UI'et — den gamle silent-fallback skjulte
-        # at appen læste forældede data fra committed dashboard.json.
-        st.error(
-            f"⚠ Export fra Supabase fejlede: `{type(exc).__name__}: {exc}`\n\n"
-            "Falder tilbage til committed `data/dashboard.json` som er en gammel "
-            "snapshot. Nye ture (fx FRCL) mangler. Send fejl-tracen til debugging."
-        )
-        # Vis kun fuld trace lokalt (APP_DEBUG=1) — i prod kan tracen indeholde
-        # DSN-fragmenter eller credentials hvis exception-strengen lækker dem.
-        if os.getenv("APP_DEBUG"):
-            import traceback  # noqa: PLC0415
-            with st.expander("Stack trace (debug)", expanded=False):
-                st.code(traceback.format_exc())
-
-        # Fall back til committed dashboard.json så app ikke crasher
-        fallback = Path("data/dashboard.json")
-        if fallback.exists():
-            try:
-                return json.loads(fallback.read_text(encoding="utf-8"))
-            except (json.JSONDecodeError, OSError):
-                return None
-        return None
+# Delt loader i topas_scraper.ui — én cache + én temp-fil for ALLE sider
+# (før: 2 kopier med hver sin cache og samme delte temp-fil = race +
+# stale data på Ugentlig-rapport efter scrape herfra).
+from topas_scraper.ui import load_dashboard as load_data  # noqa: E402
 
 
 data = load_data()
@@ -447,7 +416,7 @@ with col_scrape_one:
     scrape_one_clicked = st.button(
         "🔄 Hent konkurrenternes afgange + detaljer" if is_configured
         else "🔄 Ingen konkurrenter tilknyttet",
-        use_container_width=True,
+        width="stretch",
         type="primary",
         disabled=not is_configured,
         help=(
@@ -1057,7 +1026,7 @@ with col_topas:
     } for d in sorted(topas_deps, key=lambda x: x["startDate"])]
     st.dataframe(
         pd.DataFrame(topas_rows),
-        use_container_width=True,
+        width="stretch",
         hide_index=True,
         column_config={"Pris": st.column_config.NumberColumn(format="%d kr.")},
     )
@@ -1082,7 +1051,7 @@ with col_comp:
         } for d in sorted(comp_deps_view, key=lambda x: x["startDate"])]
         st.dataframe(
             pd.DataFrame(comp_rows),
-            use_container_width=True,
+            width="stretch",
             hide_index=True,
             column_config={"Pris": st.column_config.NumberColumn(format="%d kr.")},
         )
@@ -1113,7 +1082,7 @@ with col_comp:
             r.pop("_sort", None)
         st.dataframe(
             pd.DataFrame(all_market_rows),
-            use_container_width=True,
+            width="stretch",
             hide_index=True,
             column_config={"Pris": st.column_config.NumberColumn(format="%d kr.")},
         )

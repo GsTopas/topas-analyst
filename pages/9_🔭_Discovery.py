@@ -422,7 +422,7 @@ if len(saved_runs) > 1:
             with cols[i % len(cols)]:
                 short_age = _age_str_from_dt(dt).replace(" siden", "")
                 btn_label = f"{display}\n({short_age})"
-                if st.button(btn_label, key=f"load_{slug}", use_container_width=True):
+                if st.button(btn_label, key=f"load_{slug}", width="stretch"):
                     restored = _load_run_by_slug(slug)
                     if restored:
                         st.session_state["discovery_result"] = restored
@@ -443,7 +443,7 @@ if len(saved_runs) > 1:
                             st.session_state["_pending_custom_url"] = saved_homepage
                         st.rerun()
 
-run_clicked = st.button("🔭 Kør discovery", type="primary", use_container_width=True)
+run_clicked = st.button("🔭 Kør discovery", type="primary", width="stretch")
 
 if run_clicked:
     if not op_meta.get("homepage"):
@@ -642,7 +642,7 @@ if res_meta and res_meta["result"]:
     styled = df.style.map(_color_score, subset=["Score"])
     st.dataframe(
         styled,
-        use_container_width=True,
+        width="stretch",
         hide_index=True,
         height=600,
         column_config={
@@ -709,7 +709,7 @@ if res_meta and res_meta["result"]:
                         "\n".join(f"  • {r}" for r in selected_gap.rejected_similar_reasons[:5])
                     )
             with c2:
-                if st.button("✓ Godkend som lead", type="primary", use_container_width=True):
+                if st.button("✓ Godkend som lead", type="primary", width="stretch"):
                     try:
                         from topas_scraper._pg_conn import connect as pg_connect
                         from datetime import datetime, timezone

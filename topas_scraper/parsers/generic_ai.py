@@ -179,18 +179,22 @@ def _merge_range_duplicates(departures: list[dict]) -> list[dict]:
     keep: list[dict] = []
     for dep in departures:
         # Hvis denne afgangs start_date er end_date på en anden afgang med
-        # samme pris og status → drop som duplikat
+        # samme pris og status → drop som duplikat. MEN kun hvis afgangen
+        # IKKE har sin egen end_date: ægte uge-efter-uge-afgange på range-
+        # sites (A: 14.-21., B: 21.-28. til samme pris) må ikke slettes —
+        # duplikat-mønstret er netop et nøgent endepunkt uden egen range.
         is_duplicate = False
-        for ref in departures:
-            if ref is dep:
-                continue
-            if (
-                ref.get("end_date") == dep["start_date"]
-                and ref.get("price_dkk") == dep.get("price_dkk")
-                and ref.get("availability_status") == dep.get("availability_status")
-            ):
-                is_duplicate = True
-                break
+        if not dep.get("end_date"):
+            for ref in departures:
+                if ref is dep:
+                    continue
+                if (
+                    ref.get("end_date") == dep["start_date"]
+                    and ref.get("price_dkk") == dep.get("price_dkk")
+                    and ref.get("availability_status") == dep.get("availability_status")
+                ):
+                    is_duplicate = True
+                    break
         if not is_duplicate:
             keep.append(dep)
     return keep

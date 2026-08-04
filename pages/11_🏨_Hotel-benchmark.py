@@ -215,7 +215,7 @@ def _style_display_row(row: pd.Series) -> list[str]:
 
 st.dataframe(
     display.style.apply(_style_display_row, axis=1),
-    use_container_width=True,
+    width="stretch",
 )
 st.caption(
     "🟩 billigste hotel den nat · 🟥 UDSOLGT = motoren melder alt optaget · "
@@ -245,7 +245,7 @@ detail_view = pd.DataFrame({
     "Status": detail["availability_status"],
     "Observeret": pd.to_datetime(detail["observed_at"]).dt.strftime("%d.%m.%Y %H:%M"),
 })
-st.dataframe(detail_view, use_container_width=True, hide_index=True)
+st.dataframe(detail_view, width="stretch", hide_index=True)
 
 # ---------------------------------------------------------------------------
 # Hjælp
@@ -255,9 +255,9 @@ with st.expander("Sådan opdaterer du data (CLI)"):
     st.code(
         "cd C:\\Users\\gs\\Downloads\\topas-scraper\n"
         "set PYTHONIOENCODING=utf-8\n"
-        "C:\\Users\\gs\\AppData\\Local\\anaconda3\\python.exe -m hotel_rates.run "
-        "--hotel hotel-arctic --start 2026-07-20 --nights 14\n"
-        "REM gentag for: hvide-falk · hotel-icefiord · hotel-ilulissat",
+        "python -m hotel_rates.run --hotel hotel-arctic --start 2026-08-10 --nights 14\n"
+        "REM gentag for: hvide-falk · hotel-icefiord · hotel-ilulissat\n"
+        "REM (lokalt hos Gorm: brug Anaconda Prompt, eller fuld sti til anaconda3\\python.exe)",
         language="batch",
     )
     st.caption(

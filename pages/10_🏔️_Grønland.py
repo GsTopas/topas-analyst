@@ -399,7 +399,7 @@ def _render_season(season: str, tours: pd.DataFrame) -> None:
     styled = display_df.style.apply(_highlight_topas, axis=1)
     st.dataframe(
         styled,
-        use_container_width=True,
+        width="stretch",
         hide_index=True,
         column_config={
             "Link": st.column_config.LinkColumn(

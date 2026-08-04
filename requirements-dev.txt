@@ -1,0 +1,5 @@
+# Dev-only afhængigheder — installeres IKKE på Streamlit Cloud.
+#   pip install -r requirements.txt -r requirements-dev.txt
+pytest>=8.0.0
+# xlrd bruges af scripts/inspect_forecast_excel.py (gamle .xls-filer)
+xlrd>=2.0.1

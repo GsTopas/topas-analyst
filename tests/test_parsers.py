@@ -1,12 +1,14 @@
 """
-Smoke tests for parsers.
+Tests for den AKTIVE parse-pipeline (v0.8+): generic_ai (LLM-schema-extraction)
+og jysk (eneste tilbageværende dedikerede regex-parser).
 
-These verify each parser produces *some* output on representative markdown
-fixtures, doesn't crash, and respects the dataclass contract. They're not
-end-to-end integration tests against live URLs — those happen via `cli scrape`.
+Historik: den gamle suite testede 8 legacy regex-parsere der blev pensioneret
+i v0.8 og slettet i oprydningen 2026-08 — alle 7 tests fejlede desuden fordi
+de slog op i config.TARGETS, som har været tom siden targets flyttede til DB
+(load_active_targets). Fixtures konstrueres nu lokalt.
 
-To run:
-    python -m pytest tests/  -v
+Kør:
+    python -m pytest tests/ -v
 """
 
 import sys
@@ -16,50 +18,115 @@ from types import SimpleNamespace
 # Allow imports without installing the package
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from topas_scraper.parsers import topas, smilrejser, jysk, viktorsfarmor, ruby, nillesgislev
-from topas_scraper.config import TARGETS
+from topas_scraper.config import TourTarget
+from topas_scraper.parsers import PARSERS, generic_ai, jysk
 
 
-def make_scrape(markdown: str):
-    """Build a minimal stand-in for ScrapeResult."""
-    return SimpleNamespace(markdown=markdown, html=None, success=True, url="test://", title=None, status_code=200, error=None)
+def make_target(operator: str = "Testoperatør", parser_key: str = "generic_ai") -> TourTarget:
+    return TourTarget(
+        operator=operator,
+        parser_key=parser_key,
+        tour_name="Vandreferie på Madeira (test)",
+        tour_code="TEST",
+        url="https://example.com/rejser/madeira",
+        competes_with="PTMD",
+    )
 
 
-# Fixture: stripped-down markdown matching the shapes we observed during
-# manual scraping for v0.5/v0.6.
+def make_scrape(markdown: str = "", extracted: dict | None = None):
+    """Minimal stand-in for client.ScrapeResult."""
+    return SimpleNamespace(
+        markdown=markdown, html=None, success=True, url="test://",
+        title=None, status_code=200, error=None, extracted=extracted,
+    )
 
-TOPAS_FIXTURE = """
-# Majestætiske tinder og levadavandring på Madeira
-8 dage fra
-9.970 DKK
 
-#### Vælg din afgang
+# ---------------------------------------------------------------------------
+# generic_ai — LLM-schema-pipelinen (bruges af ALLE operatører undtagen Jysk)
+# ---------------------------------------------------------------------------
 
-10\\. juli 2026
-–
-17\\. juli 2026
+def test_generic_ai_basic_extraction():
+    scrape = make_scrape(extracted={
+        "tour_name": "Vandreferie på Madeira",
+        "duration_days": 8,
+        "from_price_dkk": 12995,
+        "departures": [
+            {"start_date": "2026-05-16", "price_dkk": 12995, "availability_status": "Udsolgt"},
+            {"start_date": "2026-07-29", "price_dkk": 12995, "availability_status": "Åben"},
+        ],
+    })
+    tour, deps = generic_ai.parse(scrape, make_target())
+    assert isinstance(tour, dict) and isinstance(deps, list)
+    assert tour["from_price_dkk"] == 12995
+    assert tour["duration_days"] == 8
+    assert len(deps) == 2
+    assert deps[0]["start_date"] == "2026-05-16"  # sorteret kronologisk
+    assert deps[0]["availability_status"] == "Udsolgt"
 
-Få pladser
-13.970 DKK
-[Bestil Rejse](https://www.topas.dk/pages/checkout?tripDesignator=PTMD&tripCode=PTMD2605&tripMainCategory=2)
 
-17\\. juli 2026
-–
-24\\. juli 2026
+def test_generic_ai_nights_converted_to_days():
+    # 7 nætter = 8 dage — konvertering sker i kode, ikke i LLM (CLAUDE.md-regel)
+    scrape = make_scrape(extracted={"duration_nights": 7, "departures": []})
+    tour, _ = generic_ai.parse(scrape, make_target())
+    assert tour["duration_days"] == 8
 
-Garanteret afgang
-13.470 DKK [Bestil Rejse](https://www.topas.dk/pages/checkout?tripDesignator=PTMD&tripCode=PTMD2606&tripMainCategory=2)
-"""
 
-SMILREJSER_FIXTURE = """
-# Vandreferie på Madeira
-Pris pr. person fra 12.995 DKK
-8 dage
+def test_generic_ai_status_normalization():
+    scrape = make_scrape(extracted={"departures": [
+        {"start_date": "2026-09-01", "price_dkk": 9999, "availability_status": "Ledig"},
+        {"start_date": "2026-09-08", "price_dkk": 9999, "availability_status": "+8 pladser"},
+        {"start_date": "2026-09-15", "price_dkk": 9999, "availability_status": "Garanteret afgang"},
+    ]})
+    _, deps = generic_ai.parse(scrape, make_target())
+    by_date = {d["start_date"]: d["availability_status"] for d in deps}
+    assert by_date["2026-09-01"] == "Åben"       # 'Ledig' → Åben
+    assert by_date["2026-09-08"] == "Åben"       # '+N pladser' er ÅBEN, ikke Få pladser
+    assert by_date["2026-09-15"] == "Garanteret"
 
-16.05.2026   8 dage   København   12.995 DKK   Udsolgt
-29.07.2026   8 dage   København   12.995 DKK   +8 pladser
-13.03.2027   8 dage   København   13.495 DKK   +8 pladser
-"""
+
+def test_generic_ai_drops_invalid_rows():
+    scrape = make_scrape(extracted={"departures": [
+        {"start_date": "16.05.2026", "price_dkk": 9999, "availability_status": "Åben"},  # ikke-ISO dato
+        {"start_date": "2026-06-01", "price_dkk": None, "availability_status": "Åben"},   # pris mangler + bookbar
+        {"start_date": "2026-06-08", "price_dkk": None, "availability_status": "Udsolgt"},  # pris-null OK for Udsolgt
+        {"start_date": "2026-06-15", "price_dkk": 11111, "availability_status": "Åben"},
+    ]})
+    _, deps = generic_ai.parse(scrape, make_target())
+    dates = [d["start_date"] for d in deps]
+    assert dates == ["2026-06-08", "2026-06-15"]
+
+
+def test_generic_ai_range_endpoint_dropped_but_backtoback_kept():
+    # Gjøa-mønstret: et nøgent endepunkt (start=ref.end_date, ingen egen
+    # end_date, samme pris+status) er et LLM-duplikat og skal droppes...
+    scrape = make_scrape(extracted={"departures": [
+        {"start_date": "2026-09-14", "end_date": "2026-09-21", "price_dkk": 15000, "availability_status": "Åben"},
+        {"start_date": "2026-09-21", "price_dkk": 15000, "availability_status": "Åben"},
+    ]})
+    _, deps = generic_ai.parse(scrape, make_target())
+    assert [d["start_date"] for d in deps] == ["2026-09-14"]
+
+    # ...men ÆGTE uge-efter-uge-afgange med egne ranges må IKKE slettes,
+    # selvom B starter hvor A slutter med samme pris (regression for
+    # _merge_range_duplicates-stramningen 2026-08).
+    scrape2 = make_scrape(extracted={"departures": [
+        {"start_date": "2026-09-14", "end_date": "2026-09-21", "price_dkk": 15000, "availability_status": "Åben"},
+        {"start_date": "2026-09-21", "end_date": "2026-09-28", "price_dkk": 15000, "availability_status": "Åben"},
+    ]})
+    _, deps2 = generic_ai.parse(scrape2, make_target())
+    assert [d["start_date"] for d in deps2] == ["2026-09-14", "2026-09-21"]
+
+
+def test_generic_ai_empty_extraction_does_not_crash():
+    for extracted in (None, {}, {"departures": None}, {"departures": "garbage"}):
+        tour, deps = generic_ai.parse(make_scrape(extracted=extracted), make_target())
+        assert isinstance(tour, dict)
+        assert deps == []
+
+
+# ---------------------------------------------------------------------------
+# jysk — dedikeret regex-parser (LLM mappede 'Ledige pladser' forkert)
+# ---------------------------------------------------------------------------
 
 JYSK_FIXTURE = """
 # Vandring langs levadaerne på Madeira
@@ -71,116 +138,9 @@ Frapris pr. pers. **Fra 13.950,-**
 | På forespørgsel | 22.08.26 - 29.08.26 | København | | Rejseleder Thomas Lyhne | 13.950,- |
 """
 
-VF_FIXTURE = """
-# Vandreferie på Madeira
-Priser fra
-13.990 kr.
-8 dages rejse
-
-## Alle planlagte afgange
-
-Dato
-
-Pris
-
-Rejseleder
-
-Status
-
-Afgang fra
-
-**15\\. okt. 26**
-
-8 dage
-
-13.990 kr.
-
-[![Lene Bach Larsen](https://www.viktorsfarmor.dk/media/abc/lene.jpg)\\
-Lene Bach Larsen](https://www.viktorsfarmor.dk/rejseledere/lene-bach-larsen)
-
-Garanteret
-
-København
-
-[Bestil](https://example.com)
-
-**6\\. apr. 27**
-
-8 dage
-
-13.990 kr.
-
-[![Hans-Jørgen Thougaard](https://www.viktorsfarmor.dk/media/xyz/hjt.jpg)\\
-Hans-Jørgen Thougaard](https://www.viktorsfarmor.dk/rejseledere/hans-jorgen-thougaard)
-
-Afventer pris
-
-København
-
-[Bestil](https://example.com)
-"""
-
-RUBY_FIXTURE = """
-# Frodige Madeira
-## Portugal | Gruppevandreferie med dansk vandreleder | Sværhedsgrad 2-3
-
-**Travel Code**
-
-VAG-053
-
-[Fra 12.998,- DKK](https://ruby-rejser.dk/vandreferie/frodige-madeira.html#)
-
-7 nætter
-
-| #### Uge 48: Startdato 21.11.2026 varighed 7 nætter | [Fra 12.998,- DKK](https://example.com) |
-| 2 personer Dobbeltværelse | 12.998,- DKK | [Bestil](https://example.com) |
-
-**Turleder:**Karin Svane
-"""
-
-NG_FIXTURE = """
-# Farverige Madeira
-Fly
-
-- **Varighed**
-
-Nye afgange på vej
-
-- **Pris fra**
-
-Nye afgange på vej
-
-8 dages rejse til Madeira med dansk rejseleder.
-"""
-
-
-def test_topas_parser():
-    target = next(t for t in TARGETS if t.operator == "Topas")
-    tour, deps = topas.parse(make_scrape(TOPAS_FIXTURE), target)
-    assert tour["operator"] == "Topas"
-    assert tour["tour_code"] == "PTMD"
-    assert tour["from_price_dkk"] == 9970
-    assert tour["duration_days"] == 8
-    assert len(deps) == 2
-    assert deps[0]["start_date"] == "2026-07-10"
-    assert deps[0]["price_dkk"] == 13970
-    assert deps[0]["availability_status"] == "Få pladser"
-    assert deps[0]["departure_code"] == "PTMD2605"
-
-
-def test_smilrejser_parser():
-    target = next(t for t in TARGETS if t.operator == "Smilrejser")
-    tour, deps = smilrejser.parse(make_scrape(SMILREJSER_FIXTURE), target)
-    assert tour["operator"] == "Smilrejser"
-    assert tour["from_price_dkk"] == 12995
-    assert len(deps) == 3
-    udsolgt = [d for d in deps if d["availability_status"] == "Udsolgt"]
-    assert len(udsolgt) == 1
-    assert udsolgt[0]["start_date"] == "2026-05-16"
-
 
 def test_jysk_parser():
-    target = next(t for t in TARGETS if t.operator == "Jysk Rejsebureau")
+    target = make_target(operator="Jysk Rejsebureau", parser_key="jysk")
     tour, deps = jysk.parse(make_scrape(JYSK_FIXTURE), target)
     assert tour["operator"] == "Jysk Rejsebureau"
     assert tour["from_price_dkk"] == 13950
@@ -189,57 +149,19 @@ def test_jysk_parser():
     assert deps[0]["availability_status"] == "På forespørgsel"
 
 
-def test_viktorsfarmor_parser():
-    target = next(t for t in TARGETS if t.operator == "Viktors Farmor")
-    tour, deps = viktorsfarmor.parse(make_scrape(VF_FIXTURE), target)
-    assert tour["operator"] == "Viktors Farmor"
-    assert tour["from_price_dkk"] == 13990
-    # Viktors Farmor extraction is the most fragile because the JS-rendered
-    # markdown shape varies. Smoke test: at least one departure should appear.
-    assert len(deps) >= 1
+def test_jysk_empty_input_does_not_crash():
+    target = make_target(operator="Jysk Rejsebureau", parser_key="jysk")
+    tour, deps = jysk.parse(make_scrape(""), target)
+    assert isinstance(tour, dict)
+    assert isinstance(deps, list)
 
 
-def test_ruby_parser():
-    target = next(t for t in TARGETS if t.operator == "Ruby Rejser")
-    tour, deps = ruby.parse(make_scrape(RUBY_FIXTURE), target)
-    assert tour["operator"] == "Ruby Rejser"
-    assert tour["tour_code"] == "VAG-053"
-    assert tour["from_price_dkk"] == 12998
-    assert tour["duration_days"] == 8       # 7 nætter + 1
-    assert len(deps) == 1
-    assert deps[0]["start_date"] == "2026-11-21"
-    assert deps[0]["price_dkk"] == 12998
-    assert deps[0]["rejseleder_name"] == "Karin Svane"
+# ---------------------------------------------------------------------------
+# Dispatch-tabellen
+# ---------------------------------------------------------------------------
 
-
-def test_nillesgislev_parser():
-    target = next(t for t in TARGETS if t.operator == "Nilles & Gislev")
-    tour, deps = nillesgislev.parse(make_scrape(NG_FIXTURE), target)
-    assert tour["operator"] == "Nilles & Gislev"
-    # Per v0.6 finding: N&G shows "Nye afgange paa vej" — must detect this
-    # and mark the tour as ineligible rather than fabricating departures.
-    assert tour["fællesrejse_eligible"] is False
-    assert "INELIGIBLE" in tour["eligibility_notes"]
-    assert len(deps) == 0
-
-
-def test_empty_input_does_not_crash():
-    """All parsers must return ([], []) shaped output rather than raising."""
-    target = next(t for t in TARGETS if t.operator == "Topas")
-    empty = make_scrape("")
-    for parser in [topas.parse, smilrejser.parse, jysk.parse, viktorsfarmor.parse, ruby.parse, nillesgislev.parse]:
-        tour, deps = parser(empty, target)
-        assert isinstance(tour, dict)
-        assert isinstance(deps, list)
-
-
-if __name__ == "__main__":
-    # Allow running without pytest: python tests/test_parsers.py
-    test_topas_parser()
-    test_smilrejser_parser()
-    test_jysk_parser()
-    test_viktorsfarmor_parser()
-    test_ruby_parser()
-    test_nillesgislev_parser()
-    test_empty_input_does_not_crash()
-    print("✓ All parser smoke tests passed.")
+def test_parsers_mapping():
+    assert PARSERS["jysk"] is jysk.parse
+    for key, fn in PARSERS.items():
+        if key != "jysk":
+            assert fn is generic_ai.parse, f"{key} skal bruge generic_ai"

@@ -89,6 +89,10 @@ Konfig: `topas_scraper/runner.py` orkestrerer; `topas_scraper/config.py` har `PA
 - **Review-kandidater** (pages/5): n8n-screening-output, godkend/afvis konkurrenter
 - **Godkendte-konkurrenter** (pages/6): Listen over approved targets
 - **Ugentlig-rapport** (pages/7): Bemærkelsesværdige ændringer, pris-fald/-stigninger, nye/fjernede afgange
+- **Turregnskab** (pages/8): Forecast-/regnskabstal pr. tur (synces fra Excel via scripts/sync_forecast.ps1)
+- **Discovery** (pages/9_🔭): Firecrawl-baseret konkurrent-discovery (kandidat-søgning)
+- **Hotel-benchmark** (pages/11_🏨): Ilulissat-hotellernes natpriser pr. kalenderdag — se hotel_rates-pakken
+- **Grønland** (pages/10): Grønlands-segmentets ture/afgange
 
 Alle pages bruger `from topas_scraper._auth import require_auth` til password-gate (kan deaktiveres ved at slette APP_PASSWORD i Streamlit secrets).
 
@@ -115,8 +119,26 @@ run_scrape_for_tour("ITTO")
 python -m topas_scraper.weekly_report --out outputs/weekly_report.md
 ```
 
+**Scrape hotel-natpriser (Ilulissat):**
+```cmd
+python -m hotel_rates.run --hotel hotel-arctic --start 2026-08-10 --nights 14
+```
+
 **Tjek hvad der ligger i Supabase:**
 Brug Supabase MCP `execute_sql` — eller SQL Editor på https://supabase.com/dashboard/project/bymurhqfcyxdhrayddoz/sql
+
+## hotel_rates (Ilulissat-hotel-benchmark)
+
+Separat package `hotel_rates/` — scraper natpriser fra 4 Ilulissat-hotellers
+booking-engines via dato-deeplinks (SynXis, BookYourStay ×2, bestwestern.dk
+med startDate/endDate). Snapshots i Supabase-tabellen `hotel_rate_snapshots`
+(én række pr. run/hotel/nat/værelse; kalenderen læser seneste run pr. nat).
+Engine-særheder (UTC-forskydning, param-navne) er dokumenteret i
+`hotel_rates/config.py`. UI: pages/11_🏨_Hotel-benchmark med scrape-knap.
+
+**VIGTIGT — ingen automatik:** Værktøjet er ikke i drift; ALLE scrapes (både
+ture og hoteller) startes manuelt. Weekly-scrape-workflowet har kun
+workflow_dispatch (cron fjernet 2026-08-03). Foreslå ikke skedulering.
 
 ## Vigtige gotchas (lært gennem tid)
 

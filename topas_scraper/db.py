@@ -200,6 +200,33 @@ def upsert_tour(conn: Connection, tour: dict, run_id: str) -> None:
     conn.commit()
 
 
+def apply_tour_overrides(conn: Connection) -> int:
+    """Re-apply manuelt verificerede klassifikationer oven paa scrape-resultater.
+
+    Scraperen overskriver tours.tour_format og tours.country ved hver upsert
+    (parserne gaetter, og default er 'Fællesrejse'). Gorms manuelle audits
+    ligger i tour_overrides og skal altid vinde. Kaldes af runner.run_scrape()
+    efter scrape-loopet, saa klassifikationerne er stabile uanset hvor ofte
+    der re-scrapes.
+
+    Returns antal opdaterede tour-rækker.
+    """
+    cur = conn.execute(
+        """
+        UPDATE tours t SET
+            tour_format = COALESCE(o.tour_format, t.tour_format),
+            country     = COALESCE(o.country, t.country)
+        FROM tour_overrides o
+        WHERE o.operator = t.operator
+          AND o.tour_slug = t.tour_slug
+          AND (   t.tour_format IS DISTINCT FROM COALESCE(o.tour_format, t.tour_format)
+               OR t.country     IS DISTINCT FROM COALESCE(o.country, t.country))
+        """
+    )
+    conn.commit()
+    return cur.rowcount if cur.rowcount is not None else 0
+
+
 def replace_departures(
     conn: Connection,
     operator: str,

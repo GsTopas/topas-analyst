@@ -1,15 +1,22 @@
 """
-Grønland-overblik — konkurrence-positionering for Topas's Grønlandsture.
+Destination-overblik — konkurrence-positionering pr. destination.
 
-Hovedformaal: hvordan ligger Topas ift. konkurrenterne paa Groenland?
+Hovedformaal: hvordan ligger Topas ift. konkurrenterne paa en given
+destination (Groenland, Italien, Spanien, ...)?
 - Antal afgange, pris-spaend, status-fordeling pr. operator pr. saeson
-- Topas's 13 Groenlandsture i context af konkurrent-udbud
+- Topas's ture i context af konkurrent-udbud
+
+Destinations-bestemmelse pr. konkurrent-tur: scrapet country-felt hvis sat,
+ellers udledt via competes_with → topas_catalog.country (Topas-tur-koden
+konkurrenten er kortlagt til). Sidste led er robust over for at scraperen
+ikke altid faar country med.
 
 Saeson-bestemmelse pr. tur via dens departure-maaneder:
 - Hoejsaeson: jun-aug (6,7,8)
 - Mellemsaeson: feb-maj + sep (2,3,4,5,9)
 - Lavsaeson: okt-jan (1,10,11,12)
-En tur kan tilhoere flere saesoner.
+En tur kan tilhoere flere saesoner. (Graenserne er kalibreret til Groenland;
+juster SEASON_MONTHS hvis en destination har markant anden saesonprofil.)
 
 Datakilde: tours + departures + topas_catalog (for Topas-ture uden tours-row).
 """
@@ -18,7 +25,7 @@ from __future__ import annotations
 import pandas as pd
 import streamlit as st
 
-st.set_page_config(page_title="Grønland · Topas", page_icon="🏔️", layout="wide")
+st.set_page_config(page_title="Destinationer · Topas", page_icon="🌍", layout="wide")
 
 # Password-gate
 from topas_scraper._auth import require_auth  # noqa: E402
@@ -56,22 +63,65 @@ def _month_to_season(m: int) -> str:
 # Data-loading
 # ---------------------------------------------------------------------------
 
-@st.cache_data(ttl=600)
-def _load_greenland_tours() -> pd.DataFrame:
-    """Hent alle Groenlandsture med departures-aggregater.
+# Stavevarianter pr. destination — scrapede country-felter er ikke
+# normaliserede (Groenland/Greenland/Grønland optraeder alle i DB).
+_COUNTRY_ALIASES: dict[str, set[str]] = {
+    "grønland": {"grønland", "groenland", "greenland"},
+    "færøerne": {"færøerne", "faeroerne", "faroe islands"},
+}
 
-    Returnerer én row pr. (operator, tour) med:
-    - tour_name, tour_format, duration_days, url
-    - antal_afgange (naeste 12 mdr)
-    - min_pris, max_pris (DKK)
-    - udsolgt/faa/garanteret/aaben counts
-    - maaneder (kommasepareret liste af unique departure-maaneder)
+
+def _aliases_for(dest: str) -> list[str]:
+    d = dest.strip().lower()
+    return sorted(_COUNTRY_ALIASES.get(d, {d}))
+
+
+@st.cache_data(ttl=600)
+def _load_destinations() -> list[tuple[str, int]]:
+    """Liste af (land, antal Topas-ture) sorteret efter antal, faldende.
+
+    Kilde: topas_catalog — destinations-vaelgeren viser kun lande hvor
+    Topas selv har ture (det er dem konkurrence-positionering giver mening for).
     """
     from topas_scraper._pg_conn import connect as pg_connect  # noqa: PLC0415
 
     conn = pg_connect()
     rows = conn.execute("""
-        WITH greenland_tours AS (
+        SELECT country AS land, COUNT(*) AS n
+        FROM topas_catalog
+        WHERE country IS NOT NULL AND country != ''
+          AND (audience_segment IS NULL OR audience_segment != 'Udgået')
+        GROUP BY country
+        ORDER BY n DESC, country
+    """).fetchall()
+    conn.close()
+    return [(r["land"], r["n"]) for r in rows]
+
+
+@st.cache_data(ttl=600)
+def _load_destination_tours(dest: str) -> pd.DataFrame:
+    """Hent alle ture paa destinationen med departures-aggregater.
+
+    Returnerer én row pr. (operator, tour) med:
+    - tour_name, tour_format, duration_days, url
+    - antal_afgange (naeste 24 mdr)
+    - min_pris, max_pris (DKK)
+    - udsolgt/faa/garanteret/aaben counts
+    - maaneder (kommasepareret liste af unique departure-maaneder)
+
+    Destination matches paa: scrapet country-felt HVIS sat, ellers landet paa
+    den Topas-tur konkurrenten er kortlagt til (competes_with →
+    topas_catalog.country). Det goer visningen robust selv naar scraperen
+    ikke faar country-feltet med.
+    """
+    from topas_scraper._pg_conn import connect as pg_connect  # noqa: PLC0415
+
+    aliases = _aliases_for(dest)
+    ph = ", ".join("?" for _ in aliases)
+
+    conn = pg_connect()
+    rows = conn.execute(f"""
+        WITH dest_tours AS (
             SELECT DISTINCT
                 t.operator,
                 t.tour_slug,
@@ -81,25 +131,17 @@ def _load_greenland_tours() -> pd.DataFrame:
                 t.from_price_dkk,
                 t.tour_format
             FROM tours t
-            -- Eksakt match paa kendte country-vaerdier (ikke wildcard-LIKE
-            -- som ogsaa fangede "Graekenland" pga greediness).
-            -- NB: literale procent-tegn escapes som dobbelt-procent fordi
-            -- psycopg2 ellers parser dem som parameter-placeholders.
-            WHERE LOWER(t.country) IN ('grønland', 'groenland', 'greenland')
-               -- Fallback: tours hvor scraper ikke extrahede 'Grønland' som
-               -- country (typisk Greenland-specialister), men competes_with
-               -- peger paa en Topas GL-kode (GLBL/GLFS/.../GLXS).
-               -- NB: begraenset til country tom eller alm. Groenland for
-               -- at undgaa falsk match paa fx Topas-koder der ogsaa starter
-               -- med GL men ikke er Groenlands-ture.
-               OR (t.competes_with IS NOT NULL
-                   AND t.competes_with LIKE 'GL%%'
-                   AND COALESCE(t.country, '') IN ('', 'Grønland', 'Greenland', 'Groenland'))
+            LEFT JOIN topas_catalog tc ON tc.tour_code = t.competes_with
+            -- Scrapet country vinder hvis sat; ellers landet fra den
+            -- Topas-tur konkurrenten er kortlagt til. Eksakt IN-match
+            -- (wildcard-LIKE fangede i sin tid "Graekenland" for Groenland).
+            WHERE LOWER(COALESCE(NULLIF(t.country, ''), tc.country, ''))
+                  IN ({ph})
         ),
         topas_extra AS (
             -- Topas-ture i topas_catalog som ikke har tours-row endnu.
             -- audience_segment='Individuel' = rejseforslag uden faste afgange
-            -- (Topas's 7 individuelle Groenlandsrejser). Andre = Faellesrejse.
+            -- (fx Topas's 7 individuelle Groenlandsrejser). Andre = Faellesrejse.
             SELECT
                 'Topas' AS operator,
                 NULL AS tour_slug,
@@ -112,7 +154,7 @@ def _load_greenland_tours() -> pd.DataFrame:
                     ELSE 'Fællesrejse'
                 END AS tour_format
             FROM topas_catalog tc
-            WHERE tc.country = 'Grønland'
+            WHERE LOWER(tc.country) IN ({ph})
               AND (tc.audience_segment IS NULL OR tc.audience_segment != 'Udgået')
               AND NOT EXISTS (
                   SELECT 1 FROM tours t
@@ -120,7 +162,7 @@ def _load_greenland_tours() -> pd.DataFrame:
               )
         ),
         all_tours AS (
-            SELECT * FROM greenland_tours
+            SELECT * FROM dest_tours
             UNION ALL
             SELECT * FROM topas_extra
         ),
@@ -164,7 +206,8 @@ def _load_greenland_tours() -> pd.DataFrame:
         LEFT JOIN dep_stats ds ON ds.operator = a.operator
                               AND COALESCE(ds.tour_slug, '') = COALESCE(a.tour_slug, '')
         ORDER BY a.operator, a.tour_name
-    """).fetchall()
+    """, (*aliases, *aliases)).fetchall()
+    conn.close()
 
     if not rows:
         return pd.DataFrame()
@@ -256,16 +299,35 @@ def _status_mix(row) -> str:
 # UI
 # ---------------------------------------------------------------------------
 
-st.markdown("# 🏔️ Grønland-overblik")
+st.markdown("# 🌍 Destination-overblik")
+
+destinations = _load_destinations()
+if not destinations:
+    st.warning("Ingen destinationer i topas_catalog.")
+    st.stop()
+
+dest = st.selectbox(
+    "Destination",
+    options=[d[0] for d in destinations],
+    format_func=lambda land: (
+        f"{land} ({dict(destinations)[land]} Topas-ture)"
+    ),
+    help="Lande hvor Topas har ture (fra topas_catalog), "
+         "sorteret efter antal ture.",
+)
+
 st.caption(
-    "Konkurrence-positionering for Topas's Grønlandsture. "
+    f"Konkurrence-positionering for Topas's ture i {dest}. "
     "🔴 Udsolgt · 🟡 Få pladser · ✅ Garanteret · ⚪ Åben — tal viser antal afgange."
 )
 
-df = _load_greenland_tours()
+df = _load_destination_tours(dest)
 
 if df.empty:
-    st.warning("Ingen Grønlandsture i databasen.")
+    st.warning(
+        f"Ingen ture fundet for {dest}. Kør Discovery (🔭-fanen) for at "
+        "finde konkurrent-ture, og godkend dem i Review-kandidater."
+    )
     st.stop()
 
 # Beregn saesoner pr. tur. For ture uden departures (typisk Topas's
@@ -327,10 +389,10 @@ non_topas_count = len(filtered[filtered["operator"] != "Topas"])
 topas_count = len(filtered[filtered["operator"] == "Topas"])
 if non_topas_count == 0 and topas_count > 0:
     st.info(
-        "💡 **Kun Topas-ture i resultat.** Konkurrent-data mangler for Grønland. "
-        "Kør Discovery (🔭-fanen) på Greenland Travel, Albatros m.fl. → "
-        "godkend Grønlands-ture som leads i Review-kandidater. "
-        "Når approved bliver de scrapet ugentligt og dukker op her."
+        f"💡 **Kun Topas-ture i resultat.** Konkurrent-data mangler for {dest}. "
+        "Kør Discovery (🔭-fanen) på relevante konkurrenter → "
+        "godkend deres ture som leads i Review-kandidater. "
+        "Når de er godkendt, kommer de med i næste scrape og dukker op her."
     )
 
 st.divider()
@@ -421,23 +483,32 @@ with st.expander("ℹ Hvordan virker denne side?"):
     st.markdown(
         """
 **Datakilde:** `tours`-tabellen + `departures` + `topas_catalog`.
-Alle ture hvor `country` matcher Grønland/Groenland/Greenland.
+
+**Destination-match:** en tur hører til destinationen hvis dens scrapede
+`country` matcher — eller, hvis feltet er tomt, hvis den er kortlagt til en
+Topas-tur (`competes_with`) i det valgte land. Så konkurrent-ture vises
+korrekt selv når scraperen ikke fik landet med.
 
 **Sæson-bestemmelse pr. tur:** baseret på `start_date`-måneder for
-departures i de næste 12 måneder.
+departures i de næste 24 måneder.
 - 🌞 Højsæson: jun-aug (6, 7, 8)
 - ❄️ Mellemsæson: feb-maj + sep (2, 3, 4, 5, 9)
 - 🌑 Lavsæson: okt-jan (1, 10, 11, 12)
 
 En tur kan tilhøre flere sæsoner (fx Trekking med afgange i både juni og juli).
+Ture uden faste afgange (Topas's individuelle rejseforslag) placeres efter
+den rejseperiode topas.dk selv anbefaler.
 
 **Topas-rows er fremhævet i gul** for visuelt at skille dem ud.
 
 **Status-tal**: antal afgange i hver kategori (udsolgt/få pladser/garanteret/åben).
 Pris-spænd viser min-max på tværs af alle afgange.
 
-**Mangler konkurrent-data?** Kør Discovery på Greenland Travel, Albatros m.fl.,
-godkend Grønland-relevante leads i Review-kandidater (pages/5). De scrapes så
-ugentligt og dukker automatisk op her.
+**Klassifikationer** (Fællesrejse/Rejs på egen hånd/Krydstogt) der er manuelt
+verificeret ligger i `tour_overrides` og overlever re-scrapes.
+
+**Mangler konkurrent-data for en destination?** Kør Discovery (🔭-fanen) på
+relevante konkurrenter, godkend leads i Review-kandidater (pages/5). De
+kommer så med i næste scrape og dukker automatisk op her.
 """
     )

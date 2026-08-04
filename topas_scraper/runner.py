@@ -31,7 +31,7 @@ from .client import FirecrawlClient
 from .config import DEFAULT_DB_PATH, TourTarget, load_active_targets
 from .db import (
     connect, start_run, finish_run, upsert_tour, replace_departures,
-    fetch_departures, touch_departures_run,
+    fetch_departures, touch_departures_run, apply_tour_overrides,
 )
 from .export import export
 from .extraction_schema import TOUR_EXTRACTION_SCHEMA
@@ -319,6 +319,16 @@ def run_scrape(
                     emit(f"  ↳ uventet fejl i worker: {type(e).__name__}: {e!r}")
                     for line in tb_short:
                         emit(f"     {line.strip()}")
+
+        # Manuelt verificerede klassifikationer (tour_overrides) skal altid
+        # vinde over parsernes gæt — ellers nulstilles Gorms audits ved
+        # hver re-scrape (Ruby/Profil/Greenland Travel-bugen, juni 2026).
+        try:
+            fixed = apply_tour_overrides(conn)
+            if fixed:
+                emit(f"Overrides: {fixed} tour-klassifikationer genanvendt")
+        except Exception as e:
+            emit(f"⚠ apply_tour_overrides fejlede: {e}")
 
         finish_run(conn, run_id, success)
         emit(f"{success}/{len(targets)} succeeded")

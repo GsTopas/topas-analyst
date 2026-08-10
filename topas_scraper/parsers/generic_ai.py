@@ -101,10 +101,55 @@ def parse(scrape, target) -> tuple[dict, list[dict]]:
         operator=target.operator,
         duration_days=duration_days,
         from_price_dkk=from_price_dkk,
+        tour_format=_detect_tour_format(md, target.url),
         eligibility_notes=notes,
     )
 
     return tour.to_dict(), departures
+
+
+def _detect_tour_format(md: str, url: str) -> str:
+    """Detektér tour_format fra sidens egne signaler i stedet for at
+    defaulte alt til Fællesrejse.
+
+    Kendte operator-signaler (fra Gorms audits juni 2026):
+      - Ruby breadcrumb:        "Grønland | Rejs på egen hånd" vs
+                                "... | Rejs med dansk rejseleder"
+      - Stjernegaard hero-badge: "Tilkøb udflugter m/ dansktalende guide"
+                                (gul = individuel) vs "Rundrejse med dansk
+                                rejseleder" (pink = fællesrejse)
+      - Greenland Travel:       pakkerejse-specialist — individuel medmindre
+                                siden eksplicit siger dansk rejseleder
+      - /krydstogt i URL:       krydstogt-produkter (Ruby m.fl.)
+
+    Manuelt verificerede klassifikationer i tour_overrides vinder altid
+    bagefter (apply_tour_overrides i db.py), saa en fejldetektion her er
+    aldrig permanent.
+    """
+    if "/krydstogt" in url.lower():
+        return "Krydstogt"
+
+    if not md:
+        return "Fællesrejse"
+
+    # Scope til sidens eget indhold: Stjernegaards detalje-sider viser
+    # relaterede ture (med DERES badges) under "Andre spændende rejser".
+    idx = md.find("Andre spændende rejser")
+    head = md[:idx] if idx > 0 else md[:5000]
+    h = head.lower()
+
+    if "tilkøb udflugter" in h or "tilkoeb udflugter" in h:
+        return "Rejs på egen hånd"
+    if "rejs på egen hånd" in h or "rejs paa egen haand" in h:
+        return "Rejs på egen hånd"
+    if "individuel rejse" in h:
+        return "Rejs på egen hånd"
+    # Greenland Travel: alt er pakkerejser medmindre dansk rejseleder naevnes
+    # eksplicit paa siden (Gorm 2026-06-19).
+    if "greenland-travel." in url.lower() and "dansk rejseleder" not in h:
+        return "Rejs på egen hånd"
+
+    return "Fællesrejse"
 
 
 def _normalize_departures(raw: list) -> list[dict]:

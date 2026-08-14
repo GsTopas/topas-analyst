@@ -5,7 +5,7 @@ Bygges udelukkende fra snapshots-tabellen i snapshots.db.
 Viser hvad der er ændret siden brugeren sidst kiggede:
   - Pris-ændringer (op/ned)
   - Status-ændringer
-  - Nye afgange
+  - Nye afgange (Lanceringsradar — grupperet pr. konkurrent-tur + Topas-dæknings-tjek)
   - Forsvundne afgange (incl. anomaly-klassifikation)
   - Bemærkelsesværdige overgange (withdrawn / fast_sellout)
 
@@ -370,20 +370,120 @@ if price_changes:
 
 
 # ---------------------------------------------------------------------------
-# 🆕 Nye afgange (første gang set inden for tidsvinduet)
+# 🚀 Lanceringsradar — nye afgange grupperet pr. konkurrent-tur.
+#
+# Samme underliggende fund som den gamle flade "Nye afgange"-tabel, men
+# grupperet så en sæsonåbning (fx 18 nye 2027-afgange på samme tur) bliver
+# én læsbar række i stedet for 18. Derudover: dæknings-tjek — har Topas selv
+# fremtidige afgange online i de sæson-år konkurrenten netop har åbnet?
 # ---------------------------------------------------------------------------
 
-if new_departures:
-    st.markdown(f"## 🆕 Nye afgange ({len(new_departures)})")
+comp_new = [n for n in new_departures if n["operator"] != "Topas"]
+topas_new = [n for n in new_departures if n["operator"] == "Topas"]
+
+if comp_new:
+    # Topas' egen dækning: hvilke år har Topas fremtidige, aktive afgange
+    # for pr. tur-kode? Bruges til at flagge sæsoner konkurrenten har åbnet
+    # men hvor Topas (endnu) intet har online.
+    _now = datetime.utcnow()
+    topas_years_by_code: dict[str, set] = {}
+    for t in tours:
+        _code = t.get("code")
+        if not _code:
+            continue
+        _years = topas_years_by_code.setdefault(_code, set())
+        for d in t.get("departures", []):
+            sd = _parse_iso(d.get("startDate"))
+            if sd and sd > _now and not d.get("isArchived"):
+                _years.add(sd.year)
+
+    # Gruppér pr. (operatør, tur-kode, turnavn) — én række pr. lancering
+    launch_groups: dict[tuple, list] = {}
+    for n in comp_new:
+        launch_groups.setdefault((n["operator"], n["tour_code"], n["tour_name"]), []).append(n)
+
+    radar_rows = []
+    season_gaps: list[str] = []  # "GLGQ 2027 (Greenland Travel)" — Topas mangler sæsonen
+    for (op, code, name), deps in launch_groups.items():
+        starts = sorted(s for s in (_parse_iso(n["start_date"]) for n in deps) if s)
+        seasons = sorted({s.year for s in starts})
+        first_seens = sorted(fs for fs in (n.get("first_seen") for n in deps) if fs)
+        prices = sorted(p for p in (n.get("current_price") for n in deps) if p)
+
+        # Dæknings-tjek mod Topas' egne fremtidige afgange på samme kode
+        t_years = topas_years_by_code.get(code)
+        if code == "?" or t_years is None:
+            coverage = "—"
+        else:
+            missing = [y for y in seasons if y not in t_years]
+            if missing:
+                coverage = "⚠️ mangler " + ", ".join(str(y) for y in missing)
+                for y in missing:
+                    season_gaps.append(f"**{code} {y}** ({op})")
+            else:
+                coverage = "✅"
+
+        if starts:
+            span = _format_dk_date(starts[0])
+            if len(starts) > 1:
+                span += f" – {_format_dk_date(starts[-1])}"
+        else:
+            span = "—"
+
+        radar_rows.append({
+            "Operatør": op,
+            "Tur": name[:55] or "—",
+            "Topas-kode": code,
+            "Nye afgange": len(deps),
+            "Type": "Sæsonåbning" if len(deps) >= 3 else "Ekstra dato(er)",
+            "Afrejser": span,
+            "Sæson": ", ".join(str(y) for y in seasons) or "—",
+            "Fra-pris": f"{prices[0]:,} kr.".replace(",", ".") if prices else "—",
+            "Først set": _format_dk_date(_parse_iso(first_seens[0])) if first_seens else "—",
+            "Topas-dækning": coverage,
+        })
+
+    radar_rows.sort(key=lambda r: r["Nye afgange"], reverse=True)
+
+    st.markdown(f"## 🚀 Lanceringsradar ({len(radar_rows)} lanceringer, {len(comp_new)} afgange)")
     st.caption(
-        "Afgange der er dukket op i vinduet for tours vi allerede tracker — "
-        "fx operatøren har åbnet en ekstra dato eller en ny sæson. "
-        "Tours scraped første gang i vinduet er ekskluderet (alle deres "
-        "afgange ville være 'nye' ellers)."
+        "Konkurrent-afgange der er dukket op i vinduet, grupperet pr. tur. "
+        "≥3 nye afgange på samme tur regnes som en sæsonåbning. "
+        "**Topas-dækning** viser om Topas selv har fremtidige afgange online "
+        "i de sæson-år konkurrenten har åbnet. "
+        "Tours scraped første gang i vinduet er ekskluderet."
     )
-    df_new = pd.DataFrame([
+
+    if season_gaps:
+        st.warning(
+            "**Konkurrenter har åbnet sæsoner hvor Topas intet har online:** "
+            + " · ".join(sorted(set(season_gaps)))
+        )
+
+    st.dataframe(pd.DataFrame(radar_rows), width="stretch", hide_index=True)
+
+    with st.expander(f"Se alle {len(comp_new)} nye konkurrent-afgange enkeltvis"):
+        df_new = pd.DataFrame([
+            {
+                "Operatør": n["operator"],
+                "Tur-kode": n["tour_code"],
+                "Tur": n["tour_name"][:60],
+                "Afgang": _format_dk_date(_parse_iso(n["start_date"])),
+                "Først set": _format_dk_date(_parse_iso(n["first_seen"])),
+                "Status": n.get("current_status") or "—",
+                "Pris": f"{n['current_price']:,} kr.".replace(",", ".") if n.get("current_price") else "—",
+            }
+            for n in sorted(comp_new, key=lambda x: x.get("first_seen", ""), reverse=True)
+        ])
+        st.dataframe(df_new, width="stretch", hide_index=True)
+
+    st.divider()
+
+if topas_new:
+    st.markdown(f"## 🆕 Nye Topas-afgange ({len(topas_new)})")
+    st.caption("Topas' egne afgange der er dukket op i vinduet — til sanity-tjek af egen publicering.")
+    df_topas_new = pd.DataFrame([
         {
-            "Operatør": n["operator"],
             "Tur-kode": n["tour_code"],
             "Tur": n["tour_name"][:60],
             "Afgang": _format_dk_date(_parse_iso(n["start_date"])),
@@ -391,9 +491,9 @@ if new_departures:
             "Status": n.get("current_status") or "—",
             "Pris": f"{n['current_price']:,} kr.".replace(",", ".") if n.get("current_price") else "—",
         }
-        for n in sorted(new_departures, key=lambda x: x.get("first_seen", ""), reverse=True)
+        for n in sorted(topas_new, key=lambda x: x.get("first_seen", ""), reverse=True)
     ])
-    st.dataframe(df_new, width="stretch", hide_index=True)
+    st.dataframe(df_topas_new, width="stretch", hide_index=True)
 
     st.divider()
 

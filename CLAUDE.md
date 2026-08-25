@@ -1,4 +1,4 @@
-# CLAUDE.md — Onboarding for Claude Code / Cowork
+﻿# CLAUDE.md — Onboarding for Claude Code / Cowork
 
 Du arbejder på **Topas Travel's prisintelligens-værktøj**. Læs hele dette dokument før du gør noget.
 
@@ -46,7 +46,7 @@ Topas-segmentet er **fællesrejser med rejseleder** — ikke self-drive, ikke in
 
 | Service | Hvor | Adgang via |
 |---|---|---|
-| Supabase Postgres | bymurhqfcyxdhrayddoz | MCP `mcp__c38d5069-c478-4ab8-af88-efb21a115057__*` + `.env` SUPABASE_DB_URL |
+| Supabase Postgres | oxpuloflkdcpshrabvkn | MCP `mcp__c38d5069-c478-4ab8-af88-efb21a115057__*` + `.env` SUPABASE_DB_URL |
 | Streamlit Cloud | share.streamlit.io | Manage panel — secrets ligger her |
 | GitHub repo | GsTopas/topas-analyst | https://github.com/GsTopas/topas-analyst |
 | Firecrawl | firecrawl.dev | `.env` FIRECRAWL_API_KEY |
@@ -125,7 +125,7 @@ python -m hotel_rates.run --hotel hotel-arctic --start 2026-08-10 --nights 14
 ```
 
 **Tjek hvad der ligger i Supabase:**
-Brug Supabase MCP `execute_sql` — eller SQL Editor på https://supabase.com/dashboard/project/bymurhqfcyxdhrayddoz/sql
+Brug Supabase MCP `execute_sql` — eller SQL Editor på https://supabase.com/dashboard/project/oxpuloflkdcpshrabvkn/sql
 
 ## hotel_rates (Ilulissat-hotel-benchmark)
 

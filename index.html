@@ -1,0 +1,464 @@
+<!doctype html>
+<html lang="da">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex, nofollow">
+<title>Topas BI</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%230D5879'/%3E%3Cpath d='M8 22 L14 12 L18 18 L21 14 L25 22 Z' fill='%23FFD5A7'/%3E%3C/svg%3E">
+<style>
+  :root {
+    --tekst: #333333; --bg: #F7F7F7; --plade: #FFFFFF; --blaa: #0D5879; --blaa-moerk: #0A4660; --creme: #FFD5A7;
+    --roed: #C30031; --graa: #E6E6E6; --graa-tekst: #8C8C8C; --groen: #2E7D32; --orange: #E1652A;
+    --radius: 14px; --skygge: 0 1px 2px rgba(0,0,0,.05), 0 4px 16px rgba(13,88,121,.06);
+  }
+  * { box-sizing: border-box; }
+  html, body { height: 100%; margin: 0; }
+  body { font: 15px/1.5 -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; color: var(--tekst); background: var(--bg); -webkit-font-smoothing: antialiased; }
+  button, input, textarea { font: inherit; color: inherit; }
+  button { cursor: pointer; }
+  a { color: var(--blaa); }
+  .skjult { display: none !important; }
+
+  /* ---------- Login ---------- */
+  #login { min-height: 100%; display: grid; place-items: center; padding: 24px 16px; }
+  .kort { background: var(--plade); border-radius: 18px; box-shadow: var(--skygge); padding: 32px 28px; width: 100%; max-width: 400px; }
+  .logo { display: flex; align-items: center; gap: 12px; margin-bottom: 20px; }
+  .logo .maerke { width: 40px; height: 40px; border-radius: 10px; background: var(--blaa); display: grid; place-items: center; flex: none; }
+  .logo h1 { font-size: 20px; margin: 0; letter-spacing: -.01em; }
+  .logo small { display: block; color: var(--graa-tekst); font-size: 13px; font-weight: 400; }
+  label { display: block; font-size: 13px; color: var(--graa-tekst); margin: 14px 0 6px; }
+  .felt { width: 100%; padding: 11px 13px; border: 1px solid var(--graa); border-radius: 10px; background: #fff; outline: none; }
+  .felt:focus { border-color: var(--blaa); box-shadow: 0 0 0 3px rgba(13,88,121,.12); }
+  .knap { display: inline-flex; align-items: center; justify-content: center; gap: 8px; padding: 11px 16px; border-radius: 10px; border: 0; background: var(--blaa); color: #fff; font-weight: 600; width: 100%; margin-top: 18px; }
+  .knap:hover { background: var(--blaa-moerk); }
+  .knap:disabled { opacity: .6; cursor: default; }
+  .knap.sekundaer { background: transparent; color: var(--blaa); border: 1px solid var(--graa); font-weight: 500; }
+  .fejl { color: var(--roed); font-size: 13px; margin-top: 12px; min-height: 1.2em; }
+  .info { color: var(--groen); font-size: 13px; margin-top: 12px; }
+  .lille { font-size: 13px; color: var(--graa-tekst); margin-top: 16px; text-align: center; }
+  .lille button { background: none; border: 0; color: var(--blaa); padding: 0; text-decoration: underline; }
+
+  /* ---------- App ---------- */
+  #app { display: grid; grid-template-columns: 280px 1fr; height: 100dvh; }
+  aside { background: var(--plade); border-right: 1px solid var(--graa); display: flex; flex-direction: column; min-height: 0; }
+  .aside-top { padding: 16px 16px 10px; display: flex; align-items: center; gap: 10px; }
+  .aside-top .logo { margin: 0; flex: 1; }
+  .ny { margin: 6px 12px 10px; }
+  .ny .knap { margin: 0; }
+  #samtaler { flex: 1; overflow: auto; padding: 0 8px 8px; }
+  .samtale { display: flex; align-items: center; gap: 6px; width: 100%; text-align: left; padding: 9px 10px; border-radius: 10px; border: 0; background: transparent; color: var(--tekst); }
+  .samtale:hover { background: var(--bg); }
+  .samtale.aktiv { background: #E7F0F4; color: var(--blaa-moerk); }
+  .samtale span { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 14px; }
+  .samtale .slet { opacity: 0; border: 0; background: none; color: var(--graa-tekst); padding: 2px 4px; border-radius: 6px; flex: none; }
+  .samtale:hover .slet { opacity: 1; }
+  .samtale .slet:hover { color: var(--roed); background: #fff; }
+  .aside-bund { border-top: 1px solid var(--graa); padding: 12px 16px; font-size: 13px; color: var(--graa-tekst); display: flex; align-items: center; gap: 8px; }
+  .aside-bund span { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .aside-bund button { background: none; border: 0; color: var(--blaa); padding: 0; }
+
+  main { display: flex; flex-direction: column; min-height: 0; min-width: 0; }
+  .topbar { display: none; align-items: center; gap: 10px; padding: 10px 12px; background: var(--plade); border-bottom: 1px solid var(--graa); }
+  .topbar button { background: none; border: 0; padding: 6px; }
+  .topbar b { font-weight: 600; }
+  #beskeder { flex: 1; overflow: auto; padding: 24px 16px 8px; scroll-behavior: smooth; }
+  .indre { max-width: 820px; margin: 0 auto; }
+  .besked { display: flex; gap: 12px; margin: 0 0 18px; }
+  .besked.user { justify-content: flex-end; }
+  .boble { max-width: 100%; padding: 12px 16px; border-radius: var(--radius); background: var(--plade); box-shadow: var(--skygge); overflow-wrap: anywhere; }
+  .besked.user .boble { background: var(--blaa); color: #fff; max-width: 85%; border-bottom-right-radius: 4px; white-space: pre-wrap; }
+  .besked.assistant .boble { border-bottom-left-radius: 4px; width: 100%; }
+  .avatar { width: 30px; height: 30px; border-radius: 9px; background: var(--blaa); display: grid; place-items: center; flex: none; margin-top: 4px; }
+  .status { font-size: 12.5px; color: var(--graa-tekst); margin-top: 8px; display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+  .status .prik { width: 8px; height: 8px; border-radius: 50%; background: var(--orange); animation: puls 1s infinite; }
+  @keyframes puls { 50% { opacity: .3; } }
+  .markdown > :first-child { margin-top: 0; } .markdown > :last-child { margin-bottom: 0; }
+  .markdown p { margin: 0 0 10px; }
+  .markdown h1, .markdown h2, .markdown h3 { font-size: 15.5px; margin: 14px 0 6px; color: var(--blaa-moerk); }
+  .markdown ul, .markdown ol { padding-left: 22px; margin: 6px 0 10px; }
+  .markdown li { margin: 2px 0; }
+  .markdown code { background: var(--bg); padding: 1px 5px; border-radius: 5px; font-size: 13px; }
+  .markdown pre { background: var(--bg); padding: 10px 12px; border-radius: 10px; overflow: auto; font-size: 13px; }
+  .markdown table { border-collapse: collapse; margin: 8px 0 12px; font-size: 13.5px; width: 100%; display: block; overflow-x: auto; }
+  .markdown th, .markdown td { border-bottom: 1px solid var(--graa); padding: 6px 10px; text-align: left; vertical-align: top; white-space: nowrap; }
+  .markdown th { color: var(--graa-tekst); font-weight: 600; font-size: 12.5px; text-transform: uppercase; letter-spacing: .03em; }
+  .markdown td.tal, .markdown th.tal { text-align: right; font-variant-numeric: tabular-nums; }
+  .markdown hr { border: 0; border-top: 1px solid var(--graa); margin: 12px 0; }
+  .graf { position: relative; height: 280px; margin: 10px 0 14px; }
+  .graf-titel { font-size: 13px; font-weight: 600; color: var(--blaa-moerk); margin: 12px 0 2px; }
+  .graf-vent { font-size: 13px; color: var(--graa-tekst); padding: 24px; text-align: center; background: var(--bg); border-radius: 10px; margin: 10px 0; }
+  .markdown blockquote { margin: 8px 0; padding: 4px 12px; border-left: 3px solid var(--creme); color: #555; }
+
+  .velkomst { text-align: center; padding: 40px 12px 20px; }
+  .velkomst h2 { font-size: 22px; margin: 12px 0 6px; letter-spacing: -.01em; }
+  .velkomst p { color: var(--graa-tekst); margin: 0 auto 22px; max-width: 520px; }
+  .forslag { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; }
+  .forslag button { background: var(--plade); border: 1px solid var(--graa); border-radius: 999px; padding: 8px 14px; font-size: 13.5px; color: var(--blaa-moerk); }
+  .forslag button:hover { border-color: var(--blaa); background: #E7F0F4; }
+
+  .skriv { padding: 8px 16px 16px; }
+  .skriv .indre { position: relative; }
+  .skriv textarea { width: 100%; resize: none; padding: 13px 52px 13px 16px; border: 1px solid var(--graa); border-radius: 16px; background: var(--plade); outline: none; box-shadow: var(--skygge); max-height: 180px; }
+  .skriv textarea:focus { border-color: var(--blaa); }
+  .skriv .send { position: absolute; right: 8px; bottom: 9px; width: 36px; height: 36px; border-radius: 10px; border: 0; background: var(--blaa); color: #fff; display: grid; place-items: center; }
+  .skriv .send:disabled { background: var(--graa); }
+  .skriv .note { text-align: center; font-size: 12px; color: var(--graa-tekst); margin-top: 8px; }
+
+  @media (max-width: 760px) {
+    #app { grid-template-columns: 1fr; }
+    aside { position: fixed; inset: 0 25% 0 0; z-index: 20; transform: translateX(-100%); transition: transform .2s; box-shadow: 0 0 40px rgba(0,0,0,.2); }
+    aside.aaben { transform: none; }
+    .topbar { display: flex; }
+    #bagtaeppe { position: fixed; inset: 0; background: rgba(0,0,0,.3); z-index: 15; }
+    .besked.user .boble { max-width: 92%; }
+    #beskeder { padding: 16px 12px 4px; }
+    .skriv { padding: 6px 12px 12px; }
+  }
+</style>
+</head>
+<body>
+
+<section id="login">
+  <div class="kort">
+    <div class="logo">
+      <div class="maerke"><svg width="22" height="22" viewBox="0 0 32 32"><path d="M8 22 L14 12 L18 18 L21 14 L25 22 Z" fill="#FFD5A7"/></svg></div>
+      <h1>Topas BI<small>Spørg om salg, belægning og resultat</small></h1>
+    </div>
+    <form id="login-form">
+      <p style="margin:0 0 4px">Skriv din e-mail, så sender vi en engangskode.</p>
+      <label for="email">E-mail</label>
+      <input class="felt" id="email" type="email" autocomplete="username" required placeholder="navn@topas.dk">
+      <button class="knap" id="login-knap" type="submit">Send kode</button>
+      <div class="fejl" id="login-fejl"></div>
+    </form>
+    <form id="kode-form" class="skjult">
+      <p style="margin:0 0 4px">Vi har sendt en e-mail til <b id="kode-email"></b>. Skriv koden fra mailen.</p>
+      <label for="kode">Kode</label>
+      <input class="felt" id="kode" inputmode="numeric" autocomplete="one-time-code" required placeholder="123456" style="letter-spacing:.2em;font-size:18px">
+      <button class="knap" id="kode-knap" type="submit">Log ind</button>
+      <div class="fejl" id="kode-fejl"></div>
+      <div class="lille"><button type="button" id="vis-login">Brug en anden e-mail</button></div>
+    </form>
+  </div>
+</section>
+
+<section id="app" class="skjult">
+  <aside id="aside">
+    <div class="aside-top">
+      <div class="logo">
+        <div class="maerke"><svg width="22" height="22" viewBox="0 0 32 32"><path d="M8 22 L14 12 L18 18 L21 14 L25 22 Z" fill="#FFD5A7"/></svg></div>
+        <h1>Topas BI<small>Ledelsesrapportering</small></h1>
+      </div>
+    </div>
+    <div class="ny"><button class="knap" id="ny-samtale">＋ Ny samtale</button></div>
+    <div id="samtaler"></div>
+    <div class="aside-bund">
+      <span id="bruger"></span>
+      <button id="log-ud">Log ud</button>
+    </div>
+  </aside>
+  <div id="bagtaeppe" class="skjult"></div>
+  <main>
+    <div class="topbar">
+      <button id="menu" aria-label="Menu"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#333" stroke-width="2" stroke-linecap="round"><path d="M4 7h16M4 12h16M4 17h16"/></svg></button>
+      <b>Topas BI</b>
+      <span style="flex:1"></span>
+      <button id="ny-samtale-mobil" aria-label="Ny samtale"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#0D5879" stroke-width="2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg></button>
+    </div>
+    <div id="beskeder"><div class="indre" id="beskeder-indre"></div></div>
+    <div class="skriv">
+      <div class="indre">
+        <textarea id="input" rows="1" placeholder="Stil et spørgsmål om salg, belægning, omsætning eller resultat…"></textarea>
+        <button class="send" id="send" aria-label="Send" disabled><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M12 19V5M5 12l7-7 7 7"/></svg></button>
+      </div>
+      <div class="note">Tallene kommer direkte fra NAV via Topas' BI-lag. Lukkede måneder er endelige; indeværende måned er "til dato".</div>
+    </div>
+  </main>
+</section>
+
+<script>window.__TOPAS_BI__={"url": "https://oxpuloflkdcpshrabvkn.supabase.co", "anonKey": "sb_publishable_1J98JZQ2qBBer2cI-hS3Tg_rPXC2sFC"};</script>
+<script type="module">
+import { createClient } from "https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.117.3/+esm";
+import { marked } from "https://cdn.jsdelivr.net/npm/marked@17.0.1/+esm";
+import { Chart, registerables } from "https://cdn.jsdelivr.net/npm/chart.js@4.4.7/+esm";
+Chart.register(...registerables);
+
+const KONFIG = window.__TOPAS_BI__;
+const sb = createClient(KONFIG.url, KONFIG.anonKey);
+const CHAT_URL = `${KONFIG.url}/functions/v1/bi-chat`;
+const APP_URL = location.origin + location.pathname;
+
+const $ = (id) => document.getElementById(id);
+const el = (tag, cls, html) => { const e = document.createElement(tag); if (cls) e.className = cls; if (html != null) e.innerHTML = html; return e; };
+const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+
+marked.setOptions({ gfm: true, breaks: false });
+// Grafer: agenten skriver en ```graf-blok med JSON (se GRAFER i _shared/prompt.ts). Under streaming vises en pladsholder.
+const FARVER = ["#0D5879", "#8C8C8C", "#E1652A", "#2E7D32", "#C30031", "#FFD5A7"];
+const talDK = new Intl.NumberFormat("da-DK", { maximumFractionDigits: 1 });
+const kortTal = (v) => Math.abs(v) >= 1e6 ? talDK.format(v / 1e6) + " mio." : Math.abs(v) >= 1e4 ? talDK.format(v / 1e3) + " t." : talDK.format(v);
+function tegnGraf(pre, spec) {
+  const boks = el("div");
+  if (spec.titel) boks.append(el("div", "graf-titel", esc(spec.titel)));
+  const ramme = el("div", "graf"); const canvas = el("canvas"); ramme.append(canvas); boks.append(ramme);
+  pre.replaceWith(boks);
+  const enhed = spec.enhed ? " " + spec.enhed : "";
+  const grundtype = spec.type === "line" ? "line" : "bar";
+  new Chart(canvas, {
+    type: grundtype,
+    data: {
+      labels: spec.labels,
+      datasets: (spec.serier || []).slice(0, 6).map((sr, i) => {
+        const type = sr.type === "line" || sr.type === "bar" ? sr.type : grundtype;
+        const farve = FARVER[i % FARVER.length];
+        return { label: sr.navn, data: sr.data, type, backgroundColor: type === "line" ? farve : farve + (i === 0 ? "" : "CC"), borderColor: farve,
+          borderWidth: type === "line" ? 2 : 0, borderDash: sr.stiplet ? [5, 4] : undefined, pointRadius: type === "line" ? 2 : 0, tension: 0.25, borderRadius: 3, order: type === "line" ? 0 : 1 };
+      }),
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false, animation: { duration: 300 },
+      indexAxis: spec.vandret ? "y" : "x",
+      plugins: {
+        legend: { position: "bottom", labels: { boxWidth: 12, color: "#333333", sort: (a, b) => a.datasetIndex - b.datasetIndex } },
+        tooltip: { callbacks: { label: (c) => `${c.dataset.label}: ${c.parsed[spec.vandret ? "x" : "y"] == null ? "–" : talDK.format(c.parsed[spec.vandret ? "x" : "y"])}${enhed}` } },
+      },
+      scales: {
+        [spec.vandret ? "x" : "y"]: { beginAtZero: true, grid: { color: "#E6E6E6" }, ticks: { color: "#8C8C8C", callback: (v) => kortTal(v) + enhed } },
+        [spec.vandret ? "y" : "x"]: { grid: { display: false }, ticks: { color: "#8C8C8C" } },
+      },
+    },
+  });
+}
+
+const render = (md, medGrafer = true) => {
+  const html = marked.parse(md || "");
+  const tmp = el("div", "markdown", html);
+  // Højrestil talceller
+  tmp.querySelectorAll("td, th").forEach((c) => { if (/^[-+−]?\s?[\d.,]+\s?(%|kr\.?|mio\.?|t?kr\.?)?$/.test(c.textContent.trim())) c.classList.add("tal"); });
+  tmp.querySelectorAll("a").forEach((a) => { a.target = "_blank"; a.rel = "noopener"; });
+  tmp.querySelectorAll("pre > code.language-graf").forEach((code) => {
+    const pre = code.parentElement;
+    if (!medGrafer) { pre.replaceWith(el("div", "graf-vent", "Tegner graf…")); return; }
+    try { tegnGraf(pre, JSON.parse(code.textContent)); } catch { pre.replaceWith(el("div", "graf-vent", "Grafen kunne ikke tegnes.")); }
+  });
+  return tmp;
+};
+
+const FORSLAG = [
+  "Hvordan sælger vi i denne uge mod sidste år?",
+  "Vis resultatet for den seneste lukkede måned",
+  "Hvordan ligger omsætningen i år mod sidste år, måned for måned?",
+  "Hvilke kommende ture er bagud mod sidste år?",
+  "Hvilke ture er tæt på udsolgt?",
+  "Hvordan ser oktober ud mod budget?",
+];
+
+let session = null;
+let samtaleId = null;
+let sender = false;
+
+// ---------- Login ----------
+// Login med engangskode på e-mail (samme Supabase Auth som Teg Plan, som bruger magic link).
+// Kun eksisterende brugere (shouldCreateUser: false); adgang kræver desuden en aktiv række i bi_brugere.
+let loginEmail = "";
+$("vis-login").onclick = () => { $("kode-form").classList.add("skjult"); $("login-form").classList.remove("skjult"); $("email").focus(); };
+$("login-form").onsubmit = async (e) => {
+  e.preventDefault();
+  $("login-fejl").textContent = "";
+  loginEmail = $("email").value.trim().toLowerCase();
+  $("login-knap").disabled = true;
+  const opt = { shouldCreateUser: false };
+  if (location.protocol.startsWith("http")) opt.emailRedirectTo = APP_URL;
+  const { error } = await sb.auth.signInWithOtp({ email: loginEmail, options: opt });
+  $("login-knap").disabled = false;
+  if (error) { $("login-fejl").textContent = /not allowed|not found|Signups/i.test(error.message) ? "E-mailen har ikke adgang." : error.message; return; }
+  $("kode-email").textContent = loginEmail;
+  $("login-form").classList.add("skjult"); $("kode-form").classList.remove("skjult"); $("kode").value = ""; $("kode").focus();
+};
+$("kode-form").onsubmit = async (e) => {
+  e.preventDefault();
+  $("kode-fejl").textContent = "";
+  $("kode-knap").disabled = true;
+  const { error } = await sb.auth.verifyOtp({ email: loginEmail, token: $("kode").value.replace(/\s/g, ""), type: "email" });
+  $("kode-knap").disabled = false;
+  if (error) $("kode-fejl").textContent = /expired|invalid/i.test(error.message) ? "Koden er forkert eller udløbet – bed om en ny." : error.message;
+};
+$("log-ud").onclick = async () => { await sb.auth.signOut(); location.reload(); };
+
+sb.auth.onAuthStateChange((event, s) => {
+  session = s;
+  if (s && event !== "TOKEN_REFRESHED") visApp();
+  if (!s && event === "SIGNED_OUT") location.reload();
+});
+
+let appVist = false;
+async function visApp() {
+  if (!session || appVist) return;
+  appVist = true;
+  $("login").classList.add("skjult");
+  $("app").classList.remove("skjult");
+  $("bruger").textContent = session.user.email;
+  await hentSamtaler();
+  if (!samtaleId) visVelkomst();
+}
+
+// ---------- Samtaler ----------
+async function hentSamtaler() {
+  const { data, error } = await sb.from("bi_samtaler").select("id, titel, opdateret").order("opdateret", { ascending: false }).limit(100);
+  const liste = $("samtaler");
+  liste.innerHTML = "";
+  if (error) { liste.append(el("div", "lille", "Kunne ikke hente samtaler – har du adgang?")); return; }
+  for (const s of data) {
+    const b = el("button", "samtale" + (s.id === samtaleId ? " aktiv" : ""));
+    b.append(el("span", null, esc(s.titel || "Uden titel")));
+    const slet = el("button", "slet", "✕"); slet.title = "Slet samtale";
+    slet.onclick = async (e) => { e.stopPropagation(); if (!confirm("Slet samtalen?")) return; await sb.from("bi_samtaler").delete().eq("id", s.id); if (samtaleId === s.id) { samtaleId = null; visVelkomst(); } hentSamtaler(); };
+    b.append(slet);
+    b.onclick = () => aabnSamtale(s.id);
+    liste.append(b);
+  }
+}
+
+async function aabnSamtale(id) {
+  samtaleId = id;
+  lukMenu();
+  const { data } = await sb.from("bi_beskeder").select("rolle, tekst, vaerktoejer, ms").eq("samtale_id", id).order("id");
+  const indre = $("beskeder-indre");
+  indre.innerHTML = "";
+  for (const b of data ?? []) {
+    const node = tilfoejBesked(b.rolle, b.tekst);
+    if (b.rolle === "assistant" && b.vaerktoejer?.length) node.querySelector(".status").textContent = `${b.vaerktoejer.length} opslag · ${(b.ms / 1000).toFixed(1).replace(".", ",")} s`;
+  }
+  hentSamtaler();
+  rulNed(true);
+  $("input").focus();
+}
+
+function visVelkomst() {
+  samtaleId = null;
+  const indre = $("beskeder-indre");
+  indre.innerHTML = "";
+  const v = el("div", "velkomst");
+  v.append(el("div", null, `<svg width="44" height="44" viewBox="0 0 32 32"><rect width="32" height="32" rx="8" fill="#0D5879"/><path d="M8 22 L14 12 L18 18 L21 14 L25 22 Z" fill="#FFD5A7"/></svg>`));
+  v.append(el("h2", null, "Hvad vil du vide?"));
+  v.append(el("p", null, "Spørg på dansk om salg, belægning, omsætning, dækningsbidrag og resultat. Svarene bygger på tallene fra NAV og angiver altid, om en måned er lukket eller til dato."));
+  const f = el("div", "forslag");
+  for (const t of FORSLAG) { const b = el("button", null, esc(t)); b.onclick = () => { $("input").value = t; send(); }; f.append(b); }
+  v.append(f);
+  indre.append(v);
+  hentSamtaler();
+  $("input").focus();
+}
+
+function tilfoejBesked(rolle, tekst) {
+  const indre = $("beskeder-indre");
+  indre.querySelector(".velkomst")?.remove();
+  const b = el("div", `besked ${rolle}`);
+  if (rolle === "assistant") {
+    b.append(el("div", "avatar", `<svg width="16" height="16" viewBox="0 0 32 32"><path d="M8 22 L14 12 L18 18 L21 14 L25 22 Z" fill="#FFD5A7"/></svg>`));
+    const boble = el("div", "boble");
+    boble.append(render(tekst));
+    boble.append(el("div", "status"));
+    b.append(boble);
+  } else {
+    b.append(el("div", "boble", esc(tekst)));
+  }
+  indre.append(b);
+  return b;
+}
+
+function rulNed(straks) {
+  const box = $("beskeder");
+  if (straks) box.style.scrollBehavior = "auto";
+  box.scrollTop = box.scrollHeight;
+  if (straks) box.style.scrollBehavior = "";
+}
+
+// ---------- Send + streaming ----------
+const input = $("input");
+const autoHoejde = () => { input.style.height = "auto"; input.style.height = Math.min(input.scrollHeight, 180) + "px"; $("send").disabled = sender || !input.value.trim(); };
+input.oninput = autoHoejde;
+input.onkeydown = (e) => { if (e.key === "Enter" && !e.shiftKey && !e.isComposing) { e.preventDefault(); send(); } };
+$("send").onclick = send;
+
+async function send() {
+  const tekst = input.value.trim();
+  if (!tekst || sender) return;
+  sender = true;
+  input.value = ""; autoHoejde();
+  tilfoejBesked("user", tekst);
+  const node = tilfoejBesked("assistant", "");
+  const boble = node.querySelector(".boble");
+  const status = node.querySelector(".status");
+  const saetStatus = (html, live) => { status.innerHTML = (live ? '<span class="prik"></span>' : "") + html; };
+  saetStatus("Tænker…", true);
+  rulNed();
+
+  let svar = "";
+  let opslag = [];
+  const visSvar = (faerdig = false) => { boble.replaceChild(render(svar, faerdig), boble.firstChild); rulNed(); };
+
+  try {
+    const { data: { session: s } } = await sb.auth.getSession();
+    const res = await fetch(CHAT_URL, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${s.access_token}`, apikey: KONFIG.anonKey },
+      body: JSON.stringify({ samtale_id: samtaleId, besked: tekst }),
+    });
+    if (!res.ok || !res.headers.get("content-type")?.includes("text/event-stream")) {
+      let fejl = `Fejl ${res.status}`;
+      try { fejl = (await res.json()).fejl || fejl; } catch {}
+      throw new Error(fejl);
+    }
+    const reader = res.body.getReader();
+    const dec = new TextDecoder();
+    let buf = "";
+    let sidstRendret = 0;
+    while (true) {
+      const { value, done } = await reader.read();
+      if (done) break;
+      buf += dec.decode(value, { stream: true });
+      let i;
+      while ((i = buf.indexOf("\n\n")) >= 0) {
+        const linje = buf.slice(0, i).trim(); buf = buf.slice(i + 2);
+        if (!linje.startsWith("data:")) continue;
+        const ev = JSON.parse(linje.slice(5));
+        if (ev.type === "start") { if (!samtaleId) { samtaleId = ev.samtale_id; } }
+        else if (ev.type === "tekst") { svar += ev.delta; if (Date.now() - sidstRendret > 80) { visSvar(); sidstRendret = Date.now(); } }
+        else if (ev.type === "vaerktoej_start") { saetStatus(`Slår op: ${esc(navnPaa(ev.navn))}…`, true); }
+        else if (ev.type === "vaerktoej_slut") { opslag.push(ev); saetStatus(`${opslag.length} opslag · arbejder videre…`, true); }
+        else if (ev.type === "fejl") { svar += (svar ? "\n\n" : "") + `*Der opstod en fejl: ${ev.besked}*`; }
+        else if (ev.type === "slut") { saetStatus(`${ev.vaerktoejer} opslag · ${(ev.ms / 1000).toFixed(1).replace(".", ",")} s`); }
+      }
+    }
+    visSvar(true);
+    if (status.querySelector(".prik")) saetStatus("");
+  } catch (e) {
+    svar += (svar ? "\n\n" : "") + `*${esc(e.message)}*`;
+    visSvar(true);
+    saetStatus("");
+  } finally {
+    sender = false;
+    autoHoejde();
+    hentSamtaler();
+    input.focus();
+  }
+}
+
+const NAVNE = { datakatalog: "datakatalog", sql: "tallene", resultat_maaned: "resultat pr. måned", omsaetning_maaned: "omsætning pr. måned", salg_uge: "ugens salg", belaegning: "belægning", tur_opslag: "turen" };
+const navnPaa = (n) => NAVNE[n] || n;
+
+// ---------- Mobilmenu ----------
+const aabnMenu = () => { $("aside").classList.add("aaben"); $("bagtaeppe").classList.remove("skjult"); };
+const lukMenu = () => { $("aside").classList.remove("aaben"); $("bagtaeppe").classList.add("skjult"); };
+$("menu").onclick = aabnMenu;
+$("bagtaeppe").onclick = lukMenu;
+$("ny-samtale").onclick = () => { visVelkomst(); lukMenu(); };
+$("ny-samtale-mobil").onclick = () => { visVelkomst(); lukMenu(); };
+
+// ---------- Start ----------
+// INITIAL_SESSION fra onAuthStateChange viser appen, hvis brugeren allerede er logget ind.
+</script>
+</body>
+</html>

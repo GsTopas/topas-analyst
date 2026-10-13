@@ -126,11 +126,23 @@
       <h1>Topas BI Agent<small>Spørg om salg, belægning og resultat</small></h1>
     </div>
     <form id="login-form">
-      <p style="margin:0 0 4px">Skriv din e-mail, så sender vi en engangskode.</p>
       <label for="email">E-mail</label>
       <input class="felt" id="email" type="email" autocomplete="username" required placeholder="navn@topas.dk">
-      <button class="knap" id="login-knap" type="submit">Send kode</button>
+      <label for="kodeord">Kodeord</label>
+      <input class="felt" id="kodeord" type="password" autocomplete="current-password" required>
+      <button class="knap" id="login-knap" type="submit">Log ind</button>
       <div class="fejl" id="login-fejl"></div>
+      <div class="lille"><button type="button" id="glemt">Glemt kodeord?</button></div>
+      <div class="lille skjult" id="glemt-tekst">Kontakt Gorm (gs@topas.dk), så får du et nyt midlertidigt kodeord.</div>
+      <div class="lille"><button type="button" id="vis-otp">Log ind med kode på mail i stedet</button></div>
+    </form>
+    <form id="otp-form" class="skjult">
+      <p style="margin:0 0 4px">Skriv din e-mail, så sender vi en engangskode.</p>
+      <label for="otp-email">E-mail</label>
+      <input class="felt" id="otp-email" type="email" autocomplete="username" required placeholder="navn@topas.dk">
+      <button class="knap" id="otp-knap" type="submit">Send kode</button>
+      <div class="fejl" id="otp-fejl"></div>
+      <div class="lille"><button type="button" class="vis-login">Log ind med kodeord</button></div>
     </form>
     <form id="kode-form" class="skjult">
       <p style="margin:0 0 4px">Vi har sendt en e-mail til <b id="kode-email"></b>. Skriv koden fra mailen.</p>
@@ -138,7 +150,18 @@
       <input class="felt" id="kode" inputmode="numeric" autocomplete="one-time-code" required placeholder="123456" style="letter-spacing:.2em;font-size:18px">
       <button class="knap" id="kode-knap" type="submit">Log ind</button>
       <div class="fejl" id="kode-fejl"></div>
-      <div class="lille"><button type="button" id="vis-login">Brug en anden e-mail</button></div>
+      <div class="lille"><button type="button" class="vis-login">Log ind med kodeord</button></div>
+    </form>
+    <form id="skift-form" class="skjult">
+      <p style="margin:0 0 4px" id="skift-intro">Vælg dit eget kodeord.</p>
+      <label for="nyt1">Nyt kodeord</label>
+      <input class="felt" id="nyt1" type="password" autocomplete="new-password" required>
+      <label for="nyt2">Gentag kodeord</label>
+      <input class="felt" id="nyt2" type="password" autocomplete="new-password" required>
+      <div class="lille" style="text-align:left;margin-top:8px">Mindst 8 tegn med bogstaver og mindst ét tal.</div>
+      <button class="knap" id="skift-knap" type="submit">Gem kodeord</button>
+      <div class="fejl" id="skift-fejl"></div>
+      <div class="lille skjult" id="skift-fortryd-boks"><button type="button" id="skift-fortryd">Fortryd</button></div>
     </form>
   </div>
 </section>
@@ -155,6 +178,7 @@
     <div id="samtaler"></div>
     <div class="aside-bund">
       <span id="bruger"></span>
+      <button id="skift-kodeord">Skift kodeord</button>
       <button id="log-ud">Log ud</button>
     </div>
   </aside>
@@ -259,22 +283,42 @@ let samtaleId = null;
 let sender = false;
 
 // ---------- Login ----------
-// Login med engangskode på e-mail (samme Supabase Auth som Teg Plan, som bruger magic link).
-// Kun eksisterende brugere (shouldCreateUser: false); adgang kræver desuden en aktiv række i bi_brugere.
-let loginEmail = "";
-$("vis-login").onclick = () => { $("kode-form").classList.add("skjult"); $("login-form").classList.remove("skjult"); $("email").focus(); };
+// Login med e-mail og kodeord (samme Supabase Auth som Teg Plan). Engangskode på mail er en sekundær mulighed.
+// Adgang kræver desuden en aktiv række i bi_brugere. Nye brugere får et midlertidigt kodeord med
+// user_metadata.must_change = true og skal vælge deres eget, før de kommer ind.
+const FORMULARER = ["login-form", "otp-form", "kode-form", "skift-form"];
+function visFormular(id) {
+  for (const f of FORMULARER) $(f).classList.toggle("skjult", f !== id);
+  const foerste = $(id).querySelector("input");
+  if (foerste) foerste.focus();
+}
+document.querySelectorAll(".vis-login").forEach((b) => (b.onclick = () => visFormular("login-form")));
+$("vis-otp").onclick = () => { $("otp-email").value = $("email").value; visFormular("otp-form"); };
+$("glemt").onclick = () => $("glemt-tekst").classList.toggle("skjult");
+
 $("login-form").onsubmit = async (e) => {
   e.preventDefault();
   $("login-fejl").textContent = "";
-  loginEmail = $("email").value.trim().toLowerCase();
   $("login-knap").disabled = true;
+  const { error } = await sb.auth.signInWithPassword({ email: $("email").value.trim().toLowerCase(), password: $("kodeord").value });
+  $("login-knap").disabled = false;
+  if (error) $("login-fejl").textContent = /invalid login credentials/i.test(error.message) ? "Forkert e-mail eller kodeord." : error.message;
+};
+
+let loginEmail = "";
+$("otp-form").onsubmit = async (e) => {
+  e.preventDefault();
+  $("otp-fejl").textContent = "";
+  loginEmail = $("otp-email").value.trim().toLowerCase();
+  $("otp-knap").disabled = true;
   const opt = { shouldCreateUser: false };
   if (location.protocol.startsWith("http")) opt.emailRedirectTo = APP_URL;
   const { error } = await sb.auth.signInWithOtp({ email: loginEmail, options: opt });
-  $("login-knap").disabled = false;
-  if (error) { $("login-fejl").textContent = /not allowed|not found|Signups/i.test(error.message) ? "E-mailen har ikke adgang." : error.message; return; }
+  $("otp-knap").disabled = false;
+  if (error) { $("otp-fejl").textContent = /not allowed|not found|Signups/i.test(error.message) ? "E-mailen har ikke adgang." : error.message; return; }
   $("kode-email").textContent = loginEmail;
-  $("login-form").classList.add("skjult"); $("kode-form").classList.remove("skjult"); $("kode").value = ""; $("kode").focus();
+  $("kode").value = "";
+  visFormular("kode-form");
 };
 $("kode-form").onsubmit = async (e) => {
   e.preventDefault();
@@ -284,12 +328,49 @@ $("kode-form").onsubmit = async (e) => {
   $("kode-knap").disabled = false;
   if (error) $("kode-fejl").textContent = /expired|invalid/i.test(error.message) ? "Koden er forkert eller udløbet – bed om en ny." : error.message;
 };
+
+// Skift kodeord: tvunget (must_change) eller frivilligt fra "Skift kodeord" i menuen.
+function visSkift(frivillig) {
+  $("skift-intro").textContent = frivillig
+    ? "Vælg et nyt kodeord."
+    : "Du er logget ind med et midlertidigt kodeord. Vælg dit eget, før du fortsætter.";
+  $("skift-fortryd-boks").classList.toggle("skjult", !frivillig);
+  $("nyt1").value = ""; $("nyt2").value = ""; $("skift-fejl").textContent = "";
+  $("app").classList.add("skjult");
+  $("login").classList.remove("skjult");
+  visFormular("skift-form");
+}
+function skjulSkift() {
+  $("login").classList.add("skjult");
+  $("app").classList.remove("skjult");
+}
+$("skift-kodeord").onclick = () => { lukMenu(); visSkift(true); };
+$("skift-fortryd").onclick = skjulSkift;
+$("skift-form").onsubmit = async (e) => {
+  e.preventDefault();
+  const p1 = $("nyt1").value, p2 = $("nyt2").value;
+  $("skift-fejl").textContent = "";
+  if (p1.length < 8 || !/[A-Za-zÆØÅæøå]/.test(p1) || !/\d/.test(p1)) { $("skift-fejl").textContent = "Kodeordet skal have mindst 8 tegn med bogstaver og mindst ét tal."; return; }
+  if (p1 !== p2) { $("skift-fejl").textContent = "De to kodeord er ikke ens."; return; }
+  $("skift-knap").disabled = true;
+  const { data, error } = await sb.auth.updateUser({ password: p1, data: { must_change: false } });
+  $("skift-knap").disabled = false;
+  if (error) {
+    $("skift-fejl").textContent = /same|different/i.test(error.message) ? "Vælg et andet kodeord end det nuværende." : /weak|short|characters/i.test(error.message) ? "Kodeordet er for svagt – vælg et længere." : error.message;
+    return;
+  }
+  if (data?.user && session) session.user = data.user;
+  if (appVist) skjulSkift(); else visApp();
+};
+
 $("log-ud").onclick = async () => { await sb.auth.signOut(); location.reload(); };
 
 sb.auth.onAuthStateChange((event, s) => {
   session = s;
-  if (s && event !== "TOKEN_REFRESHED") visApp();
-  if (!s && event === "SIGNED_OUT") location.reload();
+  if (!s) { if (event === "SIGNED_OUT") location.reload(); return; }
+  if (event === "TOKEN_REFRESHED" || event === "USER_UPDATED") return;
+  if (s.user?.user_metadata?.must_change === true) visSkift(false);
+  else visApp();
 });
 
 let appVist = false;

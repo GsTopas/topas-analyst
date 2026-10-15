@@ -54,6 +54,8 @@
   .samtale .slet { opacity: 0; border: 0; background: none; color: var(--graa-tekst); padding: 2px 4px; border-radius: 6px; flex: none; }
   .samtale:hover .slet { opacity: 1; }
   .samtale .slet:hover { color: var(--roed); background: #fff; }
+  .samtale .slet.ret:hover { color: var(--blaa); }
+  @media (hover: none) { .samtale .slet { opacity: .6; } }
   .aside-bund { border-top: 1px solid var(--graa); padding: 12px 16px; font-size: 13px; color: var(--graa-tekst); display: flex; align-items: center; gap: 8px; }
   .aside-bund span { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .aside-bund button { background: none; border: 0; color: var(--blaa); padding: 0; }
@@ -272,10 +274,10 @@ const render = (md, medGrafer = true) => {
 const FORSLAG = [
   "Hvordan sælger vi i denne uge mod sidste år?",
   "Vis resultatet for den seneste lukkede måned",
-  "Hvordan ligger omsætningen i år mod sidste år, måned for måned?",
+  "Hvordan ligger den realiserede omsætning i år mod sidste år, måned for måned?",
   "Hvilke kommende ture er bagud mod sidste år?",
   "Hvilke ture er tæt på udsolgt?",
-  "Hvordan ser oktober ud mod budget?",
+  "Hvordan går den realiserede omsætning mod budget i år?",
 ];
 
 let session = null;
@@ -393,6 +395,18 @@ async function hentSamtaler() {
   for (const s of data) {
     const b = el("button", "samtale" + (s.id === samtaleId ? " aktiv" : ""));
     b.append(el("span", null, esc(s.titel || "Uden titel")));
+    const ret = el("button", "slet ret", "✎"); ret.title = "Omdøb samtale";
+    ret.onclick = async (e) => {
+      e.stopPropagation();
+      const ny = prompt("Nyt navn til samtalen:", s.titel || "");
+      if (ny == null) return;
+      const titel = ny.trim().slice(0, 80);
+      if (!titel || titel === s.titel) return;
+      const { error } = await sb.from("bi_samtaler").update({ titel }).eq("id", s.id);
+      if (error) { alert("Kunne ikke omdøbe samtalen."); return; }
+      hentSamtaler();
+    };
+    b.append(ret);
     const slet = el("button", "slet", "✕"); slet.title = "Slet samtale";
     slet.onclick = async (e) => { e.stopPropagation(); if (!confirm("Slet samtalen?")) return; await sb.from("bi_samtaler").delete().eq("id", s.id); if (samtaleId === s.id) { samtaleId = null; visVelkomst(); } hentSamtaler(); };
     b.append(slet);
@@ -527,7 +541,7 @@ async function send() {
   }
 }
 
-const NAVNE = { datakatalog: "datakatalog", sql: "tallene", resultat_maaned: "resultat pr. måned", omsaetning_maaned: "omsætning pr. måned", salg_uge: "ugens salg", belaegning: "belægning", tur_opslag: "turen" };
+const NAVNE = { datakatalog: "datakatalog", sql: "tallene", resultat_maaned: "resultat pr. måned", omsaetning_maaned: "omsætning pr. måned", salgsomsaetning: "salgsomsætning", salg_uge: "ugens salg", saeson_salg: "sæsonsalget", belaegning: "belægning", tur_opslag: "turen", ansvarlig_oversigt: "tal pr. ansvarlig", db_gruppeture: "DB pr. gruppetur" };
 const navnPaa = (n) => NAVNE[n] || n;
 
 // ---------- Mobilmenu ----------

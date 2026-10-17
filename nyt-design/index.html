@@ -1,0 +1,2166 @@
+<!doctype html>
+<html lang="da">
+<head>
+<meta charset="utf-8">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self' https://*.supabase.co wss://*.supabase.co; font-src 'self'; form-action 'none'; base-uri 'none'; object-src 'none'">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex, nofollow">
+<meta name="theme-color" content="#F7F7F7">
+<title>Topas BI Agent</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%230D5879'/%3E%3Cpath d='M4.5 24 L12.5 11.5 L17.5 18.5 L20.5 14.5 L27.5 24 Z' fill='%23FFD5A7'/%3E%3Ccircle cx='23' cy='8.5' r='2.4' fill='%23FFD5A7'/%3E%3C/svg%3E">
+<style>
+  /* ---------- Grundlag (TEG-farver) ---------- */
+  :root {
+    color-scheme: light;
+    --tekst: #333333; --bg: #F7F7F7; --plade: #FFFFFF; --blaa: #0D5879; --blaa-moerk: #0A4660; --blaa-lys: #E7F0F4; --blaa-svag: #F3F7F9;
+    --creme: #FFD5A7; --creme-lys: #FFF3E6; --roed: #C30031; --roed-lys: #FCEBEF; --graa: #E6E6E6; --graa-linje: #EEEEEE;
+    --graa-tekst: #616161; --graa-svag: #8C8C8C; --groen: #2E7D32; --orange: #E1652A; --orange-lys: #FDEFE7;
+    --radius: 14px; --radius-lille: 10px;
+    --skygge: 0 1px 2px rgba(16,24,40,.04), 0 2px 10px rgba(13,88,121,.05);
+    --skygge-hoej: 0 16px 40px rgba(16,24,40,.16), 0 2px 8px rgba(16,24,40,.06);
+    --font: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    --aside: 288px;
+  }
+  * { box-sizing: border-box; }
+  html, body { height: 100%; margin: 0; }
+  body { font: 15px/1.5 var(--font); color: var(--tekst); background: var(--bg); -webkit-font-smoothing: antialiased; text-rendering: optimizeLegibility; }
+  button, input, textarea, select { font: inherit; color: inherit; }
+  button { cursor: pointer; }
+  a { color: var(--blaa); }
+  .skjult { display: none !important; }
+  .sr { position: absolute !important; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+  :focus-visible { outline: 2px solid var(--blaa); outline-offset: 2px; }
+  ::selection { background: #CFE2EA; }
+
+  /* ---------- Fælles komponenter ---------- */
+  .maerke { width: 40px; height: 40px; border-radius: 11px; background: var(--blaa); display: grid; place-items: center; flex: none; }
+  .maerke svg { width: 26px; height: 26px; }
+  .knap { display: inline-flex; align-items: center; justify-content: center; gap: 8px; min-height: 44px; padding: 10px 16px; border-radius: var(--radius-lille); border: 0; background: var(--blaa); color: #fff; font-weight: 600; width: 100%; margin-top: 18px; transition: background .15s; }
+  .knap:hover { background: var(--blaa-moerk); }
+  .knap:disabled { opacity: .55; cursor: default; }
+  .knap.sekundaer { background: var(--plade); color: var(--blaa); border: 1px solid #D5DEE2; font-weight: 600; }
+  .knap.sekundaer:hover { background: var(--blaa-svag); border-color: var(--blaa); }
+  .knap.fare { background: var(--roed); }
+  .knap.fare:hover { background: #A1002A; }
+  .ikon-knap { display: inline-flex; align-items: center; gap: 6px; min-height: 32px; padding: 5px 10px; border-radius: 8px; border: 1px solid transparent; background: none; color: var(--graa-tekst); font-size: 13px; font-weight: 500; white-space: nowrap; }
+  .ikon-knap:hover { background: var(--blaa-svag); color: var(--blaa); }
+  .ikon-knap svg { width: 16px; height: 16px; flex: none; }
+  label { display: block; font-size: 13px; color: var(--graa-tekst); font-weight: 500; margin: 16px 0 6px; }
+  .felt { width: 100%; min-height: 44px; padding: 10px 13px; border: 1px solid #D9D9D9; border-radius: var(--radius-lille); background: #fff; outline: none; transition: border-color .15s, box-shadow .15s; }
+  .felt:focus { border-color: var(--blaa); box-shadow: 0 0 0 3px rgba(13,88,121,.14); }
+  .fejl { color: var(--roed); font-size: 13.5px; margin-top: 12px; min-height: 1.2em; }
+  .fejl:empty { min-height: 0; margin: 0; }
+  .info { color: var(--groen); font-size: 13px; margin-top: 12px; }
+  .lille { font-size: 13.5px; color: var(--graa-tekst); margin-top: 14px; text-align: center; }
+  .lille button { background: none; border: 0; color: var(--blaa); padding: 4px 2px; text-decoration: underline; text-underline-offset: 2px; }
+  .chip { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 600; line-height: 1.6; padding: 1px 9px; border-radius: 999px; white-space: nowrap; vertical-align: 1px; }
+  .chip::before { content: ""; width: 6px; height: 6px; border-radius: 50%; background: currentColor; flex: none; }
+  .chip.lukket { background: var(--blaa-lys); color: var(--blaa-moerk); }
+  .chip.til-dato { background: var(--orange-lys); color: #9C3F14; }
+  .chip.estimat { background: var(--creme-lys); color: #85521A; }
+  .toast { position: fixed; left: 50%; bottom: 28px; transform: translate(-50%, 20px); background: #2B2B2B; color: #fff; padding: 9px 16px; border-radius: 10px; font-size: 14px; box-shadow: var(--skygge-hoej); opacity: 0; pointer-events: none; transition: opacity .2s, transform .2s; z-index: 60; }
+  .toast.vis { opacity: 1; transform: translate(-50%, 0); }
+
+  /* ---------- Login ---------- */
+  #login { min-height: 100%; display: grid; place-items: center; padding: 24px 16px calc(24px + env(safe-area-inset-bottom)); background: radial-gradient(1200px 500px at 50% -10%, #E9F1F4 0%, var(--bg) 60%); }
+  .login-ramme { width: 100%; max-width: 420px; }
+  .kort { background: var(--plade); border-radius: 18px; box-shadow: var(--skygge-hoej); border: 1px solid var(--graa-linje); padding: 32px 30px 26px; width: 100%; }
+  .logo { display: flex; align-items: center; gap: 12px; margin-bottom: 22px; }
+  .logo h1 { font-size: 20px; margin: 0; letter-spacing: -.01em; line-height: 1.25; }
+  .logo small { display: block; color: var(--graa-tekst); font-size: 13.5px; font-weight: 400; letter-spacing: 0; }
+  .kort p { margin: 0 0 4px; }
+  .kodeord-felt { position: relative; }
+  .kodeord-felt .felt { padding-right: 76px; }
+  .vis-kode { position: absolute; right: 6px; top: 6px; bottom: 6px; border: 0; background: none; color: var(--blaa); font-size: 13px; font-weight: 600; padding: 0 10px; border-radius: 7px; }
+  .vis-kode:hover { background: var(--blaa-svag); }
+  .capslock { font-size: 12.5px; color: #9C3F14; margin-top: 6px; }
+  .login-fod { text-align: center; color: var(--graa-tekst); font-size: 12.5px; margin-top: 18px; }
+
+  /* ---------- App-ramme ---------- */
+  #app { display: grid; grid-template-columns: var(--aside) minmax(0, 1fr); height: 100vh; height: 100dvh; }
+  aside { background: var(--plade); border-right: 1px solid var(--graa); display: flex; flex-direction: column; min-height: 0; }
+  .aside-top { padding: 18px 16px 6px; }
+  .aside-top .logo { margin: 0; }
+  .aside-top .logo h1 { font-size: 17px; }
+  .aside-top .logo small { font-size: 12.5px; }
+  .ny { padding: 12px 14px 8px; }
+  .ny .knap { margin: 0; min-height: 42px; background: var(--plade); color: var(--blaa); border: 1px solid #D5DEE2; justify-content: flex-start; padding-left: 14px; }
+  .ny .knap:hover { background: var(--blaa-svag); border-color: var(--blaa); }
+  .soeg { padding: 0 14px 8px; position: relative; }
+  .soeg svg { position: absolute; left: 25px; top: 11px; width: 16px; height: 16px; color: var(--graa-svag); pointer-events: none; }
+  .soeg input { width: 100%; height: 38px; border: 1px solid transparent; background: var(--bg); border-radius: 9px; padding: 0 10px 0 34px; font-size: 14px; outline: none; }
+  .soeg input::placeholder { color: var(--graa-tekst); opacity: 1; }
+  .soeg input:focus { border-color: var(--blaa); background: #fff; box-shadow: 0 0 0 3px rgba(13,88,121,.12); }
+  #samtaler { flex: 1; overflow: auto; padding: 2px 10px 12px; overscroll-behavior: contain; }
+  .gruppe-titel { font-size: 11.5px; font-weight: 600; color: var(--graa-tekst); text-transform: uppercase; letter-spacing: .06em; padding: 14px 8px 6px; }
+  .samtale { position: relative; display: flex; align-items: center; border-radius: 9px; }
+  .samtale:hover { background: var(--bg); }
+  .samtale.aktiv { background: var(--blaa-lys); }
+  .samtale-aabn { flex: 1; min-width: 0; display: flex; align-items: center; gap: 8px; text-align: left; padding: 9px 4px 9px 10px; min-height: 40px; border: 0; background: none; border-radius: 9px; color: var(--tekst); font-size: 14px; }
+  .samtale.aktiv .samtale-aabn { color: var(--blaa-moerk); font-weight: 600; }
+  .samtale-aabn span { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .samtale .arbejder-prik { width: 8px; height: 8px; border-radius: 50%; background: var(--orange); flex: none; animation: puls 1.2s infinite; }
+  .samtale-mere { flex: none; width: 32px; height: 32px; margin-right: 4px; display: grid; place-items: center; border: 0; background: none; border-radius: 7px; color: var(--graa-tekst); opacity: 0; }
+  .samtale:hover .samtale-mere, .samtale.aktiv .samtale-mere, .samtale-mere:focus-visible, .samtale-mere[aria-expanded="true"] { opacity: 1; }
+  .samtale-mere:hover { background: #fff; color: var(--blaa); }
+  @media (hover: none) { .samtale-mere { opacity: .7; width: 40px; height: 40px; margin-right: 0; } }
+  .samtale input { flex: 1; min-width: 0; margin: 3px 4px; height: 34px; border: 1px solid var(--blaa); border-radius: 7px; padding: 0 8px; font-size: 14px; outline: none; box-shadow: 0 0 0 3px rgba(13,88,121,.12); }
+  .tom-liste { color: var(--graa-tekst); font-size: 13.5px; padding: 16px 10px; }
+  .aside-bund { border-top: 1px solid var(--graa); padding: 10px 10px calc(10px + env(safe-area-inset-bottom)); position: relative; }
+  #konto-knap { width: 100%; display: flex; align-items: center; gap: 10px; padding: 8px; border: 0; background: none; border-radius: 10px; text-align: left; min-height: 48px; }
+  #konto-knap:hover, #konto-knap[aria-expanded="true"] { background: var(--bg); }
+  .initialer { width: 34px; height: 34px; border-radius: 50%; background: var(--creme); color: #6A3E10; display: grid; place-items: center; font-weight: 700; font-size: 13px; flex: none; letter-spacing: .02em; }
+  .konto-tekst { flex: 1; min-width: 0; display: flex; flex-direction: column; line-height: 1.3; }
+  #konto-navn { font-weight: 600; font-size: 14px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  #bruger { font-size: 12.5px; color: var(--graa-tekst); display: flex; flex-wrap: wrap; align-items: center; column-gap: 6px; row-gap: 2px; overflow-wrap: anywhere; }
+  #konto-knap > svg { width: 16px; height: 16px; color: var(--graa-svag); flex: none; }
+  .menu { position: absolute; background: var(--plade); border: 1px solid var(--graa); border-radius: 12px; box-shadow: var(--skygge-hoej); padding: 6px; min-width: 210px; z-index: 40; }
+  .menu button { display: flex; align-items: center; gap: 10px; width: 100%; text-align: left; border: 0; background: none; padding: 9px 10px; min-height: 40px; border-radius: 8px; font-size: 14px; color: var(--tekst); }
+  .menu button { white-space: nowrap; }
+  .menu button:hover { background: var(--blaa-svag); color: var(--blaa-moerk); }
+  .menu button:focus-visible { background: var(--blaa-svag); color: var(--blaa-moerk); outline: 2px solid var(--blaa); outline-offset: -2px; }
+  .menu button.fare:hover, .menu button.fare:focus-visible { color: var(--roed); }
+  .menu button svg { width: 17px; height: 17px; color: var(--graa-tekst); flex: none; }
+  .menu button.fare { color: var(--roed); }
+  .menu button.fare svg { color: var(--roed); }
+  .menu hr { border: 0; border-top: 1px solid var(--graa-linje); margin: 5px 4px; }
+  #konto-menu { left: 10px; right: 10px; bottom: calc(100% - 4px); }
+
+  main { display: flex; flex-direction: column; min-height: 0; min-width: 0; position: relative; }
+  .topbar { display: flex; align-items: center; gap: 6px; min-height: 56px; padding: 8px 16px 8px 24px; padding-top: calc(8px + env(safe-area-inset-top)); border-bottom: 1px solid transparent; background: var(--bg); position: relative; z-index: 5; }
+  .topbar.kant { border-bottom-color: var(--graa); }
+  .topbar .mobil { display: none; }
+  .topbar-knap { width: 40px; height: 40px; display: grid; place-items: center; border: 0; background: none; border-radius: 9px; color: var(--tekst); flex: none; }
+  .topbar-knap:hover { background: var(--plade); color: var(--blaa); }
+  .topbar-knap svg { width: 22px; height: 22px; }
+  #samtale-titel { flex: 1; min-width: 0; margin: 0; font-size: 15.5px; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .samtale-handlinger { display: flex; align-items: center; gap: 2px; position: relative; }
+  #samtale-menu { right: 0; top: calc(100% + 6px); width: max-content; }
+  main:has(#adminside:not(.skjult)) .samtale-handlinger, main:has(#adminside:not(.skjult)) #til-bund { display: none !important; }
+  main:has(#adminside:not(.skjult)) #samtale-titel { visibility: hidden; }
+
+  #beskeder { flex: 1; overflow: auto; padding: 8px 24px 24px; overscroll-behavior: contain; }
+  .indre { max-width: 900px; margin: 0 auto; }
+  .besked { margin: 0 0 18px; }
+  .besked.user { display: flex; justify-content: flex-end; margin-top: 28px; }
+  .besked.user:first-child { margin-top: 12px; }
+  .besked.user .boble { background: var(--blaa-lys); color: #0A3E55; max-width: min(78%, 640px); padding: 10px 16px; border-radius: 18px 18px 5px 18px; white-space: pre-wrap; overflow-wrap: anywhere; font-size: 15px; line-height: 1.5; }
+  .besked.assistant { background: var(--plade); border: 1px solid var(--graa-linje); border-radius: var(--radius); box-shadow: var(--skygge); padding: 16px 26px 10px; min-width: 0; }
+  .svar-hoved { display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--graa-tekst); margin: 0 0 10px; }
+  .svar-hoved .maerke { width: 22px; height: 22px; border-radius: 6px; }
+  .svar-hoved .maerke svg { width: 15px; height: 15px; }
+  .svar-hoved b { color: var(--tekst); font-weight: 600; }
+  .svar-hoved time { margin-left: auto; font-size: 12.5px; }
+
+  /* ---------- Arbejder (ventetid) ---------- */
+  .arbejder { border: 1px solid var(--graa-linje); background: var(--blaa-svag); border-radius: 12px; padding: 12px 14px; margin: 2px 0 14px; font-size: 14px; }
+  .arbejder-top { display: flex; align-items: center; gap: 10px; }
+  .arbejder-top b { font-weight: 600; color: var(--blaa-moerk); }
+  .arbejder-top .tid { margin-left: auto; color: var(--graa-tekst); font-variant-numeric: tabular-nums; font-size: 13px; }
+  .spinner { width: 16px; height: 16px; border-radius: 50%; border: 2px solid #C9DCE4; border-top-color: var(--blaa); animation: drej .8s linear infinite; flex: none; }
+  @keyframes drej { to { transform: rotate(360deg); } }
+  @keyframes puls { 50% { opacity: .3; } }
+  .trin { list-style: none; margin: 10px 0 0; padding: 0 0 0 26px; display: grid; gap: 5px; }
+  .trin li { display: flex; align-items: baseline; gap: 8px; color: var(--tekst); font-size: 13.5px; }
+  .trin li::before { content: ""; width: 7px; height: 7px; border-radius: 50%; background: #B9CFD8; flex: none; transform: translateY(-1px); margin-left: -15px; }
+  .trin li.aktiv::before { background: var(--orange); animation: puls 1s infinite; }
+  .trin li.faerdig::before { background: var(--blaa); }
+  .trin li.fejlede::before { background: var(--roed); }
+  .trin li .dim { color: var(--graa-tekst); font-size: 12.5px; }
+  .arbejder-hint { margin: 10px 0 0 26px; color: var(--graa-tekst); font-size: 13px; }
+  .markoer { display: inline-block; width: 8px; height: 1.05em; background: var(--blaa); vertical-align: -2px; margin-left: 2px; border-radius: 1px; animation: puls 1s infinite; }
+
+  /* ---------- Svarets tekst ---------- */
+  .markdown { font-size: 15.5px; line-height: 1.62; overflow-wrap: break-word; }
+  .markdown > :first-child { margin-top: 0; } .markdown > :last-child { margin-bottom: 0; }
+  .markdown p { margin: 0 0 12px; max-width: 76ch; }
+  .markdown strong { font-weight: 650; }
+  .markdown .konklusion { max-width: none; font-size: 16.5px; line-height: 1.5; color: #22303A; background: var(--blaa-svag); border-left: 3px solid var(--blaa); border-radius: 0 10px 10px 0; padding: 12px 16px; margin: 2px 0 16px; }
+  .markdown .konklusion strong { font-weight: 650; }
+  .markdown p.sektion { font-size: 15.5px; margin: 22px 0 8px; }
+  .markdown p.let strong { font-weight: 500; }
+  .markdown p.tabel-note { font-size: 12.5px; color: var(--graa-tekst); margin-top: -10px; }
+  .markdown div.note p, .markdown div.note ul, .markdown div.note ol { margin: 0; max-width: none; }
+  .markdown div.note ul, .markdown div.note ol { margin-top: 4px; padding-left: 20px; }
+  .markdown div.note { margin: 0 0 14px; }
+  .markdown p.note, .markdown div.note { font-size: 13.5px; line-height: 1.55; color: #4F4F4F; background: var(--creme-lys); border-left: 3px solid var(--creme); border-radius: 0 10px 10px 0; padding: 9px 14px; max-width: none; }
+  .markdown p.opfoelgning { color: var(--blaa-moerk); font-weight: 500; }
+  .markdown h1 { font-size: 19px; line-height: 1.3; margin: 24px 0 8px; letter-spacing: -.01em; }
+  .markdown h2 { font-size: 17px; line-height: 1.35; margin: 26px 0 8px; }
+  .markdown h3 { font-size: 15px; line-height: 1.4; margin: 18px 0 6px; }
+  .markdown h4 { font-size: 14px; margin: 14px 0 4px; color: var(--graa-tekst); }
+  .markdown ul, .markdown ol { padding-left: 22px; margin: 6px 0 12px; max-width: 76ch; }
+  .markdown li { margin: 4px 0; }
+  .markdown li::marker { color: var(--graa-svag); }
+  .markdown code { background: var(--bg); padding: 1px 5px; border-radius: 5px; font-size: 13px; }
+  .markdown pre { background: var(--bg); padding: 10px 12px; border-radius: 10px; overflow: auto; font-size: 13px; }
+  .markdown pre code { padding: 0; background: none; }
+  .markdown hr { border: 0; border-top: 1px solid var(--graa); margin: 16px 0; }
+  .markdown blockquote { margin: 10px 0; padding: 4px 14px; border-left: 3px solid var(--creme); color: #4A4A4A; }
+  .markdown em { color: #4A4A4A; }
+  .datastempel { white-space: nowrap; font-size: .92em; color: var(--graa-tekst); background: var(--bg); border: 1px solid var(--graa-linje); border-radius: 6px; padding: 0 6px; }
+  .svar-fejl .markdown, .svar-tomt .markdown { color: #4A4A4A; }
+  .fejlboks { display: flex; gap: 12px; align-items: flex-start; border: 1px solid #F1C9D3; background: var(--roed-lys); border-radius: 12px; padding: 12px 14px; margin: 4px 0 8px; font-size: 14.5px; }
+  .fejlboks.info-boks { border-color: #F3D8BC; background: var(--creme-lys); }
+  .fejlboks svg { width: 20px; height: 20px; color: var(--roed); flex: none; margin-top: 1px; }
+  .fejlboks.info-boks svg { color: #9C5A16; }
+  .fejl-detalje { margin-top: 3px; font-size: 12.5px; color: var(--graa-tekst); overflow-wrap: anywhere; }
+  .fejlboks .knap { width: auto; margin: 10px 8px 0 0; min-height: 36px; padding: 7px 14px; font-size: 14px; }
+
+  /* ---------- Tabeller ---------- */
+  .tabel { margin: 14px 0 18px; border: 1px solid var(--graa); border-radius: 12px; overflow: hidden; background: #fff; }
+  .tabel-rul { overflow-x: auto; overscroll-behavior-x: contain; }
+  .tabel-vindue { position: relative; }
+  .tabel-rul:focus-visible { outline: 2px solid var(--blaa); outline-offset: -2px; }
+  .tabel-vindue::after { content: ""; position: absolute; top: 0; right: 0; bottom: 0; width: 26px; pointer-events: none; background: linear-gradient(to left, rgba(0,0,0,.09), rgba(0,0,0,0)); opacity: 0; transition: opacity .15s; }
+  .tabel-vindue.mere::after { opacity: 1; }
+  .tabel table { border-collapse: separate; border-spacing: 0; width: 100%; font-size: 14px; }
+  .tabel th { background: #FAFAFA; color: #4F4F4F; font-size: 12.5px; font-weight: 600; text-align: left; vertical-align: bottom; line-height: 1.35; padding: 9px 12px; border-bottom: 1px solid #DADADA; white-space: normal; overflow-wrap: normal; hyphens: auto; min-width: 5.5em; max-width: 16em; }
+  .tabel th.lang { min-width: 9.5em; }
+  .tabel [align=right] { text-align: right; } .tabel [align=center] { text-align: center; }
+  .tabel td.foran, .tabel td.op { color: var(--groen); font-weight: 600; }
+  .tabel td.bagud, .tabel td.ned { color: var(--roed); font-weight: 600; }
+  .chip.kat-foran { background: #E8F3E9; color: #22602A; } .chip.kat-bagud { background: var(--roed-lys); color: #A3002A; } .chip.kat-niveau { background: #F0F0F0; color: #4F4F4F; }
+  .tabel td { padding: 8px 12px; border-bottom: 1px solid var(--graa-linje); white-space: nowrap; vertical-align: top; background: #fff; }
+  .tabel td.tekst { white-space: normal; min-width: 12em; max-width: 28em; }
+  .tabel td:first-child { white-space: normal; min-width: 4.5em; max-width: 16em; }
+  .tabel tbody tr:last-child td { border-bottom: 0; }
+  .tabel tbody tr:hover td { background: #F7FAFB; }
+  .tabel .tal { text-align: right; font-variant-numeric: tabular-nums; }
+  .tabel tr.total td { font-weight: 650; background: #F4F7F8; border-top: 1px solid #D5E1E6; }
+  .tabel tr.total td strong { font-weight: 650; }
+  .tabel th:first-child, .tabel td:first-child { position: sticky; left: 0; z-index: 1; }
+  .tabel.rullet th:first-child, .tabel.rullet td:first-child { box-shadow: 1px 0 0 var(--graa), 6px 0 10px -6px rgba(0,0,0,.18); }
+  .tabel tr.foldet { display: none; }
+  .tabel tr.skjult-info td { position: static; max-width: none; background: #FCFCFC; padding: 2px 6px; }
+  .tabel tr.skjult-info .ikon-knap { min-height: 32px; font-size: 13px; }
+  .tabel-fod, .graf-fod, .svar-fod, .svar-hoved, .hurtigsvar { -webkit-user-select: none; user-select: none; }
+  .tabel-fod { display: flex; align-items: center; gap: 4px; flex-wrap: wrap; padding: 4px 6px 4px 12px; border-top: 1px solid var(--graa); background: #FCFCFC; font-size: 12.5px; color: var(--graa-tekst); }
+  .tabel-fod .antal { margin-right: auto; }
+  .tabel-fod .ikon-knap { min-height: 30px; padding: 4px 8px; font-size: 12.5px; }
+  .tabel-fod .vis-alle { color: var(--blaa); font-weight: 600; }
+
+  /* ---------- Grafer ---------- */
+  .graf-boks { margin: 16px 0 18px; padding: 14px 16px 8px; border: 1px solid var(--graa); border-radius: 12px; background: #fff; }
+  .graf-titel { font-size: 14.5px; font-weight: 600; color: var(--tekst); margin: 0 0 2px; line-height: 1.4; }
+  .graf-undertitel { font-size: 12.5px; color: var(--graa-tekst); margin: 0 0 8px; line-height: 1.4; }
+  .graf { position: relative; height: 300px; }
+  .graf-fod { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; font-size: 12.5px; color: var(--graa-tekst); margin-top: 4px; }
+  .graf-fod .note { margin-right: auto; }
+  .graf-vent { min-height: 120px; display: flex; align-items: center; gap: 10px; font-size: 13.5px; color: var(--graa-tekst); padding: 22px; justify-content: center; background: var(--bg); border-radius: 12px; margin: 14px 0; }
+
+  /* ---------- Svarets fod ---------- */
+  .svar-fod { display: flex; align-items: center; gap: 4px; flex-wrap: wrap; margin: 12px -10px 0; padding-top: 8px; border-top: 1px solid var(--graa-linje); }
+  .svar-fod .afstand { flex: 1; }
+  .opslag-knap[aria-expanded="true"] { color: var(--blaa); background: var(--blaa-svag); }
+  .opslag-liste { margin: 8px 0 4px; padding: 10px 14px; background: var(--bg); border-radius: 10px; font-size: 13.5px; }
+  .opslag-liste ol { margin: 0; padding-left: 20px; display: grid; gap: 6px; }
+  .opslag-liste .dim { color: var(--graa-tekst); font-size: 12.5px; }
+  .opslag-liste .fejlede { color: var(--roed); }
+  .opslag-liste details summary { cursor: pointer; color: var(--blaa); }
+  .opslag-liste pre { white-space: pre-wrap; word-break: break-word; background: #fff; border: 1px solid var(--graa-linje); padding: 8px 10px; border-radius: 8px; font-size: 12px; margin: 6px 0 0; max-height: 260px; overflow: auto; }
+  .opslag-forklaring { color: var(--graa-tekst); font-size: 12.5px; margin: 8px 0 0; }
+  .hurtigsvar { display: flex; gap: 8px; flex-wrap: wrap; margin: -6px 0 18px; }
+  .hurtigsvar button { border: 1px solid #CADBE2; background: var(--plade); color: var(--blaa-moerk); border-radius: 999px; padding: 7px 16px; font-size: 14px; font-weight: 500; min-height: 38px; }
+  .hurtigsvar button:hover { border-color: var(--blaa); background: var(--blaa-lys); }
+
+  /* ---------- Velkomst ---------- */
+  .velkomst { padding: 6vh 4px 24px; max-width: 760px; margin: 0 auto; }
+  .velkomst .maerke { width: 52px; height: 52px; border-radius: 14px; margin-bottom: 18px; }
+  .velkomst .maerke svg { width: 34px; height: 34px; }
+  .velkomst h2 { font-size: 27px; line-height: 1.2; margin: 0 0 8px; letter-spacing: -.02em; }
+  .velkomst > p { color: var(--graa-tekst); margin: 0 0 26px; max-width: 600px; font-size: 15.5px; }
+  .forslag-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+  .forslag-gruppe { background: var(--plade); border: 1px solid var(--graa-linje); border-radius: var(--radius); box-shadow: var(--skygge); padding: 14px 10px 10px; }
+  .forslag-gruppe h3 { display: flex; align-items: center; gap: 8px; margin: 0 6px 6px; font-size: 12px; text-transform: uppercase; letter-spacing: .06em; color: var(--graa-tekst); font-weight: 600; }
+  .forslag-gruppe h3 svg { width: 16px; height: 16px; color: var(--blaa); }
+  .forslag-gruppe button { display: flex; align-items: center; gap: 10px; width: 100%; text-align: left; border: 0; background: none; border-radius: 9px; padding: 10px 8px; min-height: 44px; font-size: 14.5px; color: var(--tekst); }
+  .forslag-gruppe button:hover { background: var(--blaa-svag); color: var(--blaa-moerk); }
+  .forslag-gruppe button svg { width: 16px; height: 16px; margin-left: auto; color: var(--graa-svag); flex: none; }
+  .forslag-gruppe button:hover svg { color: var(--blaa); }
+  .statusforklaring { margin-top: 22px; display: flex; flex-wrap: wrap; gap: 8px 18px; font-size: 13px; color: var(--graa-tekst); align-items: center; }
+  .statusforklaring span.punkt { display: inline-flex; align-items: center; gap: 8px; }
+
+  /* ---------- Skrivefelt ---------- */
+  .skriv { padding: 6px 24px calc(14px + env(safe-area-inset-bottom)); background: linear-gradient(to bottom, rgba(247,247,247,0), var(--bg) 14px); position: relative; }
+  .skrivefelt { position: relative; display: flex; align-items: flex-end; gap: 8px; background: var(--plade); border: 1px solid #D5D5D5; border-radius: 18px; box-shadow: 0 2px 12px rgba(16,24,40,.06); padding: 7px 7px 7px 16px; transition: border-color .15s, box-shadow .15s; }
+  .skrivefelt:focus-within { border-color: var(--blaa); box-shadow: 0 0 0 3px rgba(13,88,121,.12), 0 2px 12px rgba(16,24,40,.06); }
+  .skrivefelt textarea { flex: 1; min-width: 0; resize: none; border: 0; outline: none; background: none; padding: 7px 0; max-height: 200px; line-height: 1.5; font-size: 15.5px; }
+  .skrivefelt textarea::placeholder { color: var(--graa-tekst); opacity: 1; }
+  .send { width: 38px; height: 38px; border-radius: 12px; border: 0; background: var(--blaa); color: #fff; display: grid; place-items: center; flex: none; transition: background .15s; }
+  .send:hover { background: var(--blaa-moerk); }
+  .send:disabled { background: #D9D9D9; cursor: default; }
+  .send svg { width: 18px; height: 18px; }
+  .skriv .note { text-align: center; font-size: 12px; color: var(--graa-tekst); margin-top: 8px; }
+  .tast { display: inline-block; font-size: 11px; border: 1px solid #D9D9D9; border-bottom-width: 2px; border-radius: 5px; padding: 0 5px; background: #fff; color: #555; }
+  #til-bund { position: absolute; left: 50%; transform: translateX(-50%); bottom: calc(100% + 6px); display: inline-flex; align-items: center; gap: 6px; border: 1px solid var(--graa); background: var(--plade); color: var(--blaa-moerk); border-radius: 999px; padding: 7px 14px; font-size: 13px; font-weight: 600; box-shadow: var(--skygge-hoej); z-index: 4; }
+  #til-bund svg { width: 15px; height: 15px; }
+
+  /* ---------- Dialog ---------- */
+  dialog { border: 0; border-radius: 16px; padding: 0; width: min(440px, calc(100vw - 32px)); box-shadow: var(--skygge-hoej); color: var(--tekst); }
+  dialog::backdrop { background: rgba(20,30,36,.38); }
+  dialog form { padding: 22px 22px 18px; }
+  dialog h2 { font-size: 17px; margin: 0 0 6px; }
+  dialog p { margin: 0 0 4px; color: #4A4A4A; }
+  .dialog-knapper { display: flex; justify-content: flex-end; gap: 8px; margin-top: 20px; }
+  .dialog-knapper .knap { width: auto; margin: 0; min-height: 40px; }
+
+  /* ---------- Mobil og tablet ---------- */
+  @media screen and (max-width: 860px) {
+    #app { grid-template-columns: minmax(0, 1fr); }
+    aside { position: fixed; inset: 0 auto 0 0; width: min(86vw, 320px); z-index: 30; transform: translateX(-102%); visibility: hidden; transition: transform .22s ease, box-shadow .22s, visibility 0s linear .22s; padding-top: env(safe-area-inset-top); }
+    aside.aaben { transform: none; visibility: visible; box-shadow: 0 0 48px rgba(0,0,0,.22); transition: transform .22s ease, box-shadow .22s; }
+    .topbar { padding-left: 8px; padding-right: 8px; gap: 4px; }
+    .topbar .mobil { display: grid; }
+    #samtale-titel { font-size: 15px; text-align: left; }
+    .samtale-handlinger .tekst-paa-stor, #udskriv-samtale, .svar-fod .pdf-knap { display: none; }
+    #bagtaeppe { position: fixed; inset: 0; background: rgba(20,30,36,.35); z-index: 25; }
+    #beskeder { padding: 4px 12px 16px; }
+    .skriv { padding: 4px 10px calc(10px + env(safe-area-inset-bottom)); }
+    .skrivefelt textarea { font-size: 16px; }
+    #send { width: 42px; height: 42px; }
+    .besked.assistant { padding: 14px 16px 8px; border-radius: 12px; }
+    .besked.user .boble { max-width: 88%; }
+    .svar-fod { margin: 10px -6px 0; }
+    .markdown { font-size: 15.5px; }
+    .markdown .konklusion { font-size: 16px; padding: 10px 12px; }
+    .tabel { margin-left: -4px; margin-right: -4px; }
+    .tabel td:first-child { max-width: 34vw; }
+    .graf-boks { padding: 12px 10px 6px; margin-left: -4px; margin-right: -4px; }
+    .forslag-grid { grid-template-columns: 1fr; }
+    .velkomst { padding-top: 3vh; }
+    .velkomst h2 { font-size: 23px; }
+    .felt, .soeg input { font-size: 16px; }
+  }
+  @media (hover: none) and (pointer: coarse) { .skriv .note .stor { display: none; } }
+  @media (any-pointer: fine) { .skriv .note .stor { display: inline; } }
+  @media screen and (max-height: 520px) {
+    aside { overflow-y: auto; scroll-padding-bottom: 88px; }
+    #samtaler { flex: none; overflow: visible; }
+    .aside-bund { position: sticky; bottom: 0; background: var(--plade); }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after { animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; scroll-behavior: auto !important; }
+  }
+
+  /* ---------- Udskrift / PDF ---------- */
+  .print-hoved { display: none; }
+  @media print {
+    @page { margin: 14mm 12mm; }
+    html, body { height: auto; background: #fff; }
+    #app { display: block; height: auto; }
+    aside, .topbar, .skriv, #til-bund, .svar-fod, .hurtigsvar, .tabel-fod, .graf-fod button, #bagtaeppe, .toast, #login, #adminside, .arbejder { display: none !important; }
+    main { display: block; }
+    #beskeder { overflow: visible; padding: 0; }
+    .indre { max-width: none; }
+    .print-hoved { display: flex !important; align-items: center; gap: 10px; border-bottom: 2px solid var(--blaa); padding-bottom: 8px; margin-bottom: 14px; font-size: 12px; color: var(--graa-tekst); }
+    .print-hoved b { color: var(--tekst); font-size: 15px; }
+    .print-hoved .maerke { width: 26px; height: 26px; border-radius: 7px; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+    .print-hoved .maerke svg { width: 18px; height: 18px; }
+    body.udskriv-en .besked:not(.udskriv-denne) { display: none; }
+    .besked.assistant { box-shadow: none; border: 0; padding: 0; }
+    .besked.user { margin-top: 18px; }
+    .besked.user .boble { background: none; color: var(--tekst); border: 0; border-left: 3px solid var(--blaa); border-radius: 0; padding: 2px 0 2px 10px; max-width: none; font-weight: 600; }
+    .markdown { font-size: 11pt; }
+    .markdown .konklusion, .chip, .tabel th, .tabel tr.total td { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+    .tabel { border-radius: 0; overflow: visible; }
+    .tabel-rul { overflow: visible; }
+    .tabel-vindue::after { display: none; }
+    .tabel table { font-size: 9pt; }
+    .tabel td, .tabel th { padding: 4px 6px; }
+    .tabel th { max-width: 12em; }
+    .tabel tr { break-inside: avoid; }
+    .tabel tr.foldet { display: table-row; }
+    .tabel tr.skjult-info { display: none; }
+    .tabel.faa-raekker { break-inside: avoid; }
+    .tabel td { white-space: normal; }
+    .tabel th, .tabel td, .tabel td.tekst, .tabel td:first-child { min-width: 0; }
+    .tabel th { font-size: 8pt; overflow-wrap: break-word; }
+    .tabel.bred table { font-size: 7.5pt; }
+    .tabel.bred td, .tabel.bred th { padding: 3px 3px; }
+    .graf { height: auto !important; }
+    .graf canvas { max-width: 100% !important; height: auto !important; }
+    .besked.user { break-after: avoid; }
+    .besked.user { justify-content: flex-start; }
+    body.udskriv-en .besked.user.udskriv-denne { display: none; }
+    .markdown p:has(+ .tabel), .markdown p:has(+ .graf-boks), .markdown p.sektion, .graf-titel, .graf-undertitel { break-after: avoid; }
+    .tabel th:first-child, .tabel td:first-child { position: static; box-shadow: none !important; }
+    .graf-boks { break-inside: avoid; border: 0; padding: 0; }
+    .markdown h2, .markdown h3 { break-after: avoid; }
+  }
+
+  /* ---------- Adminside ---------- */
+  .niveau-maerke { display: inline-block; font-size: 11.5px; padding: 1px 8px; border-radius: 999px; background: #E7F0F4; color: var(--blaa-moerk); white-space: nowrap; }
+  .niveau-maerke.admin { background: var(--blaa); color: #fff; }
+  .niveau-maerke.begraenset { background: var(--creme); color: var(--tekst); }
+  #adminside { flex: 1; overflow: auto; padding: 24px 16px 32px; }
+  #adminside .indre { max-width: 980px; }
+  .admin-top { display: flex; align-items: center; gap: 12px; margin-bottom: 18px; flex-wrap: wrap; }
+  .admin-top h2 { margin: 0; font-size: 21px; letter-spacing: -.01em; flex: 1; }
+  .admin-top .knap { width: auto; margin: 0; }
+  .plade { background: var(--plade); border-radius: var(--radius); box-shadow: var(--skygge); padding: 18px 20px; margin-bottom: 18px; }
+  .plade h3 { margin: 0 0 4px; font-size: 15.5px; color: var(--blaa-moerk); }
+  .plade .forklar { color: #616161; font-size: 13px; margin: 0 0 12px; }
+  .niveauer { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 18px; }
+  .niveauer div { background: var(--plade); border-radius: 12px; box-shadow: var(--skygge); padding: 12px 14px; font-size: 13px; color: #616161; }
+  .niveauer b { display: block; color: var(--tekst); font-size: 14px; margin-bottom: 2px; }
+  .inviter { display: grid; grid-template-columns: 2fr 1.4fr 1.2fr auto; gap: 10px; align-items: end; }
+  .inviter label { margin: 0 0 6px; }
+  .inviter .knap { margin: 0; width: auto; }
+  select.felt { appearance: auto; padding: 10px 12px; }
+  .resultat { margin-top: 14px; padding: 12px 14px; border-radius: 10px; background: #EEF5EF; border: 1px solid #CFE3D1; font-size: 14px; }
+  .resultat.advarsel { background: #FFF4E8; border-color: var(--creme); }
+  .resultat code { background: #fff; padding: 2px 6px; border-radius: 6px; font-size: 13.5px; overflow-wrap: anywhere; }
+  .resultat .knap { width: auto; margin: 8px 8px 0 0; padding: 7px 12px; font-size: 13px; }
+  .tabel-ramme { overflow-x: auto; }
+  table.admin { border-collapse: collapse; width: 100%; font-size: 13.5px; }
+  table.admin th { text-align: left; color: var(--graa-tekst); font-weight: 600; font-size: 12px; text-transform: uppercase; letter-spacing: .03em; padding: 6px 8px; border-bottom: 1px solid var(--graa); white-space: nowrap; }
+  table.admin td { padding: 8px; border-bottom: 1px solid var(--graa); vertical-align: middle; }
+  table.admin tr.inaktiv td { color: var(--graa-tekst); }
+  table.admin td.tal { text-align: right; font-variant-numeric: tabular-nums; }
+  table.admin select { padding: 5px 8px; border-radius: 8px; border: 1px solid var(--graa); background: #fff; }
+  .lille-knap { background: none; border: 1px solid var(--graa); border-radius: 8px; padding: 4px 9px; font-size: 12.5px; color: var(--blaa); white-space: nowrap; margin: 2px 4px 2px 0; }
+  .lille-knap:hover { border-color: var(--blaa); }
+  .lille-knap.fare { color: var(--roed); }
+  .lille-knap.fare:hover { border-color: var(--roed); }
+  .dim { color: #616161; font-size: 12.5px; }
+  #adminside select { font: inherit; }
+  #admin-knap { font-weight: 600; }
+  .aside-bund { flex-wrap: wrap; row-gap: 4px; }
+  .aside-bund #bruger { flex-basis: 100%; }
+  .inviter .felt { height: 46px; }
+  @media (max-width: 760px) {
+    .niveauer { grid-template-columns: 1fr; }
+    .inviter { grid-template-columns: 1fr; }
+    #adminside { padding: 16px 12px 24px; }
+  }
+
+  /* ---------- Adminside: fælles udtryk (lægges oven på adminsidens egne regler) ---------- */
+  .aside-bund { flex-wrap: nowrap; }
+  .aside-bund #bruger { flex-basis: auto; }
+  #admin-knap { font-weight: inherit; }
+  #adminside { padding: 8px 24px 32px; }
+  #adminside .indre { max-width: 1000px; }
+  .admin-top h2 { font-size: 22px; }
+  .plade { border: 1px solid var(--graa-linje); }
+  .plade h3 { font-size: 16px; }
+  .niveauer div { border: 1px solid var(--graa-linje); box-shadow: none; }
+  table.admin th { text-transform: none; letter-spacing: 0; font-size: 12.5px; color: #4F4F4F; background: #FAFAFA; }
+  table.admin td { padding: 10px 8px; }
+  table.admin td:last-child { white-space: normal; min-width: 210px; }
+  .lille-knap { min-height: 32px; padding: 4px 10px; border-radius: 8px; font-weight: 500; }
+  .niveau-maerke { font-weight: 600; }
+  @media (max-width: 860px) { #adminside { padding: 4px 12px 24px; } .admin-top h2 { font-size: 19px; } .admin-top .knap { padding: 8px 12px; font-size: 14px; min-height: 40px; } }
+</style>
+</head>
+<body>
+
+<section id="login">
+  <div class="login-ramme">
+    <div class="kort">
+      <div class="logo">
+        <div class="maerke"><svg viewBox="0 0 32 32" aria-hidden="true"><path d="M4.5 24 L12.5 11.5 L17.5 18.5 L20.5 14.5 L27.5 24 Z" fill="#FFD5A7"/><circle cx="23" cy="8.5" r="2.4" fill="#FFD5A7"/></svg></div>
+        <h1>Topas BI Agent<small>Spørg om salg, belægning og resultat</small></h1>
+      </div>
+      <form id="login-form">
+        <label for="email">E-mail</label>
+        <input class="felt" id="email" type="email" autocomplete="username" required placeholder="navn@topas.dk">
+        <label for="kodeord">Kodeord</label>
+        <div class="kodeord-felt">
+          <input class="felt" id="kodeord" type="password" autocomplete="current-password" required>
+          <button type="button" class="vis-kode" data-felt="kodeord" aria-pressed="false">Vis</button>
+        </div>
+        <div class="capslock skjult" id="capslock">Caps Lock er slået til.</div>
+        <button class="knap" id="login-knap" type="submit">Log ind</button>
+        <div class="fejl" id="login-fejl" role="alert"></div>
+        <div class="lille"><button type="button" id="glemt">Glemt kodeord?</button></div>
+        <div class="lille skjult" id="glemt-tekst">Kontakt Gorm (gs@topas.dk), så får du et nyt midlertidigt kodeord.</div>
+        <div class="lille"><button type="button" id="vis-otp">Log ind med kode på mail i stedet</button></div>
+      </form>
+      <form id="otp-form" class="skjult">
+        <p>Skriv din e-mail, så sender vi en engangskode.</p>
+        <label for="otp-email">E-mail</label>
+        <input class="felt" id="otp-email" type="email" autocomplete="username" required placeholder="navn@topas.dk">
+        <button class="knap" id="otp-knap" type="submit">Send kode</button>
+        <div class="fejl" id="otp-fejl" role="alert"></div>
+        <div class="lille"><button type="button" class="vis-login">Log ind med kodeord</button></div>
+      </form>
+      <form id="kode-form" class="skjult">
+        <p>Vi har sendt en e-mail til <b id="kode-email"></b>. Skriv koden fra mailen.</p>
+        <label for="kode">Kode</label>
+        <input class="felt" id="kode" inputmode="numeric" autocomplete="one-time-code" required placeholder="123456" style="letter-spacing:.2em;font-size:18px">
+        <button class="knap" id="kode-knap" type="submit">Log ind</button>
+        <div class="fejl" id="kode-fejl" role="alert"></div>
+        <div class="lille"><button type="button" class="vis-login">Log ind med kodeord</button></div>
+      </form>
+      <form id="skift-form" class="skjult">
+        <p id="skift-intro">Vælg dit eget kodeord.</p>
+        <label for="nyt1">Nyt kodeord</label>
+        <div class="kodeord-felt">
+          <input class="felt" id="nyt1" type="password" autocomplete="new-password" required aria-describedby="skift-regel">
+          <button type="button" class="vis-kode" data-felt="nyt1" aria-pressed="false">Vis</button>
+        </div>
+        <label for="nyt2">Gentag kodeord</label>
+        <input class="felt" id="nyt2" type="password" autocomplete="new-password" required>
+        <div class="lille" id="skift-regel" style="text-align:left;margin-top:8px">Mindst 8 tegn med bogstaver og mindst ét tal.</div>
+        <button class="knap" id="skift-knap" type="submit">Gem kodeord</button>
+        <div class="fejl" id="skift-fejl" role="alert"></div>
+        <div class="lille skjult" id="skift-fortryd-boks"><button type="button" id="skift-fortryd">Fortryd</button></div>
+      </form>
+    </div>
+    <p class="login-fod">Topas Explorer Group · Kun for inviterede brugere</p>
+  </div>
+</section>
+
+<section id="app" class="skjult">
+  <aside id="aside" aria-label="Samtaler">
+    <div class="aside-top">
+      <div class="logo">
+        <div class="maerke"><svg viewBox="0 0 32 32" aria-hidden="true"><path d="M4.5 24 L12.5 11.5 L17.5 18.5 L20.5 14.5 L27.5 24 Z" fill="#FFD5A7"/><circle cx="23" cy="8.5" r="2.4" fill="#FFD5A7"/></svg></div>
+        <h1>Topas BI Agent<small>Salg, belægning og resultat</small></h1>
+      </div>
+    </div>
+    <div class="ny"><button class="knap" id="ny-samtale"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>Ny samtale</button></div>
+    <div class="soeg">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+      <input id="soeg" type="search" placeholder="Søg i samtaler" aria-label="Søg i samtaler" autocomplete="off">
+    </div>
+    <nav id="samtaler" aria-label="Dine samtaler"></nav>
+    <div class="aside-bund">
+      <button id="konto-knap" aria-expanded="false" aria-controls="konto-menu">
+        <span class="initialer" id="initialer" aria-hidden="true"></span>
+        <span class="konto-tekst"><span id="konto-navn"></span><span id="bruger"></span></span>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m7 15 5-5 5 5"/></svg>
+      </button>
+      <div id="konto-menu" class="menu skjult">
+        <button id="admin-knap" class="skjult"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="9" cy="8" r="3.5"/><path d="M2.5 20c.6-3.6 3.2-5.5 6.5-5.5s5.9 1.9 6.5 5.5"/><path d="M16 4.5a3.5 3.5 0 0 1 0 7M18.5 14.8c1.7.8 2.8 2.5 3 5.2"/></svg>Brugere og adgang</button>
+        <button id="skift-kodeord"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="10.5" width="16" height="10" rx="2"/><path d="M8 10.5V7a4 4 0 0 1 8 0v3.5"/></svg>Skift kodeord</button>
+        <hr>
+        <button id="log-ud"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 4h3a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2h-3M10 17l5-5-5-5M15 12H3"/></svg>Log ud</button>
+      </div>
+    </div>
+  </aside>
+  <div id="bagtaeppe" class="skjult"></div>
+  <main>
+    <header class="topbar" id="topbar">
+      <button class="topbar-knap mobil" id="menu" aria-label="Vis samtaler" aria-controls="aside" aria-expanded="false"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h10"/></svg></button>
+      <h2 id="samtale-titel"></h2>
+      <div class="samtale-handlinger skjult" id="samtale-handlinger">
+        <button class="ikon-knap" id="udskriv-samtale" title="Gem samtalen som PDF eller udskriv den"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 9V3h10v6M7 17H5a2 2 0 0 1-2-2v-4a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v4a2 2 0 0 1-2 2h-2"/><rect x="7" y="14" width="10" height="7" rx="1"/></svg><span class="tekst-paa-stor">Gem som PDF</span></button>
+        <button class="topbar-knap" id="samtale-mere" aria-label="Flere handlinger for samtalen" aria-expanded="false" aria-controls="samtale-menu"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><circle cx="5" cy="12" r="1.8"/><circle cx="12" cy="12" r="1.8"/><circle cx="19" cy="12" r="1.8"/></svg></button>
+        <div id="samtale-menu" class="menu skjult">
+          <button data-handling="omdoeb"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 20h4L19 9l-4-4L4 16v4z"/></svg>Omdøb</button>
+          <button data-handling="udskriv"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 9V3h10v6M7 17H5a2 2 0 0 1-2-2v-4a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v4a2 2 0 0 1-2 2h-2"/><rect x="7" y="14" width="10" height="7" rx="1"/></svg>Gem som PDF / udskriv</button>
+          <hr>
+          <button data-handling="slet" class="fare"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3"/></svg>Slet samtale</button>
+        </div>
+      </div>
+      <button class="topbar-knap mobil" id="ny-samtale-mobil" aria-label="Ny samtale"><svg viewBox="0 0 24 24" fill="none" stroke="#0D5879" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg></button>
+    </header>
+    <div id="beskeder">
+      <div class="indre">
+        <div class="print-hoved"><span class="maerke"><svg viewBox="0 0 32 32" aria-hidden="true"><path d="M4.5 24 L12.5 11.5 L17.5 18.5 L20.5 14.5 L27.5 24 Z" fill="#FFD5A7"/><circle cx="23" cy="8.5" r="2.4" fill="#FFD5A7"/></svg></span><span><b id="print-titel">Topas BI Agent</b><br><span id="print-meta"></span></span></div>
+        <div id="beskeder-indre"></div>
+      </div>
+    </div>
+    <section id="adminside" class="skjult">
+      <div class="indre">
+        <div class="admin-top">
+          <h2>Brugere og adgang</h2>
+          <button class="knap sekundaer" id="admin-luk">Tilbage til chatten</button>
+        </div>
+        <div class="niveauer">
+          <div><b>Admin</b>Alle tal og denne side: invitere brugere, ændre niveau og lave MCP-nøgler.</div>
+          <div><b>Fuld adgang</b>Alle tal, også omsætning og DB pr. turansvarlig og sælger (initialer).</div>
+          <div><b>Begrænset</b>Alle tal undtagen tal pr. turansvarlig og sælger. Initialer vises som "(skjult)".</div>
+        </div>
+        <div class="plade">
+          <h3>Invitér en bruger</h3>
+          <p class="forklar">Har personen allerede et login (fx fra Teg Plan), bruger de samme kodeord. Ellers laver vi et midlertidigt kodeord, som du giver videre mundtligt eller i Teams. Der sendes ingen mail. Bemærk, at et nyt login er fælles med Teg Plan og også virker dér.</p>
+          <form id="inviter-form" class="inviter">
+            <div><label for="inv-email">E-mail</label><input class="felt" id="inv-email" type="email" required placeholder="navn@topas.dk" autocomplete="off"></div>
+            <div><label for="inv-navn">Navn (valgfrit)</label><input class="felt" id="inv-navn" autocomplete="off"></div>
+            <div><label for="inv-rolle">Adgangsniveau</label>
+              <select class="felt" id="inv-rolle"><option value="begraenset">Begrænset</option><option value="fuld">Fuld adgang</option><option value="admin">Admin</option></select></div>
+            <button class="knap" id="inv-knap" type="submit">Invitér</button>
+          </form>
+          <div class="fejl" id="admin-fejl" role="alert"></div>
+          <div id="admin-resultat"></div>
+        </div>
+        <div class="plade">
+          <h3>Brugere</h3>
+          <p class="forklar">Ændringer gælder fra brugerens næste spørgsmål. Deaktivering fjerner adgangen til Topas BI og tilbagekalder brugerens MCP-nøgler. Et login, som Topas BI har oprettet, spærres også (det er fælles med Teg Plan); andre logins bevares. Kodeord kan kun nulstilles her for logins, som Topas BI har oprettet.</p>
+          <div class="tabel-ramme"><table class="admin" id="bruger-tabel"></table></div>
+        </div>
+        <div class="plade">
+          <h3>MCP-nøgler</h3>
+          <p class="forklar">En personlig nøgle forbinder Claude (claude.ai, Claude Desktop, Claude Code) eller Copilot med Topas BI. Nøglen følger brugerens niveau, og opslagene logges på brugeren. Nøglen vises kun én gang.</p>
+          <div class="tabel-ramme"><table class="admin" id="noegle-tabel"></table></div>
+        </div>
+      </div>
+    </section>
+    <div class="skriv" id="skriv">
+      <button id="til-bund" class="skjult" type="button"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 5v14M5 12l7 7 7-7"/></svg>Til nyeste</button>
+      <div class="indre">
+        <form class="skrivefelt" id="skriv-form">
+          <textarea id="input" rows="1" placeholder="Stil et spørgsmål om salg, belægning, omsætning eller resultat…" aria-label="Dit spørgsmål" enterkeyhint="send"></textarea>
+          <button class="send" id="send" type="submit" aria-label="Send" disabled><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 19V5M5 12l7-7 7 7"/></svg></button>
+        </form>
+        <div class="note"><span class="stor"><span class="tast">Enter</span> sender · <span class="tast">Shift</span>+<span class="tast">Enter</span> ny linje · </span>Lukkede måneder er økonomis endelige tal; indeværende måned er til dato.</div>
+      </div>
+    </div>
+  </main>
+</section>
+
+<dialog id="dialog" aria-labelledby="dialog-titel" aria-describedby="dialog-tekst">
+  <form method="dialog" id="dialog-form">
+    <h2 id="dialog-titel"></h2>
+    <p id="dialog-tekst"></p>
+    <input class="felt skjult" id="dialog-input" maxlength="80" aria-labelledby="dialog-titel">
+    <div class="dialog-knapper">
+      <button class="knap sekundaer" value="annuller" id="dialog-annuller" type="button">Annullér</button>
+      <button class="knap" value="ok" id="dialog-ok">OK</button>
+    </div>
+  </form>
+</dialog>
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+<div class="sr" id="sr-status" aria-live="polite"></div>
+
+<script>
+  // Kan bibliotekerne ikke hentes (fx CDN nede), kører modulet nedenfor ikke. Så forklarer vi det i stedet for en død loginknap.
+  function ikkeIndlaest() { const f = document.getElementById("login-fejl"); if (f) f.textContent = "Appen kunne ikke indlæses. Tjek netværket, og genindlæs siden."; }
+  addEventListener("submit", function (e) { if (!window.__topasKlar) { e.preventDefault(); ikkeIndlaest(); } }, true);
+  setTimeout(function () { if (!window.__topasKlar) ikkeIndlaest(); }, 15000);
+</script>
+<script>window.__TOPAS_BI__={"url": "https://oxpuloflkdcpshrabvkn.supabase.co", "anonKey": "sb_publishable_1J98JZQ2qBBer2cI-hS3Tg_rPXC2sFC"};</script>
+<script type="module">
+import { createClient } from "https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.117.3/+esm";
+import { marked } from "https://cdn.jsdelivr.net/npm/marked@17.0.1/+esm";
+import { Chart, registerables } from "https://cdn.jsdelivr.net/npm/chart.js@4.4.7/+esm";
+import DOMPurify from "https://cdn.jsdelivr.net/npm/dompurify@3.2.6/+esm";
+Chart.register(...registerables);
+window.__topasKlar = true;
+
+const KONFIG = window.__TOPAS_BI__;
+const sb = createClient(KONFIG.url, KONFIG.anonKey);
+const CHAT_URL = `${KONFIG.url}/functions/v1/bi-chat`;
+const ADMIN_URL = `${KONFIG.url}/functions/v1/bi-admin`;
+const APP_URL = location.origin + location.pathname;
+
+const $ = (id) => document.getElementById(id);
+const el = (tag, cls, html) => { const e = document.createElement(tag); if (cls) e.className = cls; if (html != null) e.innerHTML = html; return e; };
+const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+const sek = (ms) => (ms / 1000).toFixed(1).replace(".", ",") + " s";
+const MAERKE_SVG = `<svg viewBox="0 0 32 32" aria-hidden="true"><path d="M4.5 24 L12.5 11.5 L17.5 18.5 L20.5 14.5 L27.5 24 Z" fill="#FFD5A7"/><circle cx="23" cy="8.5" r="2.4" fill="#FFD5A7"/></svg>`;
+const IKON = {
+  kopier: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="8" y="8" width="12" height="12" rx="2"/><path d="M16 8V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h2"/></svg>`,
+  udskriv: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 9V3h10v6M7 17H5a2 2 0 0 1-2-2v-4a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v4a2 2 0 0 1-2 2h-2"/><rect x="7" y="14" width="10" height="7" rx="1"/></svg>`,
+  opslag: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><ellipse cx="12" cy="6" rx="7" ry="3"/><path d="M5 6v6c0 1.7 3.1 3 7 3s7-1.3 7-3V6M5 12v6c0 1.7 3.1 3 7 3s7-1.3 7-3v-6"/></svg>`,
+  hent: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 4v11M7 10l5 5 5-5M5 20h14"/></svg>`,
+  pil: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg>`,
+  fejl: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7.5v5.5M12 16.5h.01"/></svg>`,
+  mere: `<svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><circle cx="5" cy="12" r="1.8"/><circle cx="12" cy="12" r="1.8"/><circle cx="19" cy="12" r="1.8"/></svg>`,
+  salg: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 17l6-6 4 4 8-8M15 7h6v6"/></svg>`,
+  resultat: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/></svg>`,
+};
+
+let toastTimer;
+function toast(tekst) { const t = $("toast"); t.textContent = tekst; t.classList.add("vis"); clearTimeout(toastTimer); toastTimer = setTimeout(() => t.classList.remove("vis"), 2200); }
+const srStatus = (t) => { $("sr-status").textContent = t; };
+
+// ---------- Dialog (i stedet for confirm/prompt) ----------
+function spoerg({ titel, tekst = "", input = null, ok = "OK", fare = false }) {
+  const d = $("dialog");
+  $("dialog-titel").textContent = titel;
+  $("dialog-tekst").textContent = tekst;
+  $("dialog-tekst").classList.toggle("skjult", !tekst);
+  const inp = $("dialog-input");
+  inp.classList.toggle("skjult", input == null);
+  inp.value = input ?? "";
+  const okKnap = $("dialog-ok");
+  okKnap.textContent = ok;
+  okKnap.classList.toggle("fare", fare);
+  return new Promise((svar) => {
+    const luk = (v) => { d.onclose = null; if (d.open) d.close(); svar(v); };
+    $("dialog-annuller").onclick = () => luk(null);
+    d.oncancel = (e) => { e.preventDefault(); luk(null); };
+    $("dialog-form").onsubmit = (e) => { e.preventDefault(); luk(input == null ? true : inp.value.trim()); };
+    d.showModal();
+    if (input != null) { inp.focus(); inp.select(); } else (fare ? $("dialog-annuller") : okKnap).focus();
+  });
+}
+
+// ---------- Markdown, tabeller og grafer ----------
+marked.setOptions({ gfm: true, breaks: false });
+const talDK = new Intl.NumberFormat("da-DK", { maximumFractionDigits: 1 });
+const kortTal = (v) => Math.abs(v) >= 1e6 ? talDK.format(v / 1e6) + " mio." : Math.abs(v) >= 1e4 ? talDK.format(v / 1e3) + " t." : talDK.format(v);
+const erMobil = () => matchMedia("(max-width: 860px)").matches;
+const rolig = () => matchMedia("(prefers-reduced-motion: reduce)").matches;
+// Enter sender, medmindre man kun har en touchskærm (så giver Enter ny linje, og man trykker på send-knappen).
+// En iPad med pegeplade eller mus tæller ikke som kun touch. En iPad med tastatur uden pegeenhed kan ikke kendes fra en uden.
+const touchQ = matchMedia("(hover: none) and (pointer: coarse)"), finQ = matchMedia("(any-pointer: fine)");
+const kunTouch = { get matches() { return touchQ.matches && !finQ.matches; } };
+Chart.defaults.font.family = getComputedStyle(document.body).fontFamily;
+Chart.defaults.font.size = 12;
+Chart.defaults.color = "#5C5C5C";
+
+const STATUS = [
+  [/^(afsluttet|lukket)(\s*\(økonomi\)|\s+måned)?$/i, "lukket"],
+  [/^til dato\*?$/i, "til-dato"],
+  [/^(færdig\s*[–-]\s*)?estimat$/i, "estimat"],
+];
+const KATEGORI = [[/^foran$/i, "kat-foran"], [/^bagud$/i, "kat-bagud"], [/^på niveau$/i, "kat-niveau"]];
+// Talcelle: fx "12.246.099 kr.", "−95 (−8,8 %)", "+1.002.643 (+4,8 %)", "92,4", "15,6 %", "+72 †", "12 / 20", "–"
+const TAL = /^[−+\-–]?\s?\d[\d.,]*\s?(%|kr\.?|mio\.?(\s?kr\.?)?|t\.?\s?kr\.?|pax|pladser|dage|pct\.?)?(\s?\(\s?[−+\-–]?\s?\d[\d.,]*\s?(%|kr\.?|pax)?\s?\))?\s?[*†‡]*$/i;
+const erTal = (t) => TAL.test(t) || /^[–—-]$/.test(t) || /^\d+\s?\/\s?\d+$/.test(t);
+// Dansk tal → Number ("−8,8 %" → -8.8). Første tal i cellen, eller tallet i parentesen, hvis der er en procent dér.
+function danskTal(t) {
+  const m = t.match(/\(\s?([−+\-–]?\s?\d[\d.,]*)\s?%\s?\)/) || t.match(/([−+\-–]?\s?\d[\d.,]*)/);
+  if (!m) return null;
+  return Number(m[1].replace(/\s/g, "").replace(/[−–]/g, "-").replace(/\./g, "").replace(",", "."));
+}
+
+function formTabel(table) {
+  const rows = [...table.rows];
+  if (!rows.length) return;
+  const head = table.tHead?.rows[0];
+  const body = [...(table.tBodies[0]?.rows ?? [])];
+  const kolonner = Math.max(...rows.map((r) => r.cells.length));
+  head && [...head.cells].forEach((c) => { if (c.textContent.trim().length > 28) c.classList.add("lang"); });
+  for (let k = 0; k < kolonner; k++) {
+    const celler = body.map((r) => r.cells[k]).filter(Boolean);
+    const udfyldt = celler.filter((c) => c.textContent.trim());
+    const tal = udfyldt.filter((c) => erTal(c.textContent.trim()));
+    if (!(udfyldt.length && tal.length / udfyldt.length >= 0.6 && k > 0)) continue;
+    // Kolonner, hvor de fleste celler er tal, højrestilles (også overskriften). Enheder og fodnotetegn holdes sammen med tallet.
+    celler.forEach((c) => {
+      c.classList.add("tal");
+      const w = document.createTreeWalker(c, NodeFilter.SHOW_TEXT);
+      while (w.nextNode()) w.currentNode.data = w.currentNode.data.replace(/ (?=%|kr\.|[*†‡])/g, "\u00a0");
+    });
+    head?.cells[k]?.classList.add("tal");
+    // Afvigelser farves kun uden for TEG's grænser: ±10 % og indeks 90/110 (aldrig omkostninger)
+    const h = head?.cells[k]?.textContent.toLowerCase() ?? "";
+    if (/omkostning|udgift|aflys/.test(h)) continue;
+    const erIndeks = /indeks/.test(h);
+    const erAfvigelse = /forskel|afvigelse|ændring|udvikling|mod (sidste år|budget)|vs\.|δ|\+\/−|\+\/-/.test(h);
+    if (!erIndeks && !erAfvigelse) continue;
+    for (const c of celler) {
+      const t = c.textContent.trim();
+      // Indeks: selve indekset (ikke procenten i parentes). Afvigelser: kun uden for ±10 % (præcis 10 % er på niveau)
+      const v = erIndeks ? danskTal(t.replace(/\(.*\)/, "")) : danskTal(t);
+      if (v == null || Number.isNaN(v)) continue;
+      if (erIndeks) { if (v < 90) c.classList.add("ned"); else if (v > 110) c.classList.add("op"); }
+      else if (/%/.test(t)) { if (v < -10) c.classList.add("ned"); else if (v > 10) c.classList.add("op"); }
+    }
+  }
+  for (const r of body) {
+    for (const c of r.cells) {
+      const t = c.textContent.trim();
+      if (!c.classList.contains("tal") && t.length > 38) c.classList.add("tekst");
+      if (c.querySelector("*:not(strong)")) continue;
+      const status = STATUS.find(([re]) => re.test(t));
+      const kat = KATEGORI.find(([re]) => re.test(t));
+      if (status) c.innerHTML = `<span class="chip ${status[1]}">${esc(t)}</span>`;
+      else if (kat) c.innerHTML = `<span class="chip ${kat[1]}">${esc(t)}</span>`;
+    }
+    const foerste = r.cells[0]?.textContent.trim().replace(/\*/g, "") ?? "";
+    const alleFede = [...r.cells].every((c) => !c.textContent.trim() || c.querySelector("strong")?.textContent.trim() === c.textContent.trim());
+    if (/^(i alt|total|samlet|sum)\b|,\s*i alt$/i.test(foerste) || (alleFede && r.cells.length > 1)) r.classList.add("total");
+  }
+  const ramme = el("div", "tabel" + (body.length <= 15 ? " faa-raekker" : "") + (kolonner >= 7 ? " bred" : ""));
+  const kolonneNavn = [...(head?.cells ?? [])].map((c) => c.textContent.trim()).filter(Boolean).slice(0, 3).join(", ").slice(0, 70) || "uden overskrift";
+  // Navnet regnes først ud, når svaret er færdigbehandlet (afsnitstitlerne findes først efter finpuds)
+  const navn = () => {
+    const forrige = ramme.previousElementSibling;
+    const sek = forrige?.matches("p.sektion, h1, h2, h3, h4, h5, h6") ? forrige.textContent.trim() : "";
+    const alle = ramme.parentElement ? [...ramme.parentElement.querySelectorAll(":scope > .tabel")] : [];
+    return `Tabel${alle.length > 1 ? " " + (alle.indexOf(ramme) + 1) : ""}: ${sek || kolonneNavn}`;
+  };
+  const vindue = el("div", "tabel-vindue");
+  const rul = el("div", "tabel-rul");
+  table.replaceWith(ramme);
+  rul.append(table);
+  vindue.append(rul);
+  ramme.append(vindue);
+  // Skygge i venstre side, når der er rullet, og i højre side, når der er flere kolonner at se
+  const skygger = () => {
+    ramme.classList.toggle("rullet", rul.scrollLeft > 2);
+    vindue.classList.toggle("mere", rul.scrollLeft + rul.clientWidth < rul.scrollWidth - 2);
+    if (rul.scrollWidth > rul.clientWidth + 2) { rul.tabIndex = 0; rul.setAttribute("role", "region"); rul.setAttribute("aria-label", `${navn()} (kan rulles vandret)`); }
+    else { rul.removeAttribute("tabindex"); rul.removeAttribute("role"); rul.removeAttribute("aria-label"); }
+  };
+  rul.addEventListener("scroll", skygger, { passive: true });
+  if (window.ResizeObserver) new ResizeObserver(skygger).observe(rul);
+  const fod = el("div", "tabel-fod");
+  fod.append(el("span", "antal", `${body.length} ${body.length === 1 ? "række" : "rækker"}`));
+  // Lange tabeller foldes til de første 12 rækker. Kun en total-række til sidst bliver stående; tabeller med
+  // mellemsummer (grupper) foldes ikke, så en sum aldrig står uden sine rækker. En række markerer, hvad der er skjult.
+  const MAX = 12;
+  const sidsteTotal = body.at(-1)?.classList.contains("total");
+  const grupperet = body.some((r, i) => r.classList.contains("total") && i < body.length - 1);
+  if (body.length > MAX + 3 && !grupperet) {
+    const skjules = body.length - MAX - (sidsteTotal ? 1 : 0);
+    const info = el("tr", "skjult-info");
+    const infoCelle = el("td");
+    infoCelle.colSpan = kolonner;
+    const infoKnap = el("button", "ikon-knap vis-alle", `… ${skjules} rækker mere – vis alle`);
+    infoKnap.type = "button";
+    infoCelle.append(infoKnap);
+    info.append(infoCelle);
+    body[MAX - 1].after(info);
+    const vis = el("button", "ikon-knap vis-alle", `Vis alle ${body.length} rækker`);
+    vis.type = "button";
+    const fold = (ja) => {
+      body.forEach((r, i) => r.classList.toggle("foldet", ja && i >= MAX && !(sidsteTotal && i === body.length - 1)));
+      info.classList.toggle("skjult", !ja);
+      vis.textContent = ja ? `Vis alle ${body.length} rækker` : "Vis færre rækker";
+      vis.setAttribute("aria-expanded", String(!ja));
+    };
+    fold(true);
+    vis.onclick = () => { const foldet = !!table.querySelector("tr.foldet"); fold(!foldet); if (!foldet) ramme.scrollIntoView({ block: "nearest" }); };
+    infoKnap.onclick = () => { fold(false); body[MAX].tabIndex = -1; body[MAX].focus({ preventScroll: true }); };
+    fod.append(vis);
+  }
+  const kopi = el("button", "ikon-knap", `${IKON.kopier}Kopiér til Excel`);
+  kopi.type = "button";
+  kopi.title = "Kopiér tabellen, så den kan sættes ind i Excel";
+  kopi.onclick = () => kopierTabel(table);
+  fod.append(kopi);
+  ramme.append(fod);
+}
+
+// Tabel → TSV (Excel genkender danske tal, når "kr." og fodnotetegn fjernes) + HTML
+// Celler renset til Excel: talceller uden "kr.", fodnotetegn og typografiske minusser, så Excel læser dem som tal
+const KOMBI = /^([−+\-–]?\s?\d[\d.,]*)\s?(?:kr\.?|pax|pladser)?\s?\(\s?([−+\-–]?\s?\d[\d.,]*)\s?%\s?\)\s?[*†‡]*$/i;
+const renTal = (t) => t.replace(/[*†‡]+$/, "").trim().replace(/\s?kr\.?$/i, "").replace(/[−–]/g, "-").replace(/^\+\s?/, "+").replace(/\s?%$/, "%");
+function tabelCeller(table) {
+  const raekker = [...table.rows].filter((r) => !r.classList.contains("skjult-info"));
+  const krop = raekker.filter((r) => r.parentElement.tagName !== "THEAD");
+  // Kolonner, hvor de fleste talceller er "værdi (x %)", bliver til to kolonner i Excel: værdien og procenten
+  const delt = new Set();
+  const n = Math.max(0, ...raekker.map((r) => r.cells.length));
+  for (let k = 0; k < n; k++) {
+    const tal = krop.map((r) => r.cells[k]).filter((c) => c?.classList.contains("tal") && c.textContent.trim());
+    if (tal.length && tal.filter((c) => KOMBI.test(c.textContent.replace(/\s+/g, " ").trim())).length / tal.length >= 0.5) delt.add(k);
+  }
+  return raekker.map((r) => [...r.cells].flatMap((c, k) => {
+    const t = c.textContent.replace(/\s+/g, " ").trim();
+    const th = c.tagName === "TH";
+    if (!delt.has(k)) return [{ t: c.classList.contains("tal") && !th ? renTal(t) : t, th }];
+    if (th) return [{ t, th }, { t: `${t} (%)`, th }];
+    const m = t.match(KOMBI);
+    return m ? [{ t: renTal(m[1]), th }, { t: renTal(m[2]) + "%", th }] : [{ t: renTal(t), th }, { t: "", th }];
+  }));
+}
+async function kopierTabel(table) {
+  const celler = tabelCeller(table);
+  const tekst = celler.map((r) => r.map((c) => c.t).join("\t")).join("\n");
+  const html = `<table>${celler.map((r) => `<tr>${r.map((c) => c.th ? `<th>${esc(c.t)}</th>` : `<td>${esc(c.t)}</td>`).join("")}</tr>`).join("")}</table>`;
+  await kopier(tekst, html);
+}
+async function kopier(tekst, html) {
+  try {
+    if (html && window.ClipboardItem) await navigator.clipboard.write([new ClipboardItem({ "text/plain": new Blob([tekst], { type: "text/plain" }), "text/html": new Blob([html], { type: "text/html" }) })]);
+    else await navigator.clipboard.writeText(tekst);
+    toast("Kopieret");
+  } catch {
+    toast("Kunne ikke kopiere – markér teksten og kopiér selv");
+  }
+}
+
+// ---------- Grafer ----------
+// Farve efter seriens rolle (bi-visualisering-best-practices.md): i år blå, sidste år grå, budget orange stiplet.
+// Rød og grøn bruges kun til afvigelser.
+const EKSTRA = ["#FFD5A7", "#6B9BB0", "#B6CDD7", "#0A4660"];
+function farveFor(serier) {
+  const aar = serier.map((s) => +((String(s.navn || "").match(/\b(20\d\d)\b/) || [])[1] || 0));
+  const nyeste = Math.max(...aar);
+  let blaaBrugt = false, ekstra = 0;
+  return serier.map((s, i) => {
+    const navn = String(s.navn || "");
+    if (/budget|mål/i.test(navn)) return { farve: "#E1652A", budget: true };
+    if (/sidste år|samme tid|forrige|fjor/i.test(navn) || (aar[i] && aar[i] < nyeste)) return { farve: "#8C8C8C" };
+    if (!blaaBrugt) { blaaBrugt = true; return { farve: "#0D5879" }; }
+    return { farve: EKSTRA[ekstra++ % EKSTRA.length] };
+  });
+}
+const MAANED_TIL_DATO = /^(jan|feb|mar|apr|maj|jun|jul|aug|sep|okt|nov|dec)[a-zæøå]*\.?(\s?'?\d{2,4})?\s?\*$/i;
+// Akse: én enhed for hele aksen (fx "mio. kr.") i stedet for på hver tick
+function akseEnhed(maks, enhed) {
+  const e = (enhed || "").trim();
+  if (/kr/i.test(e) && maks >= 1e7) return { d: 1e6, titel: "mio. kr." };
+  if (/kr/i.test(e) && maks >= 1e5) return { d: 1e3, titel: "t. kr." };
+  if (!e && maks >= 1e7) return { d: 1e6, titel: "mio." };
+  return { d: 1, titel: e };
+}
+// Er en søjlefarve mørk nok til hvid tekst? (#RRGGBB eller #RRGGBBAA; gennemsigtige søjler tæller som lyse)
+const moerkFarve = (f) => {
+  const m = /^#([0-9a-f]{6})([0-9a-f]{2})?$/i.exec(String(f || ""));
+  if (!m || (m[2] && parseInt(m[2], 16) < 160)) return false;
+  const [r, g, b] = [0, 2, 4].map((i) => parseInt(m[1].slice(i, i + 2), 16) / 255);
+  return 0.2126 * r + 0.7152 * g + 0.0722 * b < 0.45;
+};
+// Små tal for enden af søjlerne, når der er få søjler (præcise tal uden at holde musen over).
+// Tallene får en hvid kant, så de kan læses, hvor en linje (fx budget) krydser dem. Støder to tal ind i hinanden, vises ingen
+// (de præcise tal står i teksten og ved musen).
+const vaerdiEtiketter = {
+  id: "vaerdiEtiketter",
+  afterDatasetsDraw(chart, _a, opt) {
+    if (!opt.vis) return;
+    const { ctx, chartArea: a } = chart;
+    const vandret = chart.options.indexAxis === "y";
+    ctx.save();
+    ctx.font = `500 11px ${Chart.defaults.font.family}`;
+    const etiketter = [];
+    chart.data.datasets.forEach((ds, di) => {
+      const meta = chart.getDatasetMeta(di);
+      if (meta.hidden || meta.type !== "bar") return;
+      meta.data.forEach((bar, i) => {
+        const v = ds.data[i];
+        if (v == null) return;
+        const t = opt.fmt(v);
+        const w = ctx.measureText(t).width;
+        if (vandret) {
+          // Negative tal står til venstre for søjlen, men aldrig ude over kategorinavnene. Er der ikke plads, står tallet hvidt
+          // inde i en mørk søjle (eller mørkt med hvid kant, hvis søjlen er lys eller for kort)
+          const udenPlads = v < 0 && bar.x - 4 - w < a.left;
+          const inde = udenPlads && bar.x + 4 + w <= bar.base - 2 && moerkFarve(bar.options?.backgroundColor);
+          const x = inde ? bar.x + 4 : v < 0 ? Math.max(bar.x - 4 - w, a.left + 2) : bar.x + 4;
+          etiketter.push({ t, x, y: bar.y, align: "left", base: "middle", inde, v: x, h: x + w, top: bar.y - 5, bund: bar.y + 5 });
+        } else {
+          const y = bar.y + (v < 0 ? 3 : -3);
+          etiketter.push({ t, x: bar.x, y, align: "center", base: v < 0 ? "top" : "bottom", v: bar.x - w / 2, h: bar.x + w / 2, top: v < 0 ? y : y - 12, bund: v < 0 ? y + 12 : y });
+        }
+      });
+    });
+    const stoeder = etiketter.some((e, i) => etiketter.some((f, j) => j > i && e.v < f.h + 2 && f.v < e.h + 2 && e.top < f.bund && f.top < e.bund));
+    if (!stoeder) {
+      ctx.lineWidth = 3; ctx.lineJoin = "round"; ctx.strokeStyle = "#FFFFFF";
+      for (const e of etiketter) {
+        ctx.textAlign = e.align; ctx.textBaseline = e.base;
+        ctx.fillStyle = e.inde ? "#FFFFFF" : "#333333";
+        if (!e.inde) ctx.strokeText(e.t, e.x, e.y);
+        ctx.fillText(e.t, e.x, e.y);
+      }
+    }
+    ctx.restore();
+  },
+};
+// Referencelinjer for indeks (90/100/110) og afvigelser (0)
+const referenceLinjer = {
+  id: "referenceLinjer",
+  beforeDatasetsDraw(chart, _a, opt) {
+    if (!opt.linjer?.length) return;
+    const vandret = chart.options.indexAxis === "y";
+    const skala = chart.scales[vandret ? "x" : "y"];
+    const { ctx, chartArea: a } = chart;
+    ctx.save();
+    for (const l of opt.linjer) {
+      const p = skala.getPixelForValue(l.v);
+      if (p < (vandret ? a.left : a.top) - 1 || p > (vandret ? a.right : a.bottom) + 1) continue;
+      ctx.strokeStyle = l.farve; ctx.lineWidth = l.bred || 1; ctx.setLineDash(l.stiplet ? [4, 4] : []);
+      ctx.beginPath();
+      if (vandret) { ctx.moveTo(p, a.top); ctx.lineTo(p, a.bottom); } else { ctx.moveTo(a.left, p); ctx.lineTo(a.right, p); }
+      ctx.stroke();
+    }
+    ctx.restore();
+  },
+};
+Chart.register(vaerdiEtiketter, referenceLinjer);
+
+function tegnGraf(pre, spec, grafer) {
+  const labels = Array.isArray(spec.labels) ? spec.labels.map(String) : [];
+  const serier = (Array.isArray(spec.serier) ? spec.serier : []).slice(0, 6).map((s) => ({ ...s, data: (s.data || []).map((v) => (v == null || v === "" ? null : Number(v))) }));
+  const boks = el("figure", "graf-boks");
+  const helTitel = String(spec.titel || "");
+  const delI = helTitel.indexOf(" – ");
+  const titel = delI > 20 ? helTitel.slice(0, delI) : helTitel;
+  const undertitel = delI > 20 ? helTitel.slice(delI + 3) : "";
+  if (titel) boks.append(el("figcaption", "graf-titel", esc(titel)));
+  if (undertitel) boks.append(el("div", "graf-undertitel", esc(undertitel)));
+  const ramme = el("div", "graf");
+  const canvas = el("canvas");
+  canvas.setAttribute("role", "img");
+  canvas.setAttribute("aria-label", `Graf: ${helTitel || "uden titel"}. De præcise tal står i teksten.`);
+  ramme.append(canvas);
+  boks.append(ramme);
+  const vandret = !!spec.vandret;
+  const n = labels.length || 1;
+  const hoejde = vandret ? Math.min(760, Math.max(200, n * (serier.length > 1 ? 30 : 24) + 80)) : (erMobil() ? 250 : 300);
+  ramme.style.height = hoejde + "px";
+  const tilDato = labels.map((l) => MAANED_TIL_DATO.test(l.trim()));
+  const fod = el("div", "graf-fod");
+  fod.append(el("span", "note", tilDato.some(Boolean) ? "Lyse søjler (*) er til dato og kan kun sammenlignes med samme dato sidste år." : ""));
+  const hent = el("button", "ikon-knap", `${IKON.hent}Gem som billede`);
+  hent.type = "button";
+  hent.onclick = () => hentGraf(canvas, titel, undertitel, fod.querySelector(".note").textContent);
+  fod.append(hent);
+  boks.append(fod);
+  pre.replaceWith(boks);
+
+  const enhed = spec.enhed ? String(spec.enhed) : "";
+  const grundtype = spec.type === "line" ? "line" : "bar";
+  const roller = farveFor(serier);
+  const alle = serier.flatMap((s) => s.data).filter((v) => v != null && !Number.isNaN(v));
+  const maks = Math.max(0, ...alle.map(Math.abs));
+  const akse = akseEnhed(maks, enhed);
+  // Afvigelser (indeks eller Δ i %): grøn/rød uden for ±10 % / 90–110, ellers grå
+  const erIndeks = /indeks/i.test(enhed) || serier.some((s) => /indeks/i.test(s.navn || ""));
+  const erAfv = !erIndeks && /%/.test(enhed) && serier.length === 1 && /forskel|afvigelse|ændring|Δ|mod sidste år|mod budget/i.test(`${serier[0]?.navn || ""} ${helTitel}`);
+  const afvFarve = (v) => v == null ? "#8C8C8C" : erIndeks ? (v < 90 ? "#C30031" : v > 110 ? "#2E7D32" : "#8C8C8C") : (v < -10 ? "#C30031" : v > 10 ? "#2E7D32" : "#8C8C8C");
+  // Tal ved søjlerne: samme antal decimaler for alle (mio.: én decimal; ellers som i data, højst én)
+  const decimaler = akse.d === 1e6 ? 1 : Math.min(1, Math.max(0, ...alle.map((v) => (String(v).split(".")[1] || "").length)));
+  const etiketTal = new Intl.NumberFormat("da-DK", { minimumFractionDigits: decimaler, maximumFractionDigits: decimaler });
+  const antalSoejler = serier.filter((s) => (s.type || grundtype) === "bar").length * n;
+  const visTal = antalSoejler > 0 && (vandret ? antalSoejler <= 24 : antalSoejler <= 14 && !erMobil());
+  const fmtAkse = (v) => talDK.format(v / akse.d);
+  const graf = new Chart(canvas, {
+    type: grundtype,
+    data: {
+      labels,
+      datasets: serier.map((sr, i) => {
+        const type = sr.type === "line" || sr.type === "bar" ? sr.type : grundtype;
+        const { farve, budget } = roller[i];
+        let bg = type === "line" ? farve : labels.map((_, j) => tilDato[j] ? farve + "59" : farve);
+        if ((erIndeks || erAfv) && type === "bar") bg = sr.data.map((v) => afvFarve(v));
+        return {
+          label: sr.navn, data: sr.data, type, backgroundColor: bg, borderColor: (erIndeks || erAfv) && type === "bar" ? bg : type === "line" ? farve : labels.map((_, j) => tilDato[j] ? farve : farve),
+          borderWidth: type === "line" ? 2.25 : labels.map((_, j) => tilDato[j] ? 1.5 : 0), borderDash: sr.stiplet || (budget && type === "line") ? [6, 4] : undefined,
+          pointRadius: budget && type === "line" ? (erMobil() ? 9 : 14) : type === "line" ? (labels.length > 24 ? 0 : 2.5) : 0,
+          pointHoverRadius: budget && type === "line" ? (erMobil() ? 9 : 14) : 4, pointStyle: budget && type === "line" ? "line" : type === "line" ? "circle" : "rect",
+          pointBorderWidth: budget && type === "line" ? 3 : 1, tension: 0.25, spanGaps: false,
+          borderRadius: 3, borderSkipped: "start", maxBarThickness: vandret ? 18 : 46, categoryPercentage: 0.78, barPercentage: 0.9, order: type === "line" ? 0 : 1,
+        };
+      }),
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false, animation: rolig() ? false : { duration: 250 },
+      indexAxis: vandret ? "y" : "x",
+      interaction: { mode: "index", intersect: false },
+      layout: { padding: { right: visTal && vandret ? 44 : 4, top: visTal && !vandret ? 16 : 0 } },
+      plugins: {
+        legend: { display: serier.length > 1, position: "top", align: "start", labels: { boxWidth: 10, boxHeight: 10, usePointStyle: true, pointStyleWidth: 14, color: "#333333", padding: 14, sort: (a, b) => a.datasetIndex - b.datasetIndex } },
+        tooltip: {
+          backgroundColor: "#2B2B2B", padding: 10, cornerRadius: 8, titleFont: { weight: "600" }, boxPadding: 4,
+          callbacks: { label: (c) => { const v = c.parsed[vandret ? "x" : "y"]; return ` ${c.dataset.label}: ${v == null ? "–" : talDK.format(v)}${enhed ? " " + enhed : ""}`; } },
+        },
+        vaerdiEtiketter: { vis: visTal, fmt: (v) => etiketTal.format(v / akse.d) },
+        referenceLinjer: { linjer: erIndeks ? [{ v: 100, farve: "#8C8C8C", bred: 1 }, { v: 90, farve: "#C30031", stiplet: true }, { v: 110, farve: "#2E7D32", stiplet: true }] : erAfv || alle.some((v) => v < 0) ? [{ v: 0, farve: "#8C8C8C", bred: 1 }] : [] },
+      },
+      scales: {
+        [vandret ? "x" : "y"]: {
+          beginAtZero: true, grid: { color: "#EDEDED" }, border: { display: false },
+          ticks: { color: "#616161", callback: fmtAkse, maxTicksLimit: erMobil() ? 5 : 8 },
+          title: { display: !!akse.titel, text: akse.titel, color: "#616161", font: { size: 11.5 } },
+        },
+        [vandret ? "y" : "x"]: { grid: { display: false }, border: { color: "#D9D9D9" }, ticks: { color: "#4F4F4F", autoSkip: !vandret, maxRotation: 0, font: { size: vandret && n > 18 ? 11 : 12 } } },
+      },
+    },
+  });
+  grafer.push(graf);
+}
+
+// Gem grafen som PNG med titel, note og afsender, så den kan sættes ind i et notat
+function hentGraf(canvas, titel, undertitel, note) {
+  const s = canvas.width / canvas.clientWidth || 1;
+  const pad = 20 * s, linje = 20 * s;
+  const font = Chart.defaults.font.family;
+  const c = document.createElement("canvas");
+  const top = pad + (titel ? linje + 4 * s : 0) + (undertitel ? linje : 0);
+  c.width = canvas.width + 2 * pad;
+  c.height = canvas.height + top + pad + linje * 1.4;
+  const ctx = c.getContext("2d");
+  ctx.fillStyle = "#FFFFFF"; ctx.fillRect(0, 0, c.width, c.height);
+  ctx.textBaseline = "top";
+  let y = pad;
+  if (titel) { ctx.fillStyle = "#333333"; ctx.font = `600 ${15 * s}px ${font}`; ctx.fillText(titel, pad, y, c.width - 2 * pad); y += linje + 4 * s; }
+  if (undertitel) { ctx.fillStyle = "#616161"; ctx.font = `${12.5 * s}px ${font}`; ctx.fillText(undertitel, pad, y, c.width - 2 * pad); }
+  ctx.drawImage(canvas, pad, top);
+  ctx.fillStyle = "#616161"; ctx.font = `${11.5 * s}px ${font}`;
+  ctx.fillText(`${note ? note + "  ·  " : ""}Topas BI · ${new Date().toLocaleDateString("da-DK")}`, pad, top + canvas.height + 8 * s, c.width - 2 * pad);
+  const a = document.createElement("a");
+  a.href = c.toDataURL("image/png");
+  a.download = (titel || "graf").toLowerCase().replace(/[^a-z0-9æøå]+/gi, "-").replace(/^-|-$/g, "").slice(0, 60) + ".png";
+  a.click();
+}
+
+// Gør teksten lettere at skimme: konklusion, afsnitstitler, forbehold, opfølgning, datastempel og statusord
+function finpuds(rod) {
+  const fedAndel = (p) => [...p.querySelectorAll(":scope > strong")].reduce((s, b) => s + b.textContent.length, 0) / Math.max(1, p.textContent.trim().length);
+  // Første afsnit, der starter med en fed konklusion efterfulgt af forklaring: konklusionen får sit eget afsnit
+  const f0 = rod.firstElementChild;
+  if (f0?.tagName === "P" && fedAndel(f0) < 0.5) {
+    const foerste = [...f0.childNodes].find((n) => n.nodeType !== 3 || n.data.trim());
+    const efter = foerste?.nextSibling;
+    const efterTekst = efter?.nodeType === 3 ? efter.data : "";
+    // Kun en hel sætning: den slutter med . ! ? (eller punktummet står lige efter), og teksten efter fortsætter ikke sætningen
+    const helSaetning = (/[.!?]$/.test(foerste?.textContent.trim() ?? "") || /^\s*\.(\s|$)/.test(efterTekst)) && !/^\s*[,;:–—-]/.test(efterTekst) && !/^\s*\p{Ll}/u.test(efterTekst);
+    if (foerste?.tagName === "STRONG" && foerste.textContent.trim().length >= 40 && helSaetning) {
+      if (efter?.nodeName === "BR") efter.remove();
+      const k = el("p");
+      k.append(foerste);
+      const rest = f0.firstChild;
+      if (rest?.nodeType === 3) { const m = rest.data.match(/^\s*([.:;,–—-])?\s*/); if (m[1] === ".") k.append("."); rest.data = rest.data.slice(m[0].length); }
+      f0.before(k);
+      if (!f0.textContent.trim()) f0.remove();
+    }
+  }
+  // "Forbehold:" alene efterfulgt af en punktliste: label og liste samles i én boks
+  rod.querySelectorAll(":scope > p").forEach((p) => {
+    const liste = p.nextElementSibling;
+    if (/^(forbehold|bemærk|note|nb|grundlag)\s*:\s*$/i.test(p.textContent.trim()) && /^(UL|OL)$/.test(liste?.tagName)) {
+      const boks = el("div", "note");
+      p.before(boks);
+      boks.append(p, liste);
+    }
+  });
+  const afsnit = [...rod.querySelectorAll(":scope > p")];
+  afsnit.forEach((p, i) => {
+    const t = p.textContent.trim();
+    const andel = fedAndel(p);
+    if (i === 0 && p === rod.firstElementChild && andel >= 0.5) p.classList.add("konklusion");
+    else if (p.children.length === 1 && p.firstElementChild.tagName === "STRONG" && andel > 0.95 && t.length < 90) { p.classList.add("sektion"); p.setAttribute("role", "heading"); p.setAttribute("aria-level", "3"); }
+    else if (andel > 0.9 && t.length > 120) p.classList.add("let");
+    if (/^(forbehold|bemærk|note|nb|grundlag)\s*:/i.test(t)) p.classList.add("note");
+    // Fodnote lige under en tabel (fx "* til dato", "† mulig blokbooking")
+    else if (/^[*†‡]/.test(t) && p.previousElementSibling?.classList.contains("tabel")) p.classList.add("tabel-note");
+  });
+  const sidste = afsnit[afsnit.length - 1];
+  if (sidste && sidste === rod.lastElementChild && /\?$/.test(sidste.textContent.trim()) && !sidste.classList.contains("konklusion")) sidste.classList.add("opfoelgning");
+  const walker = document.createTreeWalker(rod, NodeFilter.SHOW_TEXT, { acceptNode: (n) => n.parentElement.closest("code, pre, .chip, .datastempel, th") ? NodeFilter.FILTER_REJECT : NodeFilter.FILTER_ACCEPT });
+  const noder = [];
+  while (walker.nextNode()) noder.push(walker.currentNode);
+  const MOENSTER = /([Dd]ata pr\. \d{1,2}\.\d{1,2}\.\d{4}(?: (?:kl\. )?\d{1,2}[:.]\d{2})?)|(Status: )(Afsluttet \(økonomi\)|Til dato|Færdig – estimat|Estimat)/g;
+  for (const n of noder) {
+    if (!MOENSTER.test(n.data)) continue;
+    MOENSTER.lastIndex = 0;
+    const frag = document.createDocumentFragment();
+    let i = 0, m;
+    while ((m = MOENSTER.exec(n.data))) {
+      frag.append(n.data.slice(i, m.index));
+      if (m[1]) frag.append(el("span", "datastempel", esc(m[1])));
+      else { frag.append(m[2]); const s = STATUS.find(([re]) => re.test(m[3])); frag.append(el("span", `chip ${s ? s[1] : "estimat"}`, esc(m[3]))); }
+      i = m.index + m[0].length;
+    }
+    frag.append(n.data.slice(i));
+    n.replaceWith(frag);
+  }
+}
+
+function render(md, { grafer = null, streamer = false } = {}) {
+  const html = DOMPurify.sanitize(marked.parse(md || ""), RENS);
+  const tmp = el("div", "markdown", html);
+  tmp.querySelectorAll("a[href]").forEach((a) => { a.setAttribute("target", "_blank"); a.setAttribute("rel", "noopener noreferrer"); });
+  tmp.querySelectorAll("table").forEach(formTabel);
+  tmp.querySelectorAll("pre > code.language-graf").forEach((code) => {
+    const pre = code.parentElement;
+    if (!grafer) { pre.replaceWith(el("div", "graf-vent", `<span class="spinner"></span>${streamer ? "Grafen tegnes, når svaret er færdigt…" : "Grafen kunne ikke tegnes."}`)); return; }
+    try { tegnGraf(pre, JSON.parse(code.textContent), grafer); } catch { pre.replaceWith(el("div", "graf-vent", "Grafen kunne ikke tegnes.")); }
+  });
+  finpuds(tmp);
+  return tmp;
+}
+
+// Agentens svar må kun indeholde almindelig tekstformatering, tabeller og links (ingen formularer, billeder, stil eller id'er)
+const RENS = {
+  ALLOWED_TAGS: ["p", "br", "strong", "em", "b", "i", "del", "s", "code", "pre", "blockquote", "ul", "ol", "li", "h1", "h2", "h3", "h4", "h5", "h6", "hr", "table", "thead", "tbody", "tr", "th", "td", "a", "span", "sup", "sub"],
+  ALLOWED_ATTR: ["href", "title", "class", "align", "start", "colspan", "rowspan"],
+  ALLOWED_URI_REGEXP: /^(?:https?:|mailto:)/i,
+  ADD_URI_SAFE_ATTR: ["align", "start", "colspan", "rowspan"],
+};
+// Klasser kun til kodeblokke (fx language-graf), så et svar ikke kan låne appens egne klasser
+DOMPurify.addHook("uponSanitizeAttribute", (_node, data) => { if (data.attrName === "class" && !/^language-[\w-]+$/.test(data.attrValue)) data.keepAttr = false; });
+
+// ---------- Tilstand ----------
+const FORSLAG = [
+  { titel: "Salg og belægning", ikon: "salg", spm: ["Hvordan sælger vi i denne uge mod sidste år?", "Hvilke kommende ture er bagud mod sidste år?", "Hvilke ture er tæt på udsolgt?"] },
+  { titel: "Omsætning og resultat", ikon: "resultat", spm: ["Vis resultatet for den seneste lukkede måned", "Hvordan ligger den realiserede omsætning i år mod sidste år, måned for måned?", "Hvordan går den realiserede omsætning mod budget i år?"] },
+];
+const INTET_SVAR = /^(Jeg nåede ikke frem til et svar\.|\(intet svar\)$)/;
+const FEJL_MARKOER = "*(Der opstod en fejl:";
+
+let session = null;
+let samtaleId = null;      // åben samtale (null = ny)
+let visning = null;        // nøgle for det, der vises: samtale-id eller midlertidig nøgle for en ny samtale
+let samtaleListe = [];
+let minRolle = null;
+let mitNavn = "";
+let nyTaeller = 0;
+let henter = null;         // id på en samtale, der er ved at blive hentet (så længe kan man ikke sende i den)
+const streams = new Map(); // nøgle → { samtaleId, node, tekst, aktiv }
+
+// ---------- Login ----------
+// Login med e-mail og kodeord (samme Supabase Auth som Teg Plan). Engangskode på mail er en sekundær mulighed.
+// Adgang kræver desuden en aktiv række i bi_brugere. Nye brugere får et midlertidigt kodeord med
+// user_metadata.must_change = true og skal vælge deres eget, før de kommer ind.
+const FORMULARER = ["login-form", "otp-form", "kode-form", "skift-form"];
+function visFormular(id) {
+  for (const f of FORMULARER) $(f).classList.toggle("skjult", f !== id);
+  const foerste = $(id).querySelector("input");
+  if (foerste) foerste.focus();
+}
+document.querySelectorAll(".vis-login").forEach((b) => (b.onclick = () => visFormular("login-form")));
+$("vis-otp").onclick = () => { $("otp-email").value = $("email").value; visFormular("otp-form"); };
+$("glemt").onclick = () => $("glemt-tekst").classList.toggle("skjult");
+document.querySelectorAll(".vis-kode").forEach((b) => (b.onclick = () => {
+  const f = $(b.dataset.felt); const vis = f.type === "password";
+  f.type = vis ? "text" : "password"; b.textContent = vis ? "Skjul" : "Vis"; b.setAttribute("aria-pressed", String(vis)); f.focus();
+}));
+$("kodeord").addEventListener("keyup", (e) => $("capslock").classList.toggle("skjult", !e.getModifierState?.("CapsLock")));
+
+$("login-form").onsubmit = async (e) => {
+  e.preventDefault();
+  $("login-fejl").textContent = "";
+  $("login-knap").disabled = true;
+  $("login-knap").textContent = "Logger ind…";
+  const { error } = await sb.auth.signInWithPassword({ email: $("email").value.trim().toLowerCase(), password: $("kodeord").value });
+  $("login-knap").disabled = false;
+  $("login-knap").textContent = "Log ind";
+  if (error) $("login-fejl").textContent = /invalid login credentials/i.test(error.message) ? "Forkert e-mail eller kodeord." : /fetch|network/i.test(error.message) ? "Ingen forbindelse. Tjek netværket og prøv igen." : error.message;
+};
+
+let loginEmail = "";
+$("otp-form").onsubmit = async (e) => {
+  e.preventDefault();
+  $("otp-fejl").textContent = "";
+  loginEmail = $("otp-email").value.trim().toLowerCase();
+  $("otp-knap").disabled = true;
+  const opt = { shouldCreateUser: false };
+  if (location.protocol.startsWith("http")) opt.emailRedirectTo = APP_URL;
+  const { error } = await sb.auth.signInWithOtp({ email: loginEmail, options: opt });
+  $("otp-knap").disabled = false;
+  if (error) { $("otp-fejl").textContent = /not allowed|not found|Signups/i.test(error.message) ? "E-mailen har ikke adgang." : error.message; return; }
+  $("kode-email").textContent = loginEmail;
+  $("kode").value = "";
+  visFormular("kode-form");
+};
+$("kode-form").onsubmit = async (e) => {
+  e.preventDefault();
+  $("kode-fejl").textContent = "";
+  $("kode-knap").disabled = true;
+  const { error } = await sb.auth.verifyOtp({ email: loginEmail, token: $("kode").value.replace(/\s/g, ""), type: "email" });
+  $("kode-knap").disabled = false;
+  if (error) $("kode-fejl").textContent = /expired|invalid/i.test(error.message) ? "Koden er forkert eller udløbet – bed om en ny." : error.message;
+};
+
+// Skift kodeord: tvunget (must_change) eller frivilligt fra kontomenuen.
+function visSkift(frivillig) {
+  $("skift-intro").textContent = frivillig
+    ? "Vælg et nyt kodeord."
+    : "Du er logget ind med et midlertidigt kodeord. Vælg dit eget, før du fortsætter.";
+  $("skift-fortryd-boks").classList.toggle("skjult", !frivillig);
+  $("nyt1").value = ""; $("nyt2").value = ""; $("skift-fejl").textContent = "";
+  $("app").classList.add("skjult");
+  $("login").classList.remove("skjult");
+  visFormular("skift-form");
+}
+function skjulSkift() {
+  $("login").classList.add("skjult");
+  $("app").classList.remove("skjult");
+  (erMobil() ? $("menu") : $("konto-knap")).focus({ preventScroll: true });
+}
+$("skift-kodeord").onclick = () => { lukMenuer(); lukMenu(); visSkift(true); };
+$("skift-fortryd").onclick = skjulSkift;
+$("skift-form").onsubmit = async (e) => {
+  e.preventDefault();
+  const p1 = $("nyt1").value, p2 = $("nyt2").value;
+  $("skift-fejl").textContent = "";
+  if (p1.length < 8 || !/[A-Za-zÆØÅæøå]/.test(p1) || !/\d/.test(p1)) { $("skift-fejl").textContent = "Kodeordet skal have mindst 8 tegn med bogstaver og mindst ét tal."; return; }
+  if (p1 !== p2) { $("skift-fejl").textContent = "De to kodeord er ikke ens."; return; }
+  $("skift-knap").disabled = true;
+  const { data, error } = await sb.auth.updateUser({ password: p1, data: { must_change: false } });
+  $("skift-knap").disabled = false;
+  if (error) {
+    $("skift-fejl").textContent = /same|different/i.test(error.message) ? "Vælg et andet kodeord end det nuværende." : /weak|short|characters/i.test(error.message) ? "Kodeordet er for svagt – vælg et længere." : error.message;
+    return;
+  }
+  if (data?.user && session) session.user = data.user;
+  if (appVist) { skjulSkift(); toast("Kodeordet er gemt"); } else visApp();
+};
+
+addEventListener("beforeunload", (e) => { if ([...streams.values()].some((x) => x.aktiv)) { e.preventDefault(); e.returnValue = ""; } });
+$("log-ud").onclick = async () => {
+  lukMenuer();
+  if ([...streams.values()].some((s) => s.aktiv) && !(await spoerg({ titel: "Log ud?", tekst: "Et svar er ved at blive skrevet. Det bliver gemt, men du ser det først, når du logger ind igen.", ok: "Log ud" }))) return;
+  streams.clear(); // allerede bekræftet, så ingen ekstra advarsel fra browseren
+  await sb.auth.signOut(); location.reload();
+};
+
+sb.auth.onAuthStateChange((event, s) => {
+  session = s;
+  if (!s) { if (event === "SIGNED_OUT") location.reload(); return; }
+  if (event === "TOKEN_REFRESHED" || event === "USER_UPDATED") return;
+  if (s.user?.user_metadata?.must_change === true) visSkift(false);
+  else visApp();
+});
+
+let appVist = false;
+async function visApp() {
+  if (!session || appVist) return;
+  appVist = true;
+  $("login").classList.add("skjult");
+  $("app").classList.remove("skjult");
+  $("bruger").textContent = session.user.email;
+  $("bruger").title = session.user.email;
+  saetKonto();
+  hentNiveau();
+  hentProfil();
+  await hentSamtaler();
+  let fraUrl = "";
+  try { fraUrl = decodeURIComponent((location.hash.match(/^#samtale=([^&]+)$/) || [])[1] || ""); } catch { /* ødelagt adresse: vis velkomst */ }
+  if (fraUrl && samtaleListe?.some((x) => x.id === fraUrl)) aabnSamtale(fraUrl);
+  else if (!samtaleId) visVelkomst();
+}
+
+async function hentProfil() {
+  const { data } = await sb.from("bi_brugere").select("navn, rolle").eq("email", session.user.email.toLowerCase()).maybeSingle();
+  mitNavn = (data?.navn || "").trim();
+  minRolle = data?.rolle || null;
+  saetKonto();
+  if (!visning) $("hilsen")?.replaceChildren(document.createTextNode(hilsen()));
+}
+function saetKonto() {
+  const email = session.user.email;
+  const navn = mitNavn || email.split("@")[0];
+  $("konto-navn").textContent = navn;
+  const dele = (mitNavn || email.split("@")[0].replace(/[._-]+/g, " ")).split(/\s+/).filter(Boolean);
+  $("initialer").textContent = (dele.length > 1 ? dele[0][0] + dele[dele.length - 1][0] : (dele[0] || "?")[0]).toUpperCase();
+}
+function hilsen() {
+  const t = new Date().getHours();
+  const del = t < 10 ? "Godmorgen" : t < 12 ? "God formiddag" : t < 18 ? "God eftermiddag" : "God aften";
+  const fornavn = mitNavn.split(/\s+/)[0];
+  return fornavn ? `${del}, ${fornavn}` : `${del}. Hvad vil du vide?`;
+}
+
+// ---------- Samtaleliste ----------
+function gruppeFor(dato) {
+  const d = new Date(dato), nu = new Date();
+  const dage = Math.floor((new Date(nu.getFullYear(), nu.getMonth(), nu.getDate()) - new Date(d.getFullYear(), d.getMonth(), d.getDate())) / 86400000);
+  return dage <= 0 ? "I dag" : dage === 1 ? "I går" : dage < 7 ? "Seneste 7 dage" : dage < 30 ? "Seneste 30 dage" : "Ældre";
+}
+const normer = (s) => s.toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "");
+
+async function hentSamtaler() {
+  const { data, error } = await sb.from("bi_samtaler").select("id, titel, opdateret").order("opdateret", { ascending: false }).limit(200);
+  if (error) { samtaleListe = null; tegnSamtaler(); return; }
+  samtaleListe = data;
+  tegnSamtaler();
+}
+
+function tegnSamtaler() {
+  const liste = $("samtaler");
+  // Er man ved at omdøbe en samtale, venter listen med at blive tegnet om, til man er færdig
+  if (liste.querySelector("input.omdoeb-felt:not([data-faerdig])")) return;
+  const fokus = liste.contains(document.activeElement) ? { id: document.activeElement.closest(".samtale")?.dataset.id, mere: document.activeElement.classList.contains("samtale-mere") } : null;
+  try { tegnListe(liste); } finally {
+    const r = fokus?.id && liste.querySelector(`.samtale[data-id="${CSS.escape(fokus.id)}"]`);
+    if (r) r.querySelector(fokus.mere ? ".samtale-mere" : ".samtale-aabn")?.focus({ preventScroll: true });
+  }
+}
+function tegnListe(liste) {
+  liste.innerHTML = "";
+  if (samtaleListe == null) { liste.append(el("div", "tom-liste", "Kunne ikke hente dine samtaler. Prøv at genindlæse siden.")); return; }
+  const q = normer($("soeg").value.trim());
+  const rk = samtaleListe.filter((s) => !q || normer(s.titel || "").includes(q));
+  if (!samtaleListe.length) { liste.append(el("div", "tom-liste", "Dine samtaler vises her.")); return; }
+  if (!rk.length) { liste.append(el("div", "tom-liste", "Ingen samtaler matcher søgningen.")); return; }
+  let gruppe = "";
+  for (const s of rk) {
+    const g = gruppeFor(s.opdateret);
+    if (g !== gruppe) { gruppe = g; liste.append(el("div", "gruppe-titel", g)); }
+    const raekke = el("div", "samtale" + (s.id === samtaleId ? " aktiv" : ""));
+    raekke.dataset.id = s.id;
+    const aabn = el("button", "samtale-aabn");
+    aabn.type = "button";
+    if (s.id === samtaleId) aabn.setAttribute("aria-current", "page");
+    aabn.append(el("span", null, esc(s.titel || "Uden titel")));
+    if (streamFor(s.id)?.aktiv) { const p = el("i", "arbejder-prik"); p.title = "Svaret bliver skrevet"; aabn.append(p); }
+    aabn.title = s.titel || "";
+    aabn.onclick = () => aabnSamtale(s.id);
+    const mere = el("button", "samtale-mere", IKON.mere);
+    mere.type = "button";
+    mere.setAttribute("aria-label", `Flere handlinger for ${s.titel || "samtalen"}`);
+    mere.setAttribute("aria-expanded", "false");
+    mere.onclick = (e) => { e.stopPropagation(); visSamtaleMenu(mere, s); };
+    raekke.append(aabn, mere);
+    liste.append(raekke);
+  }
+}
+$("soeg").addEventListener("input", tegnSamtaler);
+$("soeg").addEventListener("keydown", (e) => { if (e.key === "Escape" && $("soeg").value) { e.preventDefault(); $("soeg").value = ""; tegnSamtaler(); } });
+
+// Lille menu ud for en samtale i listen
+let aabenMenu = null;
+function lukMenuer() {
+  if (!aabenMenu) return;
+  const { menu, knap } = aabenMenu;
+  const fokusInde = menu.contains(document.activeElement);
+  aabenMenu = null;
+  menu.remove();
+  knap.setAttribute("aria-expanded", "false");
+  if (fokusInde && knap.isConnected) knap.focus({ preventScroll: true }); // ellers ender fokus på <body>
+}
+function visSamtaleMenu(knap, s) {
+  const varAaben = aabenMenu?.knap === knap;
+  lukMenuer();
+  if (varAaben) return;
+  const menu = el("div", "menu");
+  const omdoeb = el("button", null, `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 20h4L19 9l-4-4L4 16v4z"/></svg>Omdøb`);
+  const slet = el("button", "fare", `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3"/></svg>Slet`);
+  [omdoeb, slet].forEach((b) => { b.type = "button"; });
+  // Menuen ligger sidst i <body>: Tab ud af den lukker den og sender fokus tilbage til ⋯-knappen
+  menu.addEventListener("keydown", (e) => {
+    if (e.key !== "Tab") return;
+    const ud = e.shiftKey ? document.activeElement === omdoeb : document.activeElement === slet;
+    if (ud) { e.preventDefault(); lukMenuer(); }
+  });
+  omdoeb.onclick = () => { lukMenuer(); omdoebIListe(s); };
+  slet.onclick = () => { lukMenuer(); sletSamtale(s); };
+  menu.append(omdoeb, slet);
+  const r = knap.getBoundingClientRect();
+  Object.assign(menu.style, { position: "fixed", top: Math.min(r.bottom + 4, innerHeight - 110) + "px", left: Math.min(r.right - 180, innerWidth - 200) + "px", minWidth: "180px" });
+  document.body.append(menu);
+  knap.setAttribute("aria-expanded", "true");
+  aabenMenu = { menu, knap };
+  omdoeb.focus();
+}
+document.addEventListener("click", (e) => { if (aabenMenu && !aabenMenu.menu.contains(e.target) && !aabenMenu.knap.contains(e.target)) lukMenuer(); });
+document.addEventListener("keydown", (e) => { if (e.key === "Escape" && aabenMenu) { e.preventDefault(); const k = aabenMenu.knap; lukMenuer(); k.focus(); } });
+document.addEventListener("focusin", (e) => { if (aabenMenu && !aabenMenu.menu.contains(e.target) && !aabenMenu.knap.contains(e.target)) lukMenuer(); });
+$("samtaler").addEventListener("scroll", lukMenuer, { passive: true });
+$("aside").addEventListener("scroll", () => { if (!aabenMenu?.fast) lukMenuer(); }, { passive: true }); // på lave skærme ruller hele skuffen
+
+function omdoebIListe(s) {
+  const raekke = $("samtaler").querySelector(`.samtale[data-id="${CSS.escape(s.id)}"]`);
+  if (!raekke) return;
+  const input = el("input", "omdoeb-felt");
+  input.value = s.titel || "";
+  input.maxLength = 80;
+  input.setAttribute("aria-label", "Nyt navn til samtalen");
+  raekke.replaceChildren(input);
+  input.focus(); input.select();
+  let faerdig = false;
+  const gem = async (ok) => {
+    if (faerdig) return; faerdig = true;
+    input.dataset.faerdig = "1";
+    const titel = input.value.trim().slice(0, 80);
+    if (ok && titel && titel !== s.titel) await gemTitel(s.id, titel);
+    tegnSamtaler();
+    if (!document.activeElement || document.activeElement === document.body) $("samtaler").querySelector(`.samtale[data-id="${CSS.escape(s.id)}"] .samtale-aabn`)?.focus({ preventScroll: true });
+  };
+  input.onkeydown = (e) => { if (e.key === "Enter") { e.preventDefault(); gem(true); } if (e.key === "Escape") { e.stopPropagation(); gem(false); } };
+  input.onblur = () => gem(true);
+}
+async function gemTitel(id, titel) {
+  const { error } = await sb.from("bi_samtaler").update({ titel }).eq("id", id);
+  if (error) { toast("Kunne ikke omdøbe samtalen"); return; }
+  const s = samtaleListe?.find((x) => x.id === id);
+  if (s) s.titel = titel;
+  if (id === samtaleId) saetTopbar(titel);
+  toast("Samtalen er omdøbt");
+}
+async function sletSamtale(s) {
+  if (!(await spoerg({ titel: "Slet samtalen?", tekst: `"${s.titel || "Uden titel"}" bliver slettet. Det kan ikke fortrydes.`, ok: "Slet", fare: true }))) return;
+  const { error } = await sb.from("bi_samtaler").delete().eq("id", s.id);
+  if (error) { toast("Kunne ikke slette samtalen"); return; }
+  samtaleListe = samtaleListe.filter((x) => x.id !== s.id);
+  if (samtaleId === s.id) visVelkomst();
+  tegnSamtaler();
+  if (!document.activeElement || document.activeElement === document.body) ($("samtaler").querySelector(".samtale.aktiv .samtale-aabn") || $("ny-samtale")).focus({ preventScroll: true });
+  toast("Samtalen er slettet");
+}
+
+// ---------- Topbar og samtalemenu ----------
+function saetTopbar(titel) {
+  $("samtale-titel").textContent = titel || "";
+  $("samtale-titel").style.visibility = titel ? "" : "hidden";
+  $("samtale-handlinger").classList.toggle("skjult", !samtaleId);
+  $("print-titel").textContent = titel || "Topas BI Agent";
+}
+$("samtale-mere").onclick = (e) => {
+  e.stopPropagation();
+  const knap = $("samtale-mere"); const menu = $("samtale-menu");
+  const varAaben = aabenMenu?.knap === knap;
+  lukMenuer();
+  if (varAaben) return;
+  menu.classList.remove("skjult");
+  knap.setAttribute("aria-expanded", "true");
+  aabenMenu = { menu: { remove: () => menu.classList.add("skjult"), contains: (t) => menu.contains(t) }, knap, fast: true };
+  menu.querySelector("button").focus();
+};
+$("samtale-menu").onclick = async (e) => {
+  const b = e.target.closest("button[data-handling]");
+  if (!b) return;
+  lukMenuer();
+  const s = samtaleListe?.find((x) => x.id === samtaleId);
+  if (b.dataset.handling === "udskriv") udskriv();
+  if (b.dataset.handling === "omdoeb" && s) { const ny = await spoerg({ titel: "Omdøb samtalen", input: s.titel || "", ok: "Gem" }); if (ny && ny !== s.titel) { await gemTitel(s.id, ny.slice(0, 80)); tegnSamtaler(); } }
+  if (b.dataset.handling === "slet" && s) sletSamtale(s);
+};
+$("udskriv-samtale").onclick = () => udskriv();
+
+$("konto-knap").onclick = (e) => {
+  e.stopPropagation();
+  const knap = $("konto-knap"); const menu = $("konto-menu");
+  const varAaben = aabenMenu?.knap === knap;
+  lukMenuer();
+  if (varAaben) return;
+  menu.classList.remove("skjult");
+  knap.setAttribute("aria-expanded", "true");
+  aabenMenu = { menu: { remove: () => menu.classList.add("skjult"), contains: (t) => menu.contains(t) }, knap, fast: true };
+  menu.querySelector("button:not(.skjult)").focus();
+};
+$("konto-menu").addEventListener("click", () => {
+  lukMenuer();
+  // Adminsiden blev åbnet: flyt fokus til dens overskrift
+  if (!$("adminside").classList.contains("skjult")) { const h = document.querySelector("#adminside h2"); if (h) { h.tabIndex = -1; h.focus({ preventScroll: true }); } }
+});
+$("admin-luk")?.addEventListener("click", () => setTimeout(() => { if (!kunTouch.matches && !$("skriv").classList.contains("skjult")) input.focus({ preventScroll: true }); }, 0));
+
+// ---------- Udskriv / gem som PDF ----------
+// Graferne skaleres med CSS ved udskrift. Imens må Chart.js ikke selv ændre deres størrelse (så kan de blive flade).
+const alleGrafer = () => [...document.querySelectorAll(".besked.assistant")].flatMap((n) => n.__grafer ?? []);
+addEventListener("beforeprint", () => alleGrafer().forEach((g) => { g.options.responsive = false; g.update("none"); }));
+addEventListener("afterprint", () => alleGrafer().forEach((g) => { g.options.responsive = true; g.update("none"); g.resize(); }));
+function udskriv(artikel = null) {
+  const spm = artikel?.previousElementSibling?.classList.contains("user") ? artikel.previousElementSibling.textContent.trim() : "";
+  const titel = artikel ? (spm || "Svar") : ($("samtale-titel").textContent || "Topas BI Agent");
+  $("print-titel").textContent = titel;
+  $("print-meta").textContent = `Topas BI Agent · udskrevet ${new Date().toLocaleString("da-DK", { day: "numeric", month: "long", year: "numeric", hour: "2-digit", minute: "2-digit" })}`;
+  if (artikel) {
+    document.body.classList.add("udskriv-en");
+    artikel.classList.add("udskriv-denne");
+    if (artikel.previousElementSibling?.classList.contains("user")) artikel.previousElementSibling.classList.add("udskriv-denne");
+  }
+  const ryd = () => {
+    document.body.classList.remove("udskriv-en");
+    document.querySelectorAll(".udskriv-denne").forEach((x) => x.classList.remove("udskriv-denne"));
+    $("print-titel").textContent = $("samtale-titel").textContent || "Topas BI Agent";
+    removeEventListener("afterprint", ryd);
+  };
+  addEventListener("afterprint", ryd);
+  setTimeout(() => window.print(), 50);
+}
+
+// ---------- Samtaler ----------
+const streamFor = (id) => id ? [...streams.values()].find((s) => s.samtaleId === id) : undefined;
+// Fjerner graferne i de svar, der forsvinder fra skærmen (svar, der stadig streames, beholder deres)
+function rydGrafer() {
+  const levende = new Set([...streams.values()].map((x) => x.node));
+  $("beskeder-indre").querySelectorAll(".besked.assistant").forEach((n) => { if (!levende.has(n)) { n.__grafer?.forEach((g) => g.destroy()); n.__grafer = []; } });
+}
+
+async function aabnSamtale(id) {
+  lukAdmin();
+  lukMenu();
+  samtaleId = id;
+  visning = id;
+  const s = samtaleListe?.find((x) => x.id === id);
+  saetTopbar(s?.titel || "");
+  tegnSamtaler();
+  const indre = $("beskeder-indre");
+  rydGrafer();
+  indre.replaceChildren(el("div", "graf-vent", `<span class="spinner"></span>Henter samtalen…`));
+  henter = id;
+  opdaterSkriv();
+  const { data, error } = await sb.from("bi_beskeder").select("id, rolle, tekst, vaerktoejer, ms, oprettet").eq("samtale_id", id).order("id");
+  if (henter === id) { henter = null; opdaterSkriv(); }
+  if (visning !== id) return; // brugeren har valgt noget andet imens
+  indre.innerHTML = "";
+  if (error) { indre.append(fejlboks("Samtalen kunne ikke hentes.", "Prøv igen", () => aabnSamtale(id), false, "", true)); return; }
+  const rk = data ?? [];
+  rk.forEach((b, i) => {
+    try {
+      if (b.rolle === "user") tilfoejSpoergsmaal(b.tekst);
+      else tilfoejSvar({ tekst: b.tekst, vaerktoejer: b.vaerktoejer, ms: b.ms, oprettet: b.oprettet, sidste: i === rk.length - 1, spoergsmaal: rk[i - 1]?.rolle === "user" ? rk[i - 1].tekst : "" });
+    } catch (e) {
+      // Ét svar, der ikke kan vises, må ikke skjule resten af samtalen
+      console.error(e);
+      const n = indre.lastElementChild?.classList.contains("assistant") && !indre.lastElementChild.querySelector(".svar-fod") ? indre.lastElementChild : indre.appendChild(lavSvarNode());
+      n.querySelector(".indhold")?.replaceChildren(fejlboks("Dette svar kunne ikke vises.", null, null, true));
+    }
+  });
+  const live = streamFor(id);
+  if (live?.aktiv) indre.append(live.node);
+  else if (rk.at(-1)?.rolle === "user") {
+    const node = lavSvarNode();
+    const boks = fejlboks("Der er endnu ikke gemt et svar på dette spørgsmål. Hvis siden blev lukket, mens svaret blev skrevet, kan det dukke op om lidt.", "Hent igen", () => aabnSamtale(id), true);
+    const igen = el("button", "knap sekundaer", "Stil spørgsmålet igen");
+    igen.type = "button";
+    igen.onclick = () => sendIgen(node, rk.at(-1).tekst);
+    boks.lastElementChild.append(igen);
+    node.querySelector(".indhold").replaceWith(boks);
+    indre.append(node);
+  }
+  history.replaceState(null, "", `#samtale=${encodeURIComponent(id)}`);
+  opdaterSkriv();
+  // Konklusionen står først i svaret, så vis starten af det seneste spørgsmål og svar i stedet for bunden
+  const sidsteSpm = [...indre.querySelectorAll(".besked.user")].pop();
+  if (live?.aktiv || !sidsteSpm) rulNed(true);
+  else {
+    const b = $("beskeder");
+    b.scrollTo({ top: Math.max(0, b.scrollTop + sidsteSpm.getBoundingClientRect().top - b.getBoundingClientRect().top - 12), behavior: "auto" });
+    foelger = naerBund();
+    $("til-bund").classList.toggle("skjult", foelger);
+  }
+  if (!erMobil()) $("input").focus({ preventScroll: true });
+}
+
+function visVelkomst() {
+  lukAdmin();
+  samtaleId = null;
+  visning = null;
+  if (/^#samtale=/.test(location.hash)) history.replaceState(null, "", location.pathname + location.search);
+  saetTopbar("");
+  const indre = $("beskeder-indre");
+  rydGrafer();
+  indre.innerHTML = "";
+  const v = el("div", "velkomst");
+  v.append(el("div", "maerke", MAERKE_SVG));
+  v.append(el("h2", null, esc(hilsen()))); v.lastChild.id = "hilsen";
+  v.append(el("p", null, "Spørg på dansk om salg, belægning, omsætning, dækningsbidrag og resultat. Svarene bygger på tallene fra NAV og økonomis lukkede måneder og siger altid, hvor sikre tallene er."));
+  const grid = el("div", "forslag-grid");
+  for (const g of FORSLAG) {
+    const boks = el("div", "forslag-gruppe");
+    boks.append(el("h3", null, `${IKON[g.ikon]}${esc(g.titel)}`));
+    for (const t of g.spm) { const b = el("button", null, `<span>${esc(t)}</span>${IKON.pil}`); b.type = "button"; b.onclick = () => send(t); boks.append(b); }
+    grid.append(boks);
+  }
+  v.append(grid);
+  v.append(el("div", "statusforklaring", `<span class="punkt"><span class="chip lukket">Afsluttet (økonomi)</span> økonomis endelige tal</span><span class="punkt"><span class="chip estimat">Estimat</span> færdig måned, ikke lukket</span><span class="punkt"><span class="chip til-dato">Til dato</span> indeværende måned mod samme dato sidste år</span>`));
+  indre.append(v);
+  tegnSamtaler();
+  opdaterSkriv();
+  if (!erMobil()) $("input").focus();
+}
+
+function tilfoejSpoergsmaal(tekst) {
+  const indre = $("beskeder-indre");
+  indre.querySelector(".velkomst")?.remove();
+  const b = el("article", "besked user");
+  b.setAttribute("aria-label", "Dit spørgsmål");
+  b.append(el("div", "boble", esc(tekst)));
+  indre.append(b);
+  return b;
+}
+
+// Et svar: hoved, (arbejder-panel), tekst, fod med opslag og handlinger
+function lavSvarNode() {
+  const node = el("article", "besked assistant");
+  node.setAttribute("aria-label", "Svar fra Topas BI");
+  const hoved = el("div", "svar-hoved", `<span class="maerke">${MAERKE_SVG}</span><b>Topas BI</b>`);
+  node.append(hoved);
+  node.append(el("div", "indhold"));
+  node.__grafer = [];
+  return node;
+}
+function saetIndhold(node, md, { faerdig = true } = {}) {
+  node.__grafer.forEach((g) => g.destroy());
+  node.__grafer = [];
+  const ny = render(md, { grafer: faerdig ? node.__grafer : null, streamer: !faerdig });
+  if (!faerdig) { const m = el("span", "markoer"); (ny.lastElementChild && /^(P|LI)$/.test(ny.lastElementChild.tagName) ? ny.lastElementChild : ny).append(m); }
+  ny.classList.add("indhold");
+  node.querySelector(".indhold").replaceWith(ny);
+}
+
+function tilfoejSvar({ tekst, vaerktoejer, ms, oprettet, sidste, spoergsmaal }) {
+  const node = lavSvarNode();
+  if (oprettet) node.querySelector(".svar-hoved").append(el("time", null, esc(new Date(oprettet).toLocaleString("da-DK", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" }))));
+  $("beskeder-indre").append(node);
+  afslutSvar(node, { tekst, vaerktoejer, ms, sidste, spoergsmaal });
+  return node;
+}
+
+function afslutSvar(node, { tekst, vaerktoejer, ms, sidste, spoergsmaal, levende = false }) {
+  const t = String(tekst ?? "");
+  const tomt = !t.trim() || INTET_SVAR.test(t.trim());
+  const fejlI = t.indexOf(FEJL_MARKOER);
+  const ren = fejlI >= 0 ? t.slice(0, fejlI).trim() : t;
+  node.querySelector(".arbejder")?.remove();
+  if (tomt) {
+    node.classList.add("svar-tomt");
+    node.querySelector(".indhold").replaceWith(Object.assign(fejlboks("Jeg nåede ikke frem til et svar. Prøv at stille spørgsmålet mere afgrænset, fx én afdeling eller én periode ad gangen.", spoergsmaal ? "Prøv igen" : null, () => sendIgen(node, spoergsmaal), true, "", levende), { className: "fejlboks info-boks indhold" }));
+  } else {
+    saetIndhold(node, ren, { faerdig: true });
+    if (fejlI >= 0) {
+      node.classList.add("svar-fejl");
+      const besked = t.slice(fejlI + FEJL_MARKOER.length).replace(/\)\*\s*$/, "").trim();
+      const intet = !ren.trim();
+      if (intet) node.querySelector(".indhold").replaceChildren();
+      node.querySelector(".indhold").after(fejlboks(intet ? "Agenten kunne ikke svare lige nu. Prøv igen om lidt." : "Svaret blev afbrudt af en fejl. Det, der nåede frem, står ovenfor.", spoergsmaal ? "Prøv igen" : null, () => sendIgen(node, spoergsmaal), false, besked, levende));
+    }
+  }
+  // Fod: opslag + handlinger
+  node.querySelector(".svar-fod")?.remove();
+  node.querySelector(".opslag-liste")?.remove();
+  const fod = el("div", "svar-fod");
+  const v = Array.isArray(vaerktoejer) ? vaerktoejer : [];
+  if (v.length || ms) {
+    const knap = el("button", "ikon-knap opslag-knap", `${IKON.opslag}${v.length} ${v.length === 1 ? "opslag" : "opslag"}${ms ? ` · ${sek(ms)}` : ""}`);
+    knap.type = "button";
+    knap.title = "Se, hvilke tal svaret bygger på";
+    knap.setAttribute("aria-expanded", "false");
+    knap.disabled = !v.length;
+    knap.onclick = () => {
+      let liste = node.querySelector(".opslag-liste");
+      if (liste) { liste.remove(); knap.setAttribute("aria-expanded", "false"); return; }
+      liste = opslagListe(v);
+      fod.after(liste);
+      knap.setAttribute("aria-expanded", "true");
+    };
+    fod.append(knap);
+  }
+  fod.append(el("span", "afstand"));
+  if (!tomt && ren.trim()) {
+    const kopi = el("button", "ikon-knap", `${IKON.kopier}Kopiér`);
+    kopi.type = "button"; kopi.title = "Kopiér svaret (tekst og tabeller)";
+    kopi.onclick = () => kopierSvar(node, ren);
+    const pdf = el("button", "ikon-knap pdf-knap", `${IKON.udskriv}Gem som PDF`);
+    pdf.type = "button"; pdf.title = "Gem dette svar som PDF eller udskriv det";
+    pdf.onclick = () => udskriv(node);
+    fod.append(kopi, pdf);
+  }
+  node.append(fod);
+  // Hurtigt svar på agentens afsluttende spørgsmål (kun i den samtale, der vises)
+  if (!node.isConnected) return;
+  node.parentElement.querySelectorAll(".hurtigsvar").forEach((h) => h.remove());
+  if (sidste && !tomt && fejlI < 0) {
+    const sidsteAfsnit = [...node.querySelectorAll(".indhold > p")].pop()?.textContent.trim() ?? "";
+    if (/\?$/.test(sidsteAfsnit) && /^(vil|skal|ønsker) du\b/i.test(sidsteAfsnit)) {
+      const h = el("div", "hurtigsvar");
+      const ja = el("button", null, "Ja tak");
+      ja.type = "button";
+      ja.title = sidsteAfsnit;
+      ja.onclick = () => { if (streamFor(samtaleId)?.aktiv) return; h.remove(); send("Ja tak"); };
+      h.append(ja);
+      node.after(h);
+    }
+  }
+}
+
+function fejlboks(tekst, knapTekst, handling, info = false, detalje = "", levende = false) {
+  const b = el("div", "fejlboks" + (info ? " info-boks" : ""), `${IKON.fejl}<div><div>${esc(tekst)}</div>${detalje ? `<div class="fejl-detalje">${esc(detalje)}</div>` : ""}</div>`);
+  if (levende) b.setAttribute("role", "alert");
+  if (knapTekst) { const k = el("button", "knap sekundaer", esc(knapTekst)); k.type = "button"; k.onclick = handling; b.lastElementChild.append(k); }
+  return b;
+}
+
+const NAVNE = {
+  datakatalog: "Datakatalog (begreber og kolonner)", sql: "Egen forespørgsel i BI-laget", resultat_maaned: "Resultat pr. måned",
+  omsaetning_maaned: "Realiseret omsætning pr. måned", salgsomsaetning: "Salgsomsætning", salg_uge: "Ugens salg", saeson_salg: "Salg til sæsonen",
+  belaegning: "Belægning på kommende ture", tur_opslag: "Opslag på én tur", ansvarlig_oversigt: "Tal pr. ansvarlig", db_gruppeture: "DB pr. gruppetur",
+};
+const navnPaa = (n) => NAVNE[n] || String(n).replace(/_/g, " ");
+const MDR = ["jan", "feb", "mar", "apr", "maj", "jun", "jul", "aug", "sep", "okt", "nov", "dec"];
+const ARG_NAVNE = { fra: "fra", til: "til", aar: "år", saeson: "sæson", turkode: "tur", rute: "rute", gruppering: "pr.", land: "land", afdeling: "afdeling", tabel: "tabel", begreb: "begreb", dage: "dage", uge: "uge" };
+function fmtVaerdi(v) {
+  if (typeof v === "string" && /^\d{4}-\d{2}$/.test(v)) return `${MDR[+v.slice(5) - 1]} ${v.slice(0, 4)}`;
+  if (typeof v === "boolean") return v ? "ja" : "nej";
+  if (Array.isArray(v)) return v.join(", ");
+  if (v && typeof v === "object") return JSON.stringify(v);
+  return String(v);
+}
+function opslagListe(v) {
+  const boks = el("div", "opslag-liste");
+  const ol = el("ol");
+  for (const k of v) {
+    const arg = k.argumenter && typeof k.argumenter === "object" ? k.argumenter : {};
+    const dele = Object.entries(arg).filter(([n, x]) => n !== "sql" && n !== "max_rows" && x !== "" && x != null).map(([n, x]) => `${ARG_NAVNE[n] || n.replace(/_/g, " ")} ${fmtVaerdi(x)}`);
+    const li = el("li");
+    li.append(el("b", null, esc(navnPaa(k.navn))));
+    if (dele.length) li.append(document.createTextNode(` · ${dele.join(" · ")}`));
+    const meta = [k.raekker != null ? `${k.raekker} ${k.raekker === 1 ? "række" : "rækker"}` : "", k.ms ? sek(k.ms) : ""].filter(Boolean).join(" · ");
+    if (k.fejl) li.append(el("span", "fejlede", " · fejlede (agenten prøvede videre)"));
+    else if (meta) li.append(el("span", "dim", ` · ${esc(meta)}`));
+    if (k.navn === "sql" && arg.sql && minRolle === "admin") {
+      const d = el("details"); d.append(el("summary", null, "Vis SQL")); d.append(el("pre", null, esc(arg.sql))); li.append(d);
+    }
+    ol.append(li);
+  }
+  boks.append(ol);
+  boks.append(el("p", "opslag-forklaring", "Opslagene er de tal, agenten hentede fra BI-laget for at svare. Lukkede måneder er økonomis tal; salg og belægning er NAV-data."));
+  return boks;
+}
+
+async function kopierSvar(node, md) {
+  const ren = md.replace(/```graf[\s\S]*?```/g, (blok) => { try { return `[Graf: ${JSON.parse(blok.slice(7, -3)).titel || ""}]`; } catch { return ""; } }).replace(/\n{3,}/g, "\n\n").trim();
+  const klon = node.querySelector(".indhold").cloneNode(true);
+  klon.querySelectorAll(".tabel-fod, .graf-fod, .markoer").forEach((x) => x.remove());
+  const kanvas = [...node.querySelectorAll(".indhold canvas")];
+  klon.querySelectorAll("canvas").forEach((c, i) => { try { const img = el("img"); img.src = kanvas[i].toDataURL("image/png"); img.width = Math.min(640, kanvas[i].clientWidth); c.replaceWith(img); } catch { c.remove(); } });
+  await kopier(ren, klon.innerHTML);
+}
+
+// ---------- Rulning ----------
+let foelger = true;
+const naerBund = () => { const b = $("beskeder"); return b.scrollHeight - b.scrollTop - b.clientHeight < 90; };
+$("beskeder").addEventListener("scroll", () => {
+  foelger = naerBund();
+  if (foelger) $("til-bund").classList.add("skjult");
+  $("topbar").classList.toggle("kant", $("beskeder").scrollTop > 4);
+}, { passive: true });
+function rulNed(straks) {
+  const box = $("beskeder");
+  box.scrollTo({ top: box.scrollHeight, behavior: straks || rolig() ? "auto" : "smooth" });
+  foelger = true;
+  $("til-bund").classList.add("skjult");
+}
+function foelgMed() { if (foelger) { const b = $("beskeder"); b.scrollTop = b.scrollHeight; } else $("til-bund").classList.remove("skjult"); }
+$("til-bund").onclick = () => rulNed(false);
+
+// ---------- Send + streaming ----------
+const input = $("input");
+const svarerI = (n) => !!streams.get(n)?.aktiv || !!streamFor(samtaleId)?.aktiv;
+const optagetI = (n) => svarerI(n) || (!!henter && henter === n);
+function opdaterSkriv() {
+  const svarer = svarerI(visning);
+  $("send").disabled = optagetI(visning) || !input.value.trim();
+  input.placeholder = svarer ? (erMobil() ? "Venter på svaret…" : "Venter på svaret… du kan skrive dit næste spørgsmål imens") : erMobil() ? "Stil et spørgsmål…" : "Stil et spørgsmål om salg, belægning, omsætning eller resultat…";
+}
+const autoHoejde = () => { input.style.height = "auto"; input.style.height = Math.min(input.scrollHeight, 200) + "px"; opdaterSkriv(); };
+input.oninput = autoHoejde;
+input.onkeydown = (e) => { if (e.key === "Enter" && !e.shiftKey && !e.isComposing && !kunTouch.matches) { e.preventDefault(); send(); } };
+$("skriv-form").onsubmit = (e) => { e.preventDefault(); send(); };
+addEventListener("resize", () => opdaterSkriv());
+
+function sendIgen(node, spoergsmaal) {
+  if (optagetI(samtaleId || visning)) { toast("Vent, til svaret er færdigt"); return; }
+  node.previousElementSibling?.classList.contains("user") && node.previousElementSibling.remove();
+  node.remove();
+  send(spoergsmaal);
+}
+
+async function send(tekstArg) {
+  const fraFelt = tekstArg == null;
+  const tekst = String(tekstArg ?? input.value).trim();
+  const noegle = samtaleId || visning || `ny-${++nyTaeller}`;
+  if (!tekst || optagetI(noegle)) return;
+  visning = noegle;
+  if (fraFelt) { input.value = ""; autoHoejde(); }
+  $("beskeder-indre").querySelectorAll(".hurtigsvar").forEach((h) => h.remove());
+  tilfoejSpoergsmaal(tekst);
+  // Knappen, man trykkede på (forslag, "Ja tak", "Prøv igen"), forsvinder; fokus tilbage i skrivefeltet
+  if (!kunTouch.matches && (!document.activeElement || document.activeElement === document.body)) input.focus({ preventScroll: true });
+  const node = lavSvarNode();
+  const arbejder = el("div", "arbejder", `<div class="arbejder-top"><span class="spinner"></span><b>Arbejder på svaret</b><span class="tid">0 s</span></div><ol class="trin"></ol><div class="arbejder-hint skjult"></div>`);
+  node.querySelector(".svar-hoved").after(arbejder);
+  $("beskeder-indre").append(node);
+  const st = { samtaleId, node, aktiv: true, start: Date.now() };
+  streams.set(noegle, st);
+  opdaterSkriv();
+  tegnSamtaler();
+  rulNed(false);
+  srStatus("Arbejder på svaret");
+
+  const trin = arbejder.querySelector(".trin");
+  const tid = arbejder.querySelector(".tid");
+  const hint = arbejder.querySelector(".arbejder-hint");
+  const ur = setInterval(() => {
+    const s = Math.round((Date.now() - st.start) / 1000);
+    tid.textContent = `${s} s`;
+    if (s >= 75) { hint.textContent = "Det tager længere end normalt. Du kan godt skifte til en anden samtale imens – svaret bliver gemt."; hint.classList.remove("skjult"); }
+    else if (s >= 15) { hint.textContent = "Svar tager typisk 20–60 sekunder, når der skal slås mange tal op."; hint.classList.remove("skjult"); }
+  }, 1000);
+
+  let svar = "";
+  const opslag = [];
+  let sidstRendret = 0, ventende = null;
+  const visSvar = (faerdig = false) => {
+    clearTimeout(ventende); ventende = null;
+    saetIndhold(node, svar, { faerdig });
+    if (node.isConnected) foelgMed();
+    sidstRendret = Date.now();
+  };
+  const planlaeg = () => {
+    if (ventende) return;
+    const interval = node.isConnected ? Math.min(400, 120 + svar.length / 40) : 1500;
+    ventende = setTimeout(() => visSvar(), Math.max(0, interval - (Date.now() - sidstRendret)));
+  };
+  let slut = null;
+
+  try {
+    const { data: { session: s } } = await sb.auth.getSession();
+    if (!s?.access_token) throw Object.assign(new Error("Du er blevet logget ud. Log ind igen for at fortsætte."), { logind: true });
+    const res = await fetch(CHAT_URL, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${s.access_token}`, apikey: KONFIG.anonKey },
+      body: JSON.stringify({ samtale_id: st.samtaleId, besked: tekst }),
+    });
+    if (!res.ok || !res.headers.get("content-type")?.includes("text/event-stream")) {
+      let fejl = `Serveren svarede med fejl ${res.status}.`;
+      try { fejl = (await res.json()).fejl || fejl; } catch {}
+      throw Object.assign(new Error(fejl), { logind: res.status === 401 });
+    }
+    const reader = res.body.getReader();
+    const dec = new TextDecoder();
+    let buf = "";
+    while (true) {
+      const { value, done } = await reader.read();
+      if (done) break;
+      buf += dec.decode(value, { stream: true }).replace(/\r\n/g, "\n");
+      let i;
+      while ((i = buf.indexOf("\n\n")) >= 0) {
+        const linje = buf.slice(0, i).trim(); buf = buf.slice(i + 2);
+        if (!linje.startsWith("data:")) continue;
+        let ev;
+        try { ev = JSON.parse(linje.slice(5)); } catch { continue; }
+        if (ev.type === "start") {
+          if (!st.samtaleId) {
+            st.samtaleId = ev.samtale_id;
+            if (visning === noegle) { samtaleId = ev.samtale_id; history.replaceState(null, "", `#samtale=${encodeURIComponent(ev.samtale_id)}`); }
+            opdaterSkriv();
+            hentSamtaler().then(() => { if (samtaleId === st.samtaleId) saetTopbar(samtaleListe?.find((x) => x.id === st.samtaleId)?.titel || tekst); });
+          }
+        } else if (ev.type === "tekst") {
+          svar += ev.delta;
+          planlaeg();
+        } else if (ev.type === "vaerktoej_start") {
+          const li = el("li", "aktiv", `<span>Slår op: ${esc(navnPaa(ev.navn))}</span>`);
+          li.dataset.navn = ev.navn;
+          trin.append(li);
+          opslag.push({ navn: ev.navn });
+          if (node.isConnected) foelgMed();
+        } else if (ev.type === "vaerktoej_slut") {
+          const li = [...trin.querySelectorAll("li.aktiv")].find((x) => x.dataset.navn === ev.navn);
+          if (li) {
+            li.className = ev.fejl ? "fejlede" : "faerdig";
+            li.innerHTML = `<span>${esc(navnPaa(ev.navn))}</span><span class="dim">${ev.fejl ? "fejlede – prøver videre" : ev.raekker != null ? `${ev.raekker} ${ev.raekker === 1 ? "række" : "rækker"}` : "hentet"}</span>`;
+          }
+          const o = opslag.find((x) => x.navn === ev.navn && !("ms" in x));
+          if (o) Object.assign(o, { raekker: ev.raekker, ms: ev.ms, fejl: ev.fejl });
+        } else if (ev.type === "fejl") {
+          svar += (svar ? "\n\n" : "") + `${FEJL_MARKOER} ${ev.besked})*`;
+        } else if (ev.type === "slut") {
+          slut = ev;
+        }
+      }
+    }
+    clearTimeout(ventende);
+    if (!slut && !svar.trim()) throw new Error("Forbindelsen til serveren blev afbrudt, før der kom et svar.");
+    // Hent de gemte opslag (med argumenter) til "Se opslag"
+    let gemt = null;
+    if (slut && st.samtaleId) {
+      const { data } = await sb.from("bi_beskeder").select("id, vaerktoejer, ms").eq("samtale_id", st.samtaleId).eq("rolle", "assistant").order("id", { ascending: false }).limit(1).maybeSingle();
+      gemt = data;
+    }
+    afslutSvar(node, { tekst: svar, vaerktoejer: gemt?.vaerktoejer ?? opslag, ms: slut?.ms ?? gemt?.ms ?? Date.now() - st.start, sidste: true, spoergsmaal: tekst, levende: true });
+    if (!slut && !svar.includes(FEJL_MARKOER)) {
+      // Forbindelsen blev lukket uden "slut": svaret kan mangle noget, men serveren kan have gemt det hele
+      const boks = fejlboks("Forbindelsen blev afbrudt, før svaret var færdigt, så der kan mangle noget.", st.samtaleId ? "Hent svaret igen" : "Prøv igen", () => st.samtaleId ? aabnSamtale(st.samtaleId) : sendIgen(node, tekst), true, "", true);
+      node.querySelector(".indhold").after(boks);
+    }
+    srStatus(node.classList.contains("svar-tomt") ? "Der kom ikke noget svar" : "Svaret er klar");
+  } catch (e) {
+    clearTimeout(ventende);
+    node.querySelector(".arbejder")?.remove();
+    if (svar.trim()) saetIndhold(node, svar, { faerdig: true });
+    else node.querySelector(".indhold").replaceChildren();
+    const boks = e.logind
+      ? fejlboks(e.message, "Log ind igen", async () => { await sb.auth.signOut(); location.reload(); }, false, "", true)
+      : /failed to fetch|network|load failed/i.test(e.message)
+        ? fejlboks("Ingen forbindelse til serveren. Tjek netværket, og prøv igen.", "Prøv igen", () => sendIgen(node, tekst), false, "", true)
+        : fejlboks(svar.trim() ? "Svaret blev afbrudt af en fejl. Det, der nåede frem, står ovenfor." : "Agenten kunne ikke svare lige nu. Prøv igen om lidt.", "Prøv igen", () => sendIgen(node, tekst), false, e.message, true);
+    node.append(boks);
+    srStatus("Der opstod en fejl");
+  } finally {
+    clearInterval(ur);
+    st.aktiv = false;
+    streams.delete(noegle);
+    // Svaret blev færdigt, mens en anden samtale var åben: ryd dets grafer (samtalen hentes fra databasen, når den åbnes igen)
+    if (!node.isConnected) { node.__grafer.forEach((g) => g.destroy()); node.__grafer = []; }
+    if (node.isConnected) foelgMed();
+    opdaterSkriv();
+    await hentSamtaler();
+    if (samtaleId && samtaleId === st.samtaleId) saetTopbar(samtaleListe?.find((x) => x.id === samtaleId)?.titel || "");
+  }
+}
+
+// ---------- Mobilmenu ----------
+const aabnMenu = () => { $("aside").classList.add("aaben"); $("bagtaeppe").classList.remove("skjult"); $("menu").setAttribute("aria-expanded", "true"); document.querySelector("main").inert = true; $("ny-samtale").focus({ preventScroll: true }); };
+const lukMenu = () => {
+  const varAaben = $("aside").classList.contains("aaben");
+  $("aside").classList.remove("aaben"); $("bagtaeppe").classList.add("skjult"); $("menu").setAttribute("aria-expanded", "false"); document.querySelector("main").inert = false; lukMenuer();
+  if (varAaben && $("aside").contains(document.activeElement)) $("menu").focus({ preventScroll: true }); // fokus må ikke blive i den skjulte menu
+};
+$("menu").onclick = aabnMenu;
+matchMedia("(max-width: 860px)").addEventListener("change", (e) => { if (!e.matches) lukMenu(); });
+$("bagtaeppe").onclick = lukMenu;
+document.addEventListener("keydown", (e) => { if (e.key === "Escape" && !e.defaultPrevented && !$("dialog").open && $("aside").classList.contains("aaben")) lukMenu(); });
+$("ny-samtale").onclick = () => { visVelkomst(); lukMenu(); };
+$("ny-samtale-mobil").onclick = () => { visVelkomst(); lukMenu(); };
+
+// ---------- Start ----------
+// INITIAL_SESSION fra onAuthStateChange viser appen, hvis brugeren allerede er logget ind.
+
+// ---------- Adgangsniveau og adminside ----------
+// Niveauet står i bi_brugere.rolle (admin / fuld / begraenset). Adminsiden kalder bi-admin, som selv tjekker, at brugeren er aktiv admin.
+const NIVEAUER = { admin: "Admin", fuld: "Fuld adgang", begraenset: "Begrænset", laeser: "Fuld adgang" };
+const datoDK = (s) => s ? new Date(s).toLocaleString("da-DK", { day: "numeric", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" }) : "–";
+let minEmail = "";
+
+async function hentNiveau() {
+  minEmail = session.user.email.toLowerCase();
+  const { data } = await sb.from("bi_brugere").select("rolle").eq("email", minEmail).maybeSingle();
+  const rolle = data?.rolle;
+  if (!rolle) return;
+  const n = rolle === "laeser" ? "fuld" : rolle;
+  $("bruger").innerHTML = `${esc(session.user.email)} <span class="niveau-maerke ${n}">${esc(NIVEAUER[rolle] || rolle)}</span>`;
+  $("bruger").title = session.user.email;
+  $("admin-knap").classList.toggle("skjult", rolle !== "admin");
+}
+
+async function adminKald(handling, data = {}) {
+  const { data: { session: s } } = await sb.auth.getSession();
+  const res = await fetch(ADMIN_URL, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", Authorization: `Bearer ${s.access_token}`, apikey: KONFIG.anonKey },
+    body: JSON.stringify({ handling, ...data }),
+  });
+  let svar = {};
+  try { svar = await res.json(); } catch {}
+  if (!res.ok) throw new Error(svar.fejl || `Fejl ${res.status}`);
+  return svar;
+}
+
+function visAdmin() {
+  lukMenu();
+  $("beskeder").classList.add("skjult"); $("skriv").classList.add("skjult");
+  $("adminside").classList.remove("skjult");
+  $("admin-fejl").textContent = ""; $("admin-resultat").innerHTML = "";
+  document.querySelectorAll(".samtale.aktiv").forEach((b) => b.classList.remove("aktiv"));
+  hentAdmin();
+}
+function lukAdmin() {
+  if ($("adminside").classList.contains("skjult")) return;
+  $("adminside").classList.add("skjult");
+  $("admin-fejl").textContent = ""; $("admin-resultat").innerHTML = "";  // kodeord og nøgler vises kun én gang
+  $("beskeder").classList.remove("skjult"); $("skriv").classList.remove("skjult");
+}
+$("admin-knap").onclick = visAdmin;
+// Tilbage til samtalen, som den var (et svar, der stadig skrives, fortsætter). Samtalelisten markerer den aktive igen.
+$("admin-luk").onclick = () => { lukAdmin(); if (!$("beskeder-indre").children.length) visVelkomst(); hentSamtaler(); };
+
+function adminFejl(e) { $("admin-fejl").textContent = e.message || String(e); }
+
+// Viser et resultat med en hemmelighed (midlertidigt kodeord eller MCP-nøgle), der kun vises én gang.
+function visResultat(html, hemmelighed, advarsel) {
+  $("admin-fejl").textContent = "";
+  const boks = el("div", "resultat" + (advarsel ? " advarsel" : ""), html);
+  if (hemmelighed) {
+    const k = el("button", "knap sekundaer", "Kopiér");
+    k.onclick = async () => { try { await navigator.clipboard.writeText(hemmelighed); k.textContent = "Kopieret"; } catch { k.textContent = "Markér og kopiér selv"; } };
+    boks.append(k);
+  }
+  const luk = el("button", "knap sekundaer", "Luk"); luk.onclick = () => boks.remove(); boks.append(luk);
+  $("admin-resultat").innerHTML = ""; $("admin-resultat").append(boks);
+  boks.scrollIntoView({ behavior: "smooth", block: "nearest" });
+}
+
+async function hentAdmin() {
+  let d;
+  try { d = await adminKald("liste"); } catch (e) { adminFejl(e); return; }
+  const bt = $("bruger-tabel");
+  bt.innerHTML = "<tr><th>Bruger</th><th>Niveau</th><th>Status</th><th>Sidst logget ind</th><th class=tal>Samtaler</th><th></th></tr>";
+  for (const b of d.brugere) {
+    const tr = el("tr", b.aktiv ? "" : "inaktiv");
+    const mig = b.email === minEmail;
+    const login = !b.har_login ? " · intet login" : b.skal_skifte_kodeord ? " · har ikke valgt eget kodeord" : "";
+    tr.append(el("td", null, `${esc(b.email)}${b.navn ? `<div class="dim">${esc(b.navn)}</div>` : ""}`));
+    const tdN = el("td"); const sel = el("select");
+    const nu = b.rolle === "laeser" ? "fuld" : b.rolle;
+    for (const [v, t] of [["begraenset", "Begrænset"], ["fuld", "Fuld adgang"], ["admin", "Admin"]]) { const o = el("option", null, t); o.value = v; if (nu === v) o.selected = true; sel.append(o); }
+    sel.setAttribute("aria-label", `Adgangsniveau for ${b.email}`);
+    sel.disabled = mig;
+    if (mig) sel.title = "Du kan ikke ændre dit eget niveau.";
+    sel.onchange = async () => {
+      const hvad = { begraenset: "Personen ser ikke længere tal pr. turansvarlig og sælger.", fuld: "Personen ser alle tal, også pr. turansvarlig og sælger.", admin: "Personen ser alle tal og kan administrere brugere og nøgler." }[sel.value];
+      if (!confirm(`Skift ${b.email} til "${NIVEAUER[sel.value]}"?\n\n${hvad}`)) { sel.value = nu; return; }
+      try { await adminKald("opdater", { email: b.email, rolle: sel.value }); visResultat(`${esc(b.email)} har nu <b>${esc(NIVEAUER[sel.value])}</b>.`); } catch (e) { adminFejl(e); }
+      hentAdmin();
+    };
+    tdN.append(sel); tr.append(tdN);
+    tr.append(el("td", null, (b.aktiv ? "Aktiv" : "Deaktiveret") + `<div class="dim">${esc(login.replace(/^ · /, ""))}</div>`));
+    tr.append(el("td", "dim", esc(datoDK(b.sidst_logget_ind))));
+    tr.append(el("td", "tal", String(b.samtaler)));
+    const tdH = el("td");
+    if (b.har_login && b.login_fra_bi && b.aktiv) {
+      const nk = el("button", "lille-knap", "Nulstil kodeord"); nk.setAttribute("aria-label", `Nulstil kodeord for ${b.email}`);
+      nk.onclick = async () => {
+        if (!confirm(`Lav et nyt midlertidigt kodeord til ${b.email}?\n\nLoginnet er fælles med Teg Plan, så kodeordet skifter også dér.`)) return;
+        try { const r = await adminKald("nulstil_kodeord", { email: b.email }); visResultat(`Nyt midlertidigt kodeord til <b>${esc(r.email)}</b>: <code>${esc(r.midlertidigt_kodeord)}</code><div class="dim" style="margin-top:6px">Giv det mundtligt eller i Teams, ikke på mail. Brugeren vælger sit eget ved næste login.</div>`, r.midlertidigt_kodeord); } catch (e) { adminFejl(e); }
+        hentAdmin();
+      };
+      tdH.append(nk);
+    }
+    if (b.aktiv) {
+      const mk = el("button", "lille-knap", "Ny MCP-nøgle"); mk.setAttribute("aria-label", `Ny MCP-nøgle til ${b.email}`);
+      mk.onclick = async () => {
+        const navn = prompt(`Navn på nøglen til ${b.email} (fx "Claude Desktop"):`, "Claude");
+        if (navn == null) return;
+        try { const r = await adminKald("ny_mcp_noegle", { email: b.email, navn }); visResultat(`MCP-adresse til <b>${esc(r.email)}</b> (${esc(r.navn)}). Den vises kun nu:<div style="margin-top:6px"><code>${esc(r.url)}</code></div><div class="dim" style="margin-top:6px">I Claude: Indstillinger → Connectors → Tilføj brugerdefineret connector → indsæt adressen. Kun til personens egen connector, ikke en fælles connector for hele organisationen, for alle opslag får personens niveau og logges på personen. Behandl den som et kodeord.</div>`, r.url, true); } catch (e) { adminFejl(e); }
+        hentAdmin();
+      };
+      tdH.append(mk);
+    }
+    if (!mig) {
+      const ak = el("button", "lille-knap" + (b.aktiv ? " fare" : ""), b.aktiv ? "Deaktivér" : "Aktivér");
+      ak.setAttribute("aria-label", `${b.aktiv ? "Deaktivér" : "Aktivér"} ${b.email}`);
+      ak.onclick = async () => {
+        const login = b.login_fra_bi ? "Loginnet er oprettet af Topas BI og spærres også, også i Teg Plan." : "Personens login (fælles med Teg Plan) bevares.";
+        if (b.aktiv && !confirm(`Fjern ${b.email}'s adgang til Topas BI?\n\nPersonens MCP-nøgler tilbagekaldes. ${login}`)) return;
+        try { await adminKald("opdater", { email: b.email, aktiv: !b.aktiv }); } catch (e) { adminFejl(e); }
+        hentAdmin();
+      };
+      tdH.append(ak);
+    }
+    tr.append(tdH);
+    bt.append(tr);
+  }
+
+  const nt = $("noegle-tabel");
+  const aktive = d.mcp_noegler.filter((k) => !k.tilbagekaldt);
+  if (!d.mcp_noegler.length) { nt.innerHTML = `<tr><td class="dim">Ingen personlige nøgler endnu. Lav en med "Ny MCP-nøgle" ud for brugeren.</td></tr>`; return; }
+  nt.innerHTML = "<tr><th>Bruger</th><th>Navn</th><th>Nøgle</th><th>Oprettet</th><th>Sidst brugt</th><th></th></tr>";
+  for (const k of [...aktive, ...d.mcp_noegler.filter((k) => k.tilbagekaldt)]) {
+    const tr = el("tr", k.tilbagekaldt ? "inaktiv" : "");
+    tr.append(el("td", null, esc(k.email)), el("td", null, esc(k.navn)), el("td", "dim", `…${esc(k.slutter_paa)}`),
+      el("td", "dim", esc(datoDK(k.oprettet))), el("td", "dim", esc(k.tilbagekaldt ? "Tilbagekaldt " + datoDK(k.tilbagekaldt) : datoDK(k.sidst_brugt))));
+    const td = el("td");
+    if (!k.tilbagekaldt) {
+      const tb = el("button", "lille-knap fare", "Tilbagekald"); tb.setAttribute("aria-label", `Tilbagekald nøglen ${k.navn} for ${k.email}`);
+      tb.onclick = async () => {
+        if (!confirm(`Tilbagekald nøglen "${k.navn}" for ${k.email}? Forbindelsen holder op med at virke med det samme.`)) return;
+        try { await adminKald("tilbagekald_mcp_noegle", { id: k.id }); } catch (e) { adminFejl(e); }
+        hentAdmin();
+      };
+      td.append(tb);
+    }
+    tr.append(td);
+    nt.append(tr);
+  }
+}
+
+$("inviter-form").onsubmit = async (e) => {
+  e.preventDefault();
+  $("inv-knap").disabled = true;
+  try {
+    const r = await adminKald("inviter", { email: $("inv-email").value, navn: $("inv-navn").value, rolle: $("inv-rolle").value });
+    const niveau = `<b>${esc(NIVEAUER[r.rolle])}</b>`;
+    if (r.midlertidigt_kodeord) {
+      visResultat(`<b>${esc(r.email)}</b> er inviteret med ${niveau}. Giv dette videre mundtligt eller i Teams, ikke på mail:<div style="margin-top:8px">Side: <code>${esc(APP_URL)}</code><br>E-mail: <code>${esc(r.email)}</code><br>Midlertidigt kodeord: <code>${esc(r.midlertidigt_kodeord)}</code></div><div class="dim" style="margin-top:6px">Ved første login vælger brugeren sit eget kodeord.</div>`, r.midlertidigt_kodeord);
+    } else {
+      visResultat(`<b>${esc(r.email)}</b> ${r.genaktiveret ? "har fået adgangen igen" : "er inviteret"} med ${niveau}. Personen havde allerede et login (fx fra Teg Plan) og logger ind på <code>${esc(APP_URL)}</code> med sit nuværende kodeord. Har personen intet kodeord (fx kun login med link i Teg Plan), vælges "Log ind med kode på mail i stedet" på login-siden.`);
+    }
+    $("inv-email").value = ""; $("inv-navn").value = "";
+  } catch (err) { adminFejl(err); }
+  $("inv-knap").disabled = false;
+  hentAdmin();
+};
+
+// ---------- Start ----------
+// INITIAL_SESSION fra onAuthStateChange viser appen, hvis brugeren allerede er logget ind.
+</script>
+</body>
+</html>

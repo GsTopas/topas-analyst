@@ -117,6 +117,51 @@
     #beskeder { padding: 16px 12px 4px; }
     .skriv { padding: 6px 12px 12px; }
   }
+  /* ---------- Adminside ---------- */
+  .niveau-maerke { display: inline-block; font-size: 11.5px; padding: 1px 8px; border-radius: 999px; background: #E7F0F4; color: var(--blaa-moerk); white-space: nowrap; }
+  .niveau-maerke.admin { background: var(--blaa); color: #fff; }
+  .niveau-maerke.begraenset { background: var(--creme); color: var(--tekst); }
+  #adminside { flex: 1; overflow: auto; padding: 24px 16px 32px; }
+  #adminside .indre { max-width: 980px; }
+  .admin-top { display: flex; align-items: center; gap: 12px; margin-bottom: 18px; flex-wrap: wrap; }
+  .admin-top h2 { margin: 0; font-size: 21px; letter-spacing: -.01em; flex: 1; }
+  .admin-top .knap { width: auto; margin: 0; }
+  .plade { background: var(--plade); border-radius: var(--radius); box-shadow: var(--skygge); padding: 18px 20px; margin-bottom: 18px; }
+  .plade h3 { margin: 0 0 4px; font-size: 15.5px; color: var(--blaa-moerk); }
+  .plade .forklar { color: #616161; font-size: 13px; margin: 0 0 12px; }
+  .niveauer { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 18px; }
+  .niveauer div { background: var(--plade); border-radius: 12px; box-shadow: var(--skygge); padding: 12px 14px; font-size: 13px; color: #616161; }
+  .niveauer b { display: block; color: var(--tekst); font-size: 14px; margin-bottom: 2px; }
+  .inviter { display: grid; grid-template-columns: 2fr 1.4fr 1.2fr auto; gap: 10px; align-items: end; }
+  .inviter label { margin: 0 0 6px; }
+  .inviter .knap { margin: 0; width: auto; }
+  select.felt { appearance: auto; padding: 10px 12px; }
+  .resultat { margin-top: 14px; padding: 12px 14px; border-radius: 10px; background: #EEF5EF; border: 1px solid #CFE3D1; font-size: 14px; }
+  .resultat.advarsel { background: #FFF4E8; border-color: var(--creme); }
+  .resultat code { background: #fff; padding: 2px 6px; border-radius: 6px; font-size: 13.5px; overflow-wrap: anywhere; }
+  .resultat .knap { width: auto; margin: 8px 8px 0 0; padding: 7px 12px; font-size: 13px; }
+  .tabel-ramme { overflow-x: auto; }
+  table.admin { border-collapse: collapse; width: 100%; font-size: 13.5px; }
+  table.admin th { text-align: left; color: var(--graa-tekst); font-weight: 600; font-size: 12px; text-transform: uppercase; letter-spacing: .03em; padding: 6px 8px; border-bottom: 1px solid var(--graa); white-space: nowrap; }
+  table.admin td { padding: 8px; border-bottom: 1px solid var(--graa); vertical-align: middle; }
+  table.admin tr.inaktiv td { color: var(--graa-tekst); }
+  table.admin td.tal { text-align: right; font-variant-numeric: tabular-nums; }
+  table.admin select { padding: 5px 8px; border-radius: 8px; border: 1px solid var(--graa); background: #fff; }
+  .lille-knap { background: none; border: 1px solid var(--graa); border-radius: 8px; padding: 4px 9px; font-size: 12.5px; color: var(--blaa); white-space: nowrap; margin: 2px 4px 2px 0; }
+  .lille-knap:hover { border-color: var(--blaa); }
+  .lille-knap.fare { color: var(--roed); }
+  .lille-knap.fare:hover { border-color: var(--roed); }
+  .dim { color: #616161; font-size: 12.5px; }
+  #adminside select { font: inherit; }
+  #admin-knap { font-weight: 600; }
+  .aside-bund { flex-wrap: wrap; row-gap: 4px; }
+  .aside-bund #bruger { flex-basis: 100%; }
+  .inviter .felt { height: 46px; }
+  @media (max-width: 760px) {
+    .niveauer { grid-template-columns: 1fr; }
+    .inviter { grid-template-columns: 1fr; }
+    #adminside { padding: 16px 12px 24px; }
+  }
 </style>
 </head>
 <body>
@@ -180,6 +225,7 @@
     <div id="samtaler"></div>
     <div class="aside-bund">
       <span id="bruger"></span>
+      <button id="admin-knap" class="skjult">Admin</button>
       <button id="skift-kodeord">Skift kodeord</button>
       <button id="log-ud">Log ud</button>
     </div>
@@ -193,7 +239,43 @@
       <button id="ny-samtale-mobil" aria-label="Ny samtale"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#0D5879" stroke-width="2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg></button>
     </div>
     <div id="beskeder"><div class="indre" id="beskeder-indre"></div></div>
-    <div class="skriv">
+    <section id="adminside" class="skjult">
+      <div class="indre">
+        <div class="admin-top">
+          <h2>Brugere og adgang</h2>
+          <button class="knap sekundaer" id="admin-luk">Tilbage til chatten</button>
+        </div>
+        <div class="niveauer">
+          <div><b>Admin</b>Alle tal og denne side: invitere brugere, ændre niveau og lave MCP-nøgler.</div>
+          <div><b>Fuld adgang</b>Alle tal, også omsætning og DB pr. turansvarlig og sælger (initialer).</div>
+          <div><b>Begrænset</b>Alle tal undtagen tal pr. turansvarlig og sælger. Initialer vises som "(skjult)".</div>
+        </div>
+        <div class="plade">
+          <h3>Invitér en bruger</h3>
+          <p class="forklar">Har personen allerede et login (fx fra Teg Plan), bruger de samme kodeord. Ellers laver vi et midlertidigt kodeord, som du giver videre mundtligt eller i Teams. Der sendes ingen mail. Bemærk, at et nyt login er fælles med Teg Plan og også virker dér.</p>
+          <form id="inviter-form" class="inviter">
+            <div><label for="inv-email">E-mail</label><input class="felt" id="inv-email" type="email" required placeholder="navn@topas.dk" autocomplete="off"></div>
+            <div><label for="inv-navn">Navn (valgfrit)</label><input class="felt" id="inv-navn" autocomplete="off"></div>
+            <div><label for="inv-rolle">Adgangsniveau</label>
+              <select class="felt" id="inv-rolle"><option value="begraenset">Begrænset</option><option value="fuld">Fuld adgang</option><option value="admin">Admin</option></select></div>
+            <button class="knap" id="inv-knap" type="submit">Invitér</button>
+          </form>
+          <div class="fejl" id="admin-fejl" role="alert"></div>
+          <div id="admin-resultat"></div>
+        </div>
+        <div class="plade">
+          <h3>Brugere</h3>
+          <p class="forklar">Ændringer gælder fra brugerens næste spørgsmål. Deaktivering fjerner adgangen til Topas BI og tilbagekalder brugerens MCP-nøgler. Et login, som Topas BI har oprettet, spærres også (det er fælles med Teg Plan); andre logins bevares. Kodeord kan kun nulstilles her for logins, som Topas BI har oprettet.</p>
+          <div class="tabel-ramme"><table class="admin" id="bruger-tabel"></table></div>
+        </div>
+        <div class="plade">
+          <h3>MCP-nøgler</h3>
+          <p class="forklar">En personlig nøgle forbinder Claude (claude.ai, Claude Desktop, Claude Code) eller Copilot med Topas BI. Nøglen følger brugerens niveau, og opslagene logges på brugeren. Nøglen vises kun én gang.</p>
+          <div class="tabel-ramme"><table class="admin" id="noegle-tabel"></table></div>
+        </div>
+      </div>
+    </section>
+    <div class="skriv" id="skriv">
       <div class="indre">
         <textarea id="input" rows="1" placeholder="Stil et spørgsmål om salg, belægning, omsætning eller resultat…"></textarea>
         <button class="send" id="send" aria-label="Send" disabled><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M12 19V5M5 12l7-7 7 7"/></svg></button>
@@ -207,12 +289,14 @@
 <script type="module">
 import { createClient } from "https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.117.3/+esm";
 import { marked } from "https://cdn.jsdelivr.net/npm/marked@17.0.1/+esm";
+import DOMPurify from "https://cdn.jsdelivr.net/npm/dompurify@3.2.6/+esm";
 import { Chart, registerables } from "https://cdn.jsdelivr.net/npm/chart.js@4.4.7/+esm";
 Chart.register(...registerables);
 
 const KONFIG = window.__TOPAS_BI__;
 const sb = createClient(KONFIG.url, KONFIG.anonKey);
 const CHAT_URL = `${KONFIG.url}/functions/v1/bi-chat`;
+const ADMIN_URL = `${KONFIG.url}/functions/v1/bi-admin`;
 const APP_URL = location.origin + location.pathname;
 
 const $ = (id) => document.getElementById(id);
@@ -258,7 +342,8 @@ function tegnGraf(pre, spec) {
 }
 
 const render = (md, medGrafer = true) => {
-  const html = marked.parse(md || "");
+  // Svar og historik kan indeholde tekst fra NAV; HTML renses, før det sættes ind.
+  const html = DOMPurify.sanitize(marked.parse(md || ""));
   const tmp = el("div", "markdown", html);
   // Højrestil talceller
   tmp.querySelectorAll("td, th").forEach((c) => { if (/^[-+−]?\s?[\d.,]+\s?(%|kr\.?|mio\.?|t?kr\.?)?$/.test(c.textContent.trim())) c.classList.add("tal"); });
@@ -382,6 +467,7 @@ async function visApp() {
   $("login").classList.add("skjult");
   $("app").classList.remove("skjult");
   $("bruger").textContent = session.user.email;
+  hentNiveau();
   await hentSamtaler();
   if (!samtaleId) visVelkomst();
 }
@@ -416,6 +502,7 @@ async function hentSamtaler() {
 }
 
 async function aabnSamtale(id) {
+  lukAdmin();
   samtaleId = id;
   lukMenu();
   const { data } = await sb.from("bi_beskeder").select("rolle, tekst, vaerktoejer, ms").eq("samtale_id", id).order("id");
@@ -431,6 +518,7 @@ async function aabnSamtale(id) {
 }
 
 function visVelkomst() {
+  lukAdmin();
   samtaleId = null;
   const indre = $("beskeder-indre");
   indre.innerHTML = "";
@@ -523,7 +611,7 @@ async function send() {
         else if (ev.type === "tekst") { svar += ev.delta; if (Date.now() - sidstRendret > 80) { visSvar(); sidstRendret = Date.now(); } }
         else if (ev.type === "vaerktoej_start") { saetStatus(`Slår op: ${esc(navnPaa(ev.navn))}…`, true); }
         else if (ev.type === "vaerktoej_slut") { opslag.push(ev); saetStatus(`${opslag.length} opslag · arbejder videre…`, true); }
-        else if (ev.type === "fejl") { svar += (svar ? "\n\n" : "") + `*Der opstod en fejl: ${ev.besked}*`; }
+        else if (ev.type === "fejl") { svar += (svar ? "\n\n" : "") + `*Der opstod en fejl: ${esc(ev.besked)}*`; }
         else if (ev.type === "slut") { saetStatus(`${ev.vaerktoejer} opslag · ${(ev.ms / 1000).toFixed(1).replace(".", ",")} s`); }
       }
     }
@@ -551,6 +639,172 @@ $("menu").onclick = aabnMenu;
 $("bagtaeppe").onclick = lukMenu;
 $("ny-samtale").onclick = () => { visVelkomst(); lukMenu(); };
 $("ny-samtale-mobil").onclick = () => { visVelkomst(); lukMenu(); };
+
+
+// ---------- Adgangsniveau og adminside ----------
+// Niveauet står i bi_brugere.rolle (admin / fuld / begraenset). Adminsiden kalder bi-admin, som selv tjekker, at brugeren er aktiv admin.
+const NIVEAUER = { admin: "Admin", fuld: "Fuld adgang", begraenset: "Begrænset", laeser: "Fuld adgang" };
+const datoDK = (s) => s ? new Date(s).toLocaleString("da-DK", { day: "numeric", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" }) : "–";
+let minEmail = "";
+
+async function hentNiveau() {
+  minEmail = session.user.email.toLowerCase();
+  const { data } = await sb.from("bi_brugere").select("rolle").eq("email", minEmail).maybeSingle();
+  const rolle = data?.rolle;
+  if (!rolle) return;
+  const n = rolle === "laeser" ? "fuld" : rolle;
+  $("bruger").innerHTML = `${esc(session.user.email)} <span class="niveau-maerke ${n}">${esc(NIVEAUER[rolle] || rolle)}</span>`;
+  $("bruger").title = session.user.email;
+  $("admin-knap").classList.toggle("skjult", rolle !== "admin");
+}
+
+async function adminKald(handling, data = {}) {
+  const { data: { session: s } } = await sb.auth.getSession();
+  const res = await fetch(ADMIN_URL, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", Authorization: `Bearer ${s.access_token}`, apikey: KONFIG.anonKey },
+    body: JSON.stringify({ handling, ...data }),
+  });
+  let svar = {};
+  try { svar = await res.json(); } catch {}
+  if (!res.ok) throw new Error(svar.fejl || `Fejl ${res.status}`);
+  return svar;
+}
+
+function visAdmin() {
+  lukMenu();
+  $("beskeder").classList.add("skjult"); $("skriv").classList.add("skjult");
+  $("adminside").classList.remove("skjult");
+  $("admin-fejl").textContent = ""; $("admin-resultat").innerHTML = "";
+  document.querySelectorAll(".samtale.aktiv").forEach((b) => b.classList.remove("aktiv"));
+  hentAdmin();
+}
+function lukAdmin() {
+  if ($("adminside").classList.contains("skjult")) return;
+  $("adminside").classList.add("skjult");
+  $("admin-fejl").textContent = ""; $("admin-resultat").innerHTML = "";  // kodeord og nøgler vises kun én gang
+  $("beskeder").classList.remove("skjult"); $("skriv").classList.remove("skjult");
+}
+$("admin-knap").onclick = visAdmin;
+// Tilbage til samtalen, som den var (et svar, der stadig skrives, fortsætter). Samtalelisten markerer den aktive igen.
+$("admin-luk").onclick = () => { lukAdmin(); if (!$("beskeder-indre").children.length) visVelkomst(); hentSamtaler(); };
+
+function adminFejl(e) { $("admin-fejl").textContent = e.message || String(e); }
+
+// Viser et resultat med en hemmelighed (midlertidigt kodeord eller MCP-nøgle), der kun vises én gang.
+function visResultat(html, hemmelighed, advarsel) {
+  $("admin-fejl").textContent = "";
+  const boks = el("div", "resultat" + (advarsel ? " advarsel" : ""), html);
+  if (hemmelighed) {
+    const k = el("button", "knap sekundaer", "Kopiér");
+    k.onclick = async () => { try { await navigator.clipboard.writeText(hemmelighed); k.textContent = "Kopieret"; } catch { k.textContent = "Markér og kopiér selv"; } };
+    boks.append(k);
+  }
+  const luk = el("button", "knap sekundaer", "Luk"); luk.onclick = () => boks.remove(); boks.append(luk);
+  $("admin-resultat").innerHTML = ""; $("admin-resultat").append(boks);
+  boks.scrollIntoView({ behavior: "smooth", block: "nearest" });
+}
+
+async function hentAdmin() {
+  let d;
+  try { d = await adminKald("liste"); } catch (e) { adminFejl(e); return; }
+  const bt = $("bruger-tabel");
+  bt.innerHTML = "<tr><th>Bruger</th><th>Niveau</th><th>Status</th><th>Sidst logget ind</th><th class=tal>Samtaler</th><th></th></tr>";
+  for (const b of d.brugere) {
+    const tr = el("tr", b.aktiv ? "" : "inaktiv");
+    const mig = b.email === minEmail;
+    const login = !b.har_login ? " · intet login" : b.skal_skifte_kodeord ? " · har ikke valgt eget kodeord" : "";
+    tr.append(el("td", null, `${esc(b.email)}${b.navn ? `<div class="dim">${esc(b.navn)}</div>` : ""}`));
+    const tdN = el("td"); const sel = el("select");
+    const nu = b.rolle === "laeser" ? "fuld" : b.rolle;
+    for (const [v, t] of [["begraenset", "Begrænset"], ["fuld", "Fuld adgang"], ["admin", "Admin"]]) { const o = el("option", null, t); o.value = v; if (nu === v) o.selected = true; sel.append(o); }
+    sel.setAttribute("aria-label", `Adgangsniveau for ${b.email}`);
+    sel.disabled = mig;
+    if (mig) sel.title = "Du kan ikke ændre dit eget niveau.";
+    sel.onchange = async () => {
+      const hvad = { begraenset: "Personen ser ikke længere tal pr. turansvarlig og sælger.", fuld: "Personen ser alle tal, også pr. turansvarlig og sælger.", admin: "Personen ser alle tal og kan administrere brugere og nøgler." }[sel.value];
+      if (!confirm(`Skift ${b.email} til "${NIVEAUER[sel.value]}"?\n\n${hvad}`)) { sel.value = nu; return; }
+      try { await adminKald("opdater", { email: b.email, rolle: sel.value }); visResultat(`${esc(b.email)} har nu <b>${esc(NIVEAUER[sel.value])}</b>.`); } catch (e) { adminFejl(e); }
+      hentAdmin();
+    };
+    tdN.append(sel); tr.append(tdN);
+    tr.append(el("td", null, (b.aktiv ? "Aktiv" : "Deaktiveret") + `<div class="dim">${esc(login.replace(/^ · /, ""))}</div>`));
+    tr.append(el("td", "dim", esc(datoDK(b.sidst_logget_ind))));
+    tr.append(el("td", "tal", String(b.samtaler)));
+    const tdH = el("td");
+    if (b.har_login && b.login_fra_bi && b.aktiv) {
+      const nk = el("button", "lille-knap", "Nulstil kodeord"); nk.setAttribute("aria-label", `Nulstil kodeord for ${b.email}`);
+      nk.onclick = async () => {
+        if (!confirm(`Lav et nyt midlertidigt kodeord til ${b.email}?\n\nLoginnet er fælles med Teg Plan, så kodeordet skifter også dér.`)) return;
+        try { const r = await adminKald("nulstil_kodeord", { email: b.email }); visResultat(`Nyt midlertidigt kodeord til <b>${esc(r.email)}</b>: <code>${esc(r.midlertidigt_kodeord)}</code><div class="dim" style="margin-top:6px">Giv det mundtligt eller i Teams, ikke på mail. Brugeren vælger sit eget ved næste login.</div>`, r.midlertidigt_kodeord); } catch (e) { adminFejl(e); }
+        hentAdmin();
+      };
+      tdH.append(nk);
+    }
+    if (b.aktiv) {
+      const mk = el("button", "lille-knap", "Ny MCP-nøgle"); mk.setAttribute("aria-label", `Ny MCP-nøgle til ${b.email}`);
+      mk.onclick = async () => {
+        const navn = prompt(`Navn på nøglen til ${b.email} (fx "Claude Desktop"):`, "Claude");
+        if (navn == null) return;
+        try { const r = await adminKald("ny_mcp_noegle", { email: b.email, navn }); visResultat(`MCP-adresse til <b>${esc(r.email)}</b> (${esc(r.navn)}). Den vises kun nu:<div style="margin-top:6px"><code>${esc(r.url)}</code></div><div class="dim" style="margin-top:6px">I Claude: Indstillinger → Connectors → Tilføj brugerdefineret connector → indsæt adressen. Kun til personens egen connector, ikke en fælles connector for hele organisationen, for alle opslag får personens niveau og logges på personen. Behandl den som et kodeord.</div>`, r.url, true); } catch (e) { adminFejl(e); }
+        hentAdmin();
+      };
+      tdH.append(mk);
+    }
+    if (!mig) {
+      const ak = el("button", "lille-knap" + (b.aktiv ? " fare" : ""), b.aktiv ? "Deaktivér" : "Aktivér");
+      ak.setAttribute("aria-label", `${b.aktiv ? "Deaktivér" : "Aktivér"} ${b.email}`);
+      ak.onclick = async () => {
+        const login = b.login_fra_bi ? "Loginnet er oprettet af Topas BI og spærres også, også i Teg Plan." : "Personens login (fælles med Teg Plan) bevares.";
+        if (b.aktiv && !confirm(`Fjern ${b.email}'s adgang til Topas BI?\n\nPersonens MCP-nøgler tilbagekaldes. ${login}`)) return;
+        try { await adminKald("opdater", { email: b.email, aktiv: !b.aktiv }); } catch (e) { adminFejl(e); }
+        hentAdmin();
+      };
+      tdH.append(ak);
+    }
+    tr.append(tdH);
+    bt.append(tr);
+  }
+
+  const nt = $("noegle-tabel");
+  const aktive = d.mcp_noegler.filter((k) => !k.tilbagekaldt);
+  if (!d.mcp_noegler.length) { nt.innerHTML = `<tr><td class="dim">Ingen personlige nøgler endnu. Lav en med "Ny MCP-nøgle" ud for brugeren.</td></tr>`; return; }
+  nt.innerHTML = "<tr><th>Bruger</th><th>Navn</th><th>Nøgle</th><th>Oprettet</th><th>Sidst brugt</th><th></th></tr>";
+  for (const k of [...aktive, ...d.mcp_noegler.filter((k) => k.tilbagekaldt)]) {
+    const tr = el("tr", k.tilbagekaldt ? "inaktiv" : "");
+    tr.append(el("td", null, esc(k.email)), el("td", null, esc(k.navn)), el("td", "dim", `…${esc(k.slutter_paa)}`),
+      el("td", "dim", esc(datoDK(k.oprettet))), el("td", "dim", esc(k.tilbagekaldt ? "Tilbagekaldt " + datoDK(k.tilbagekaldt) : datoDK(k.sidst_brugt))));
+    const td = el("td");
+    if (!k.tilbagekaldt) {
+      const tb = el("button", "lille-knap fare", "Tilbagekald"); tb.setAttribute("aria-label", `Tilbagekald nøglen ${k.navn} for ${k.email}`);
+      tb.onclick = async () => {
+        if (!confirm(`Tilbagekald nøglen "${k.navn}" for ${k.email}? Forbindelsen holder op med at virke med det samme.`)) return;
+        try { await adminKald("tilbagekald_mcp_noegle", { id: k.id }); } catch (e) { adminFejl(e); }
+        hentAdmin();
+      };
+      td.append(tb);
+    }
+    tr.append(td);
+    nt.append(tr);
+  }
+}
+
+$("inviter-form").onsubmit = async (e) => {
+  e.preventDefault();
+  $("inv-knap").disabled = true;
+  try {
+    const r = await adminKald("inviter", { email: $("inv-email").value, navn: $("inv-navn").value, rolle: $("inv-rolle").value });
+    const niveau = `<b>${esc(NIVEAUER[r.rolle])}</b>`;
+    if (r.midlertidigt_kodeord) {
+      visResultat(`<b>${esc(r.email)}</b> er inviteret med ${niveau}. Giv dette videre mundtligt eller i Teams, ikke på mail:<div style="margin-top:8px">Side: <code>${esc(APP_URL)}</code><br>E-mail: <code>${esc(r.email)}</code><br>Midlertidigt kodeord: <code>${esc(r.midlertidigt_kodeord)}</code></div><div class="dim" style="margin-top:6px">Ved første login vælger brugeren sit eget kodeord.</div>`, r.midlertidigt_kodeord);
+    } else {
+      visResultat(`<b>${esc(r.email)}</b> ${r.genaktiveret ? "har fået adgangen igen" : "er inviteret"} med ${niveau}. Personen havde allerede et login (fx fra Teg Plan) og logger ind på <code>${esc(APP_URL)}</code> med sit nuværende kodeord. Har personen intet kodeord (fx kun login med link i Teg Plan), vælges "Log ind med kode på mail i stedet" på login-siden.`);
+    }
+    $("inv-email").value = ""; $("inv-navn").value = "";
+  } catch (err) { adminFejl(err); }
+  $("inv-knap").disabled = false;
+  hentAdmin();
+};
 
 // ---------- Start ----------
 // INITIAL_SESSION fra onAuthStateChange viser appen, hvis brugeren allerede er logget ind.

@@ -183,6 +183,17 @@
   .markdown div.note p, .markdown div.note ul, .markdown div.note ol { margin: 0; max-width: none; }
   .markdown div.note ul, .markdown div.note ol { margin-top: 4px; padding-left: 20px; }
   .markdown div.note { margin: 0 0 14px; }
+  .markdown details.grundlag { margin: 0 0 14px; font-size: 13.5px; line-height: 1.55; color: #4F4F4F; background: var(--creme-lys); border-left: 3px solid var(--creme); border-radius: 0 10px 10px 0; }
+  .markdown details.grundlag > summary { list-style: none; display: flex; align-items: center; flex-wrap: wrap; gap: 4px 10px; min-height: 36px; padding: 6px 14px; cursor: pointer; font-weight: 600; -webkit-user-select: none; user-select: none; border-radius: 0 10px 10px 0; }
+  .markdown details.grundlag > summary::-webkit-details-marker { display: none; }
+  .markdown details.grundlag > summary::before { content: ""; width: 6px; height: 6px; border: solid currentColor; border-width: 0 2px 2px 0; transform: rotate(-45deg); margin-right: 2px; transition: transform .15s; }
+  .markdown details.grundlag[open] > summary::before { transform: rotate(45deg); }
+  .markdown details.grundlag > summary:hover { color: var(--blaa); }
+  .markdown details.grundlag > summary:focus-visible { outline: 2px solid var(--blaa); outline-offset: -2px; }
+  .markdown details.grundlag .vis { font-weight: 400; font-size: 12.5px; color: var(--graa-tekst); }
+  .markdown details.grundlag[open] .vis { display: none; }
+  .markdown details.grundlag > :not(summary) { margin: 0; max-width: none; padding: 0 14px 9px; }
+  .markdown details.grundlag > ul, .markdown details.grundlag > ol { padding-left: 34px; }
   .markdown p.note, .markdown div.note { font-size: 13.5px; line-height: 1.55; color: #4F4F4F; background: var(--creme-lys); border-left: 3px solid var(--creme); border-radius: 0 10px 10px 0; padding: 9px 14px; max-width: none; }
   .markdown p.opfoelgning { color: var(--blaa-moerk); font-weight: 500; }
   .markdown h1 { font-size: 19px; line-height: 1.3; margin: 24px 0 8px; letter-spacing: -.01em; }
@@ -215,8 +226,19 @@
   .tabel-vindue::after { content: ""; position: absolute; top: 0; right: 0; bottom: 0; width: 26px; pointer-events: none; background: linear-gradient(to left, rgba(0,0,0,.09), rgba(0,0,0,0)); opacity: 0; transition: opacity .15s; }
   .tabel-vindue.mere::after { opacity: 1; }
   .tabel table { border-collapse: separate; border-spacing: 0; width: 100%; font-size: 14px; }
-  .tabel th { background: #FAFAFA; color: #4F4F4F; font-size: 12.5px; font-weight: 600; text-align: left; vertical-align: bottom; line-height: 1.35; padding: 9px 12px; border-bottom: 1px solid #DADADA; white-space: normal; overflow-wrap: normal; hyphens: auto; min-width: 5.5em; max-width: 16em; }
+  .tabel th { background: #F4F6F7; color: var(--tekst); font-size: 13px; font-weight: 700; text-align: left; vertical-align: bottom; line-height: 1.35; padding: 9px 12px; border-bottom: 1px solid #DADADA; white-space: normal; overflow-wrap: normal; hyphens: auto; min-width: 5.5em; max-width: 16em; }
   .tabel th.lang { min-width: 9.5em; }
+  /* Sortering: hele overskriften er en knap; pilen er en CSS-figur, så den ikke kommer med, når tabellen kopieres */
+  .tabel th.sorterbar { padding: 0; }
+  .tabel th .sorter { display: flex; align-items: flex-end; gap: 5px; width: 100%; min-height: 100%; box-sizing: border-box; padding: 9px 12px; border: 0; background: none; font: inherit; color: inherit; text-align: inherit; line-height: inherit; cursor: pointer; }
+  .tabel th.tal .sorter { justify-content: flex-end; }
+  .tabel th .sorter:hover { background: #EBF1F4; }
+  .tabel th .sorter:focus-visible { outline: 2px solid var(--blaa); outline-offset: -2px; }
+  .tabel th .sorter::after { content: ""; flex: none; width: 0; height: 0; margin: 0 0 .3em; border: 4px solid transparent; border-top-color: currentColor; border-bottom: 0; opacity: .25; }
+  .tabel th .sorter:hover::after { opacity: .55; }
+  .tabel th[aria-sort] { color: var(--blaa); }
+  .tabel th[aria-sort] .sorter::after { opacity: 1; }
+  .tabel th[aria-sort=ascending] .sorter::after { border-top: 0; border-bottom: 4px solid currentColor; }
   .tabel [align=right] { text-align: right; } .tabel [align=center] { text-align: center; }
   .tabel td.foran, .tabel td.op { color: var(--groen); font-weight: 600; }
   .tabel td.bagud, .tabel td.ned { color: var(--roed); font-weight: 600; }
@@ -392,6 +414,9 @@
     .tabel td { white-space: normal; }
     .tabel th, .tabel td, .tabel td.tekst, .tabel td:first-child { min-width: 0; }
     .tabel th { font-size: 8pt; overflow-wrap: break-word; }
+    .tabel th.sorterbar { padding: 4px 6px; } .tabel.bred th.sorterbar { padding: 3px 3px; }
+    .tabel th .sorter { padding: 0; } .tabel th .sorter::after { display: none; }
+    .markdown details.grundlag > summary::before, .markdown details.grundlag .vis { display: none; }
     .tabel.bred table { font-size: 7.5pt; }
     .tabel.bred td, .tabel.bred th { padding: 3px 3px; }
     .graf { height: auto !important; }
@@ -787,6 +812,12 @@ function formTabel(table) {
     const alleFede = [...r.cells].every((c) => !c.textContent.trim() || c.querySelector("strong")?.textContent.trim() === c.textContent.trim());
     if (/^(i alt|total|samlet|sum)\b|,\s*i alt$/i.test(foerste) || (alleFede && r.cells.length > 1)) r.classList.add("total");
   }
+  const sidsteTotal = body.at(-1)?.classList.contains("total");
+  const grupperet = body.some((r, i) => r.classList.contains("total") && i < body.length - 1);
+  // Grupperede tabeller (mellemsummer) sorteres ikke, så en sum aldrig skilles fra sine rækker
+  let efterSort = () => {};
+  if (head && !grupperet && table.tHead.rows.length === 1 && head.cells.length === kolonner && ![...rows].some((r) => [...r.cells].some((c) => c.colSpan > 1 || c.rowSpan > 1)))
+    sorterbar(table, head, body.filter((r, i) => !(sidsteTotal && i === body.length - 1)), () => efterSort());
   const ramme = el("div", "tabel" + (body.length <= 15 ? " faa-raekker" : "") + (kolonner >= 7 ? " bred" : ""));
   const kolonneNavn = [...(head?.cells ?? [])].map((c) => c.textContent.trim()).filter(Boolean).slice(0, 3).join(", ").slice(0, 70) || "uden overskrift";
   // Navnet regnes først ud, når svaret er færdigbehandlet (afsnitstitlerne findes først efter finpuds)
@@ -816,8 +847,6 @@ function formTabel(table) {
   // Lange tabeller foldes til de første 12 rækker. Kun en total-række til sidst bliver stående; tabeller med
   // mellemsummer (grupper) foldes ikke, så en sum aldrig står uden sine rækker. En række markerer, hvad der er skjult.
   const MAX = 12;
-  const sidsteTotal = body.at(-1)?.classList.contains("total");
-  const grupperet = body.some((r, i) => r.classList.contains("total") && i < body.length - 1);
   if (body.length > MAX + 3 && !grupperet) {
     const skjules = body.length - MAX - (sidsteTotal ? 1 : 0);
     const info = el("tr", "skjult-info");
@@ -830,15 +859,20 @@ function formTabel(table) {
     body[MAX - 1].after(info);
     const vis = el("button", "ikon-knap vis-alle", `Vis alle ${body.length} rækker`);
     vis.type = "button";
+    // Rækkerne tages i den rækkefølge, de står nu (de kan være sorteret)
+    const raekker = () => [...table.tBodies[0].rows].filter((r) => r !== info);
     const fold = (ja) => {
-      body.forEach((r, i) => r.classList.toggle("foldet", ja && i >= MAX && !(sidsteTotal && i === body.length - 1)));
+      const rk = raekker();
+      rk[MAX - 1].after(info);
+      rk.forEach((r, i) => r.classList.toggle("foldet", ja && i >= MAX && !(sidsteTotal && i === rk.length - 1)));
       info.classList.toggle("skjult", !ja);
       vis.textContent = ja ? `Vis alle ${body.length} rækker` : "Vis færre rækker";
       vis.setAttribute("aria-expanded", String(!ja));
     };
     fold(true);
     vis.onclick = () => { const foldet = !!table.querySelector("tr.foldet"); fold(!foldet); if (!foldet) ramme.scrollIntoView({ block: "nearest" }); };
-    infoKnap.onclick = () => { fold(false); body[MAX].tabIndex = -1; body[MAX].focus({ preventScroll: true }); };
+    infoKnap.onclick = () => { fold(false); const r = raekker()[MAX]; r.tabIndex = -1; r.focus({ preventScroll: true }); };
+    efterSort = () => fold(!!table.querySelector("tr.foldet"));
     fod.append(vis);
   }
   const kopi = el("button", "ikon-knap", `${IKON.kopier}Kopiér til Excel`);
@@ -847,6 +881,87 @@ function formTabel(table) {
   kopi.onclick = () => kopierTabel(table);
   fod.append(kopi);
   ramme.append(fod);
+}
+
+// ---------- Sortering ----------
+// Klik på en overskrift: tal sorteres største først, tekst, måneder og datoer stigende; andet klik vender, tredje klik
+// giver agentens rækkefølge igen. Tal læses i dansk format ("12.246.099 kr.", "−8,8 %", "+72 †"); tomme celler og "–"
+// står altid nederst. En I alt-række til sidst bliver stående.
+const MAANED = /^(jan|feb|mar|apr|maj|jun|jul|aug|sep|okt|nov|dec)[a-zæøå]*\.?(?:\s+'?(\d{2}|\d{4}))?\s*[*†‡]*$/i;
+const DATO = /^(\d{1,2})[.\-/](\d{1,2})[.\-/](\d{4})\b|^(\d{4})-(\d{2})-(\d{2})\b/;
+const sortTekst = new Intl.Collator("da", { numeric: true, sensitivity: "base" });
+function sortTal(t) {
+  if (/^[–—-]$/.test(t)) return null;
+  const m = t.match(/[−+\-–]?\s?\d[\d.,]*/);
+  if (!m) return null;
+  let s = m[0].replace(/\s/g, "").replace(/[−–]/g, "-");
+  // "1.234" er tusinder; "1,5" er decimaler
+  s = s.replace(/\.(?=\d{3}(\D|$))/g, "").replace(",", ".");
+  const v = Number(s);
+  return Number.isFinite(v) ? v : null;
+}
+function sortMaaned(t) {
+  const m = t.match(MAANED);
+  if (!m) return null;
+  const aar = m[2] ? (m[2].length === 2 ? 2000 + +m[2] : +m[2]) : 0;
+  return aar * 12 + MDR.indexOf(m[1].toLowerCase());
+}
+function sortDato(t) {
+  const m = t.match(DATO);
+  if (!m) return null;
+  return m[1] ? Date.UTC(+m[3], +m[2] - 1, +m[1]) : Date.UTC(+m[4], +m[5] - 1, +m[6]);
+}
+function sorterbar(table, head, raekker, efter) {
+  if (raekker.length < 3) return;
+  const tbody = table.tBodies[0];
+  const original = [...raekker];
+  const tekst = (r, k) => r.cells[k]?.textContent.replace(/\s+/g, " ").trim() ?? "";
+  // Kolonnens type afgøres af alle udfyldte celler: tal (allerede markeret af formTabel), måneder, datoer eller tekst
+  const typer = [...head.cells].map((th, k) => {
+    const udfyldt = raekker.map((r) => tekst(r, k)).filter((t) => t && !/^[–—-]$/.test(t));
+    if (th.classList.contains("tal")) return "tal";
+    if (udfyldt.length && udfyldt.every((t) => sortMaaned(t) != null)) return "maaned";
+    if (udfyldt.length && udfyldt.every((t) => sortDato(t) != null)) return "dato";
+    return "tekst";
+  });
+  const noegle = (t, type) => !t || /^[–—-]$/.test(t) ? null
+    : type === "tal" ? sortTal(t) : type === "maaned" ? sortMaaned(t) : type === "dato" ? sortDato(t) : t;
+  let aktiv = -1, retning = 0; // retning: 1 stigende, -1 faldende, 0 agentens rækkefølge
+  const sorter = (k) => {
+    const foerst = typer[k] === "tal" ? -1 : 1;
+    retning = aktiv !== k ? foerst : retning === foerst ? -foerst : 0;
+    aktiv = retning ? k : -1;
+    let orden = original;
+    if (retning) {
+      const n = original.map((r, i) => ({ r, i, v: noegle(tekst(r, k), typer[k]) }));
+      n.sort((a, b) => {
+        if (a.v == null || b.v == null) return a.v == null && b.v == null ? a.i - b.i : a.v == null ? 1 : -1;
+        const c = typer[k] === "tekst" ? sortTekst.compare(a.v, b.v) : a.v - b.v;
+        return c ? c * retning : a.i - b.i;
+      });
+      orden = n.map((x) => x.r);
+    }
+    // En I alt-række til sidst er ikke med i original og flyttes ned under de sorterede rækker
+    const fastHale = [...tbody.rows].filter((r) => !original.includes(r) && !r.classList.contains("skjult-info"));
+    orden.forEach((r) => tbody.append(r));
+    fastHale.forEach((r) => tbody.append(r));
+    [...head.cells].forEach((th, j) => { if (j === aktiv) th.setAttribute("aria-sort", retning > 0 ? "ascending" : "descending"); else th.removeAttribute("aria-sort"); });
+    efter();
+    const navn = head.cells[k].textContent.trim();
+    srStatus(retning ? `Sorteret efter ${navn}, ${retning > 0 ? "stigende" : "faldende"}` : "Oprindelig rækkefølge");
+  };
+  [...head.cells].forEach((th, k) => {
+    if (!th.textContent.trim()) return;
+    const knap = el("button", "sorter");
+    knap.type = "button";
+    const etiket = el("span");
+    etiket.append(...th.childNodes);
+    knap.append(etiket);
+    knap.title = typer[k] === "tal" ? "Sortér (største først)" : "Sortér";
+    knap.onclick = () => sorter(k);
+    th.classList.add("sorterbar");
+    th.append(knap);
+  });
 }
 
 // Tabel → TSV (Excel genkender danske tal, når "kr." og fodnotetegn fjernes) + HTML
@@ -1167,6 +1282,44 @@ function finpuds(rod) {
   }
 }
 
+// "Grundlag: …" foldes sammen til en linje, der kan foldes ud. Datastemplet ("data pr. …") står stadig synligt i linjen.
+function foldGrundlag(rod) {
+  rod.querySelectorAll(":scope > p.note, :scope > div.note").forEach((n) => {
+    if (!/^grundlag\s*:/i.test(n.textContent.trim())) return;
+    const d = el("details", "grundlag");
+    const s = el("summary");
+    s.append(el("span", null, "Grundlag"));
+    n.querySelectorAll(".datastempel").forEach((x) => s.append(x.cloneNode(true)));
+    s.append(el("span", "vis", "Vis"));
+    // Fjern "Grundlag:" fra teksten (står nu i linjen). Står etiketten alene i et afsnit, fjernes afsnittet.
+    const foerste = n.matches("p") ? n : n.querySelector(":scope > p");
+    if (foerste) {
+      const w = document.createTreeWalker(foerste, NodeFilter.SHOW_TEXT);
+      let rest = /^\s*grundlag\s*:?\s*/i;
+      while (w.nextNode()) {
+        const t = w.currentNode;
+        if (!t.data.trim()) continue;
+        const m = t.data.match(rest);
+        if (!m) break;
+        t.data = t.data.slice(m[0].length);
+        if (t.data.trim()) { t.data = t.data.replace(/^\s*:?\s*/, ""); break; }
+        rest = /^\s*:?\s*/;
+      }
+      foerste.querySelectorAll("strong, b").forEach((b) => { if (!b.textContent.trim()) b.remove(); });
+      if (!foerste.textContent.trim() && foerste !== n) foerste.remove();
+      const x = foerste.firstChild;
+      if (x?.nodeType === 3) x.data = x.data.replace(/^\s+/, "").replace(/^\p{Ll}/u, (c) => c.toUpperCase());
+    }
+    n.before(d);
+    d.append(s);
+    if (n.matches("p")) { n.classList.remove("note"); d.append(n); } else d.append(...n.childNodes), n.remove();
+  });
+}
+// Foldet grundlag kommer med på udskrift/PDF
+let aabnetTilPrint = [];
+addEventListener("beforeprint", () => { aabnetTilPrint = [...document.querySelectorAll("details.grundlag:not([open])")]; aabnetTilPrint.forEach((d) => { d.open = true; }); });
+addEventListener("afterprint", () => { aabnetTilPrint.forEach((d) => { d.open = false; }); aabnetTilPrint = []; });
+
 function render(md, { grafer = null, streamer = false } = {}) {
   const html = DOMPurify.sanitize(marked.parse(md || ""), RENS);
   const tmp = el("div", "markdown", html);
@@ -1178,6 +1331,7 @@ function render(md, { grafer = null, streamer = false } = {}) {
     try { tegnGraf(pre, JSON.parse(code.textContent), grafer); } catch { pre.replaceWith(el("div", "graf-vent", "Grafen kunne ikke tegnes.")); }
   });
   finpuds(tmp);
+  foldGrundlag(tmp);
   return tmp;
 }
 
@@ -1902,6 +2056,7 @@ async function kopierSvar(node, md) {
   const ren = md.replace(/```graf[\s\S]*?```/g, (blok) => { try { return `[Graf: ${JSON.parse(blok.slice(7, -3)).titel || ""}]`; } catch { return ""; } }).replace(/\n{3,}/g, "\n\n").trim();
   const klon = node.querySelector(".indhold").cloneNode(true);
   klon.querySelectorAll(".tabel-fod, .graf-fod, .markoer").forEach((x) => x.remove());
+  klon.querySelectorAll("details.grundlag").forEach((d) => { d.querySelector(":scope > summary")?.remove(); const div = el("div"); div.append(el("p", null, "<strong>Grundlag:</strong>"), ...d.childNodes); d.replaceWith(div); });
   const kanvas = [...node.querySelectorAll(".indhold canvas")];
   klon.querySelectorAll("canvas").forEach((c, i) => { try { const img = el("img"); img.src = kanvas[i].toDataURL("image/png"); img.width = Math.min(640, kanvas[i].clientWidth); c.replaceWith(img); } catch { c.remove(); } });
   await kopier(ren, klon.innerHTML);

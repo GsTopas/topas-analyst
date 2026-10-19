@@ -252,6 +252,22 @@
   /* ---------- Svarets fod ---------- */
   .svar-fod { display: flex; align-items: center; gap: 4px; flex-wrap: wrap; margin: 12px -10px 0; padding-top: 8px; border-top: 1px solid var(--graa-linje); }
   .svar-fod .afstand { flex: 1; }
+  /* ---------- Tommel op/ned ---------- */
+  .tommel { display: inline-flex; gap: 2px; margin-right: 4px; }
+  .tommel .ikon-knap { padding: 5px 8px; }
+  .tommel .ikon-knap[aria-pressed="true"] { color: var(--blaa); background: var(--blaa-lys); }
+  .tommel .ikon-knap.ned[aria-pressed="true"] { color: var(--roed); background: var(--roed-lys); }
+  .tommel .ikon-knap[aria-pressed="true"] svg { fill: currentColor; fill-opacity: .18; }
+  .feedback-panel { margin: 8px 0 4px; padding: 12px 14px; background: var(--bg); border-radius: 10px; font-size: 13.5px; display: grid; gap: 10px; }
+  .feedback-panel .fb-titel { font-weight: 600; }
+  .feedback-panel .fb-valg { display: flex; flex-wrap: wrap; gap: 6px; }
+  .feedback-panel .fb-valg button { border: 1px solid var(--graa); background: var(--plade); color: var(--tekst); border-radius: 999px; padding: 5px 11px; font-size: 13px; min-height: 32px; }
+  .feedback-panel .fb-valg button[aria-pressed="true"] { border-color: var(--blaa); background: var(--blaa-lys); color: var(--blaa); }
+  .feedback-panel textarea { width: 100%; box-sizing: border-box; min-height: 64px; resize: vertical; border: 1px solid var(--graa); border-radius: 8px; padding: 8px 10px; font: inherit; font-size: 14px; background: var(--plade); color: var(--tekst); }
+  .feedback-panel .fb-hint { color: var(--graa-tekst); font-size: 12.5px; }
+  .feedback-panel .fb-knapper { display: flex; gap: 8px; justify-content: flex-end; }
+  .feedback-panel .fb-knapper .knap { width: auto; flex: none; min-height: 36px; padding: 6px 18px; }
+  .feedback-panel .fb-tak { color: var(--groen); font-weight: 500; }
   .opslag-knap[aria-expanded="true"] { color: var(--blaa); background: var(--blaa-svag); }
   .opslag-liste { margin: 8px 0 4px; padding: 10px 14px; background: var(--bg); border-radius: 10px; font-size: 13.5px; }
   .opslag-liste ol { margin: 0; padding-left: 20px; display: grid; gap: 6px; }
@@ -349,7 +365,7 @@
     @page { margin: 14mm 12mm; }
     html, body { height: auto; background: #fff; }
     #app { display: block; height: auto; }
-    aside, .topbar, .skriv, #til-bund, .svar-fod, .hurtigsvar, .tabel-fod, .graf-fod button, #bagtaeppe, .toast, #login, #adminside, .arbejder { display: none !important; }
+    aside, .topbar, .skriv, #til-bund, .svar-fod, .feedback-panel, .hurtigsvar, .tabel-fod, .graf-fod button, #bagtaeppe, .toast, #login, #adminside, .arbejder { display: none !important; }
     main { display: block; }
     #beskeder { overflow: visible; padding: 0; }
     .indre { max-width: none; }
@@ -653,6 +669,8 @@ const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&
 const sek = (ms) => (ms / 1000).toFixed(1).replace(".", ",") + " s";
 const MAERKE_SVG = `<svg viewBox="0 0 32 32" aria-hidden="true"><path d="M4.5 24 L12.5 11.5 L17.5 18.5 L20.5 14.5 L27.5 24 Z" fill="#FFD5A7"/><circle cx="23" cy="8.5" r="2.4" fill="#FFD5A7"/></svg>`;
 const IKON = {
+  tommelOp: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 10v11H4a1 1 0 0 1-1-1v-9a1 1 0 0 1 1-1h3zm0 0 4-8a3 3 0 0 1 3 3v4h5.5a2 2 0 0 1 2 2.3l-1.4 8A2 2 0 0 1 18.1 21H7"/></svg>`,
+  tommelNed: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M17 14V3h3a1 1 0 0 1 1 1v9a1 1 0 0 1-1 1h-3zm0 0-4 8a3 3 0 0 1-3-3v-4H4.5a2 2 0 0 1-2-2.3l1.4-8A2 2 0 0 1 5.9 3H17"/></svg>`,
   kopier: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="8" y="8" width="12" height="12" rx="2"/><path d="M16 8V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h2"/></svg>`,
   udskriv: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 9V3h10v6M7 17H5a2 2 0 0 1-2-2v-4a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v4a2 2 0 0 1-2 2h-2"/><rect x="7" y="14" width="10" height="7" rx="1"/></svg>`,
   opslag: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><ellipse cx="12" cy="6" rx="7" ry="3"/><path d="M5 6v6c0 1.7 3.1 3 7 3s7-1.3 7-3V6M5 12v6c0 1.7 3.1 3 7 3s7-1.3 7-3v-6"/></svg>`,
@@ -1565,7 +1583,7 @@ async function aabnSamtale(id) {
   indre.replaceChildren(el("div", "graf-vent", `<span class="spinner"></span>Henter samtalen…`));
   henter = id;
   opdaterSkriv();
-  const { data, error } = await sb.from("bi_beskeder").select("id, rolle, tekst, vaerktoejer, ms, oprettet").eq("samtale_id", id).order("id");
+  const [{ data, error }, fb] = await Promise.all([sb.from("bi_beskeder").select("id, rolle, tekst, vaerktoejer, ms, oprettet").eq("samtale_id", id).order("id"), hentFeedback(id)]);
   if (henter === id) { henter = null; opdaterSkriv(); }
   if (visning !== id) return; // brugeren har valgt noget andet imens
   indre.innerHTML = "";
@@ -1574,7 +1592,7 @@ async function aabnSamtale(id) {
   rk.forEach((b, i) => {
     try {
       if (b.rolle === "user") tilfoejSpoergsmaal(b.tekst);
-      else tilfoejSvar({ tekst: b.tekst, vaerktoejer: b.vaerktoejer, ms: b.ms, oprettet: b.oprettet, sidste: i === rk.length - 1, spoergsmaal: rk[i - 1]?.rolle === "user" ? rk[i - 1].tekst : "" });
+      else tilfoejSvar({ tekst: b.tekst, vaerktoejer: b.vaerktoejer, ms: b.ms, oprettet: b.oprettet, beskedId: b.id, feedback: fb.get(b.id), sidste: i === rk.length - 1, spoergsmaal: rk[i - 1]?.rolle === "user" ? rk[i - 1].tekst : "" });
     } catch (e) {
       // Ét svar, der ikke kan vises, må ikke skjule resten af samtalen
       console.error(e);
@@ -1665,15 +1683,15 @@ function saetIndhold(node, md, { faerdig = true } = {}) {
   node.querySelector(".indhold").replaceWith(ny);
 }
 
-function tilfoejSvar({ tekst, vaerktoejer, ms, oprettet, sidste, spoergsmaal }) {
+function tilfoejSvar({ tekst, vaerktoejer, ms, oprettet, beskedId, feedback, sidste, spoergsmaal }) {
   const node = lavSvarNode();
   if (oprettet) node.querySelector(".svar-hoved").append(el("time", null, esc(new Date(oprettet).toLocaleString("da-DK", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" }))));
   $("beskeder-indre").append(node);
-  afslutSvar(node, { tekst, vaerktoejer, ms, sidste, spoergsmaal });
+  afslutSvar(node, { tekst, vaerktoejer, ms, beskedId, feedback, sidste, spoergsmaal });
   return node;
 }
 
-function afslutSvar(node, { tekst, vaerktoejer, ms, sidste, spoergsmaal, levende = false }) {
+function afslutSvar(node, { tekst, vaerktoejer, ms, beskedId, feedback, sidste, spoergsmaal, levende = false }) {
   const t = String(tekst ?? "");
   const tomt = !t.trim() || INTET_SVAR.test(t.trim());
   const fejlI = t.indexOf(FEJL_MARKOER);
@@ -1694,6 +1712,7 @@ function afslutSvar(node, { tekst, vaerktoejer, ms, sidste, spoergsmaal, levende
   }
   // Fod: opslag + handlinger
   node.querySelector(".svar-fod")?.remove();
+  node.querySelector(".feedback-panel")?.remove();
   node.querySelector(".opslag-liste")?.remove();
   const fod = el("div", "svar-fod");
   const v = Array.isArray(vaerktoejer) ? vaerktoejer : [];
@@ -1713,6 +1732,7 @@ function afslutSvar(node, { tekst, vaerktoejer, ms, sidste, spoergsmaal, levende
     fod.append(knap);
   }
   fod.append(el("span", "afstand"));
+  if (!tomt && ren.trim() && beskedId) fod.append(tommelKnapper(node, beskedId, feedback));
   if (!tomt && ren.trim()) {
     const kopi = el("button", "ikon-knap", `${IKON.kopier}Kopiér`);
     kopi.type = "button"; kopi.title = "Kopiér svaret (tekst og tabeller)";
@@ -1782,6 +1802,97 @@ function opslagListe(v) {
   boks.append(ol);
   boks.append(el("p", "opslag-forklaring", "Opslagene er de tal, agenten hentede fra BI-laget for at svare. Lukkede måneder er økonomis tal; salg og belægning er NAV-data."));
   return boks;
+}
+
+// ---------- Tommel op/ned ----------
+// Gemmes via rpc bi_giv_feedback (kun egne svar, uden e-mail). 1 = op, -1 = ned, 0 = fortryd.
+const FB_KATEGORIER = [["forkert_tal", "Forkert tal"], ["forkert_grundlag", "Forkert grundlag"], ["mangler_status", "Mangler status"], ["misforstaaet", "Misforstod spørgsmålet"], ["for_langt", "For langt"], ["andet", "Andet"]];
+async function hentFeedback(samtale) {
+  const kort = new Map();
+  try {
+    const { data, error } = await sb.rpc("bi_min_feedback", { p_samtale_id: samtale });
+    if (!error) for (const r of data ?? []) kort.set(r.besked_id, r);
+  } catch {}
+  return kort;
+}
+async function gemFeedback(beskedId, vurdering, kategori = null, kommentar = null) {
+  const { error } = await sb.rpc("bi_giv_feedback", { p_besked_id: beskedId, p_vurdering: vurdering, p_kategori: kategori, p_kommentar: kommentar });
+  if (error) throw error;
+}
+function tommelKnapper(node, beskedId, feedback) {
+  const boks = el("span", "tommel");
+  boks.setAttribute("role", "group");
+  boks.setAttribute("aria-label", "Vurdér svaret");
+  const op = el("button", "ikon-knap op", IKON.tommelOp);
+  const ned = el("button", "ikon-knap ned", IKON.tommelNed);
+  op.type = ned.type = "button";
+  op.title = "Godt svar"; ned.title = "Dårligt svar – fortæl hvad der var galt";
+  op.setAttribute("aria-label", "Godt svar"); ned.setAttribute("aria-label", "Dårligt svar");
+  let nu = feedback?.vurdering ?? 0;
+  const vis = () => { op.setAttribute("aria-pressed", String(nu === 1)); ned.setAttribute("aria-pressed", String(nu === -1)); };
+  vis();
+  const saet = async (ny) => {
+    const foer = nu;
+    nu = ny; vis();
+    try {
+      await gemFeedback(beskedId, ny);
+      if (ny === 1) toast("Tak for din vurdering");
+      else if (ny === 0) toast("Vurderingen er fjernet");
+    } catch {
+      nu = foer; vis();
+      toast("Kunne ikke gemme vurderingen – prøv igen");
+      return false;
+    }
+    return true;
+  };
+  op.onclick = async () => { node.querySelector(".feedback-panel")?.remove(); await saet(nu === 1 ? 0 : 1); };
+  ned.onclick = async () => {
+    if (nu === -1) { node.querySelector(".feedback-panel")?.remove(); await saet(0); return; }
+    if (await saet(-1)) visFeedbackPanel(node, beskedId, feedback);
+  };
+  boks.append(op, ned);
+  return boks;
+}
+function visFeedbackPanel(node, beskedId, tidligere) {
+  node.querySelector(".feedback-panel")?.remove();
+  const panel = el("div", "feedback-panel");
+  panel.append(el("div", "fb-titel", "Hvad var galt? (valgfrit)"));
+  const valg = el("div", "fb-valg");
+  let kategori = tidligere?.kategori ?? null;
+  for (const [k, navn] of FB_KATEGORIER) {
+    const b = el("button", null, esc(navn));
+    b.type = "button";
+    b.setAttribute("aria-pressed", String(kategori === k));
+    b.onclick = () => { kategori = kategori === k ? null : k; valg.querySelectorAll("button").forEach((x, i) => x.setAttribute("aria-pressed", String(FB_KATEGORIER[i][0] === kategori))); };
+    valg.append(b);
+  }
+  panel.append(valg);
+  const felt = el("textarea");
+  felt.maxLength = 2000;
+  felt.placeholder = "Uddyb gerne, fx hvilket tal du havde forventet og hvorfra";
+  felt.setAttribute("aria-label", "Kommentar til svaret");
+  felt.value = tidligere?.kommentar ?? "";
+  panel.append(felt);
+  panel.append(el("div", "fb-hint", "Skriv ikke navne på kunder eller kolleger. Kommentaren læses kun af administratoren."));
+  const knapper = el("div", "fb-knapper");
+  const luk = el("button", "knap sekundaer", "Luk"); luk.type = "button";
+  const send_ = el("button", "knap", "Send"); send_.type = "button";
+  luk.onclick = () => panel.remove();
+  send_.onclick = async () => {
+    send_.disabled = true;
+    try {
+      await gemFeedback(beskedId, -1, kategori, felt.value.trim() || null);
+      panel.replaceChildren(el("div", "fb-tak", "Tak – svaret bliver gennemgået, så agenten kan blive bedre."));
+      setTimeout(() => panel.remove(), 2500);
+    } catch {
+      send_.disabled = false;
+      toast("Kunne ikke sende – prøv igen");
+    }
+  };
+  knapper.append(luk, send_);
+  panel.append(knapper);
+  node.querySelector(".svar-fod").after(panel);
+  if (!erMobil()) felt.focus({ preventScroll: true });
 }
 
 async function kopierSvar(node, md) {
@@ -1945,7 +2056,7 @@ async function send(tekstArg) {
       const { data } = await sb.from("bi_beskeder").select("id, vaerktoejer, ms").eq("samtale_id", st.samtaleId).eq("rolle", "assistant").order("id", { ascending: false }).limit(1).maybeSingle();
       gemt = data;
     }
-    afslutSvar(node, { tekst: svar, vaerktoejer: gemt?.vaerktoejer ?? opslag, ms: slut?.ms ?? gemt?.ms ?? Date.now() - st.start, sidste: true, spoergsmaal: tekst, levende: true });
+    afslutSvar(node, { tekst: svar, vaerktoejer: gemt?.vaerktoejer ?? opslag, ms: slut?.ms ?? gemt?.ms ?? Date.now() - st.start, beskedId: gemt?.id, sidste: true, spoergsmaal: tekst, levende: true });
     if (!slut && !svar.includes(FEJL_MARKOER)) {
       // Forbindelsen blev lukket uden "slut": svaret kan mangle noget, men serveren kan have gemt det hele
       const boks = fejlboks("Forbindelsen blev afbrudt, før svaret var færdigt, så der kan mangle noget.", st.samtaleId ? "Hent svaret igen" : "Prøv igen", () => st.samtaleId ? aabnSamtale(st.samtaleId) : sendIgen(node, tekst), true, "", true);

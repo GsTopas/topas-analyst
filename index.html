@@ -281,12 +281,12 @@
   .hurtigsvar button:hover { border-color: var(--blaa); background: var(--blaa-lys); }
 
   /* ---------- Velkomst ---------- */
-  .velkomst { padding: 6vh 4px 24px; max-width: 760px; margin: 0 auto; }
+  .velkomst { padding: 6vh 4px 24px; max-width: 900px; margin: 0 auto; }
   .velkomst .maerke { width: 52px; height: 52px; border-radius: 14px; margin-bottom: 18px; }
   .velkomst .maerke svg { width: 34px; height: 34px; }
   .velkomst h2 { font-size: 27px; line-height: 1.2; margin: 0 0 8px; letter-spacing: -.02em; }
   .velkomst > p { color: var(--graa-tekst); margin: 0 0 26px; max-width: 600px; font-size: 15.5px; }
-  .forslag-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+  .forslag-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: 14px; }
   .forslag-gruppe { background: var(--plade); border: 1px solid var(--graa-linje); border-radius: var(--radius); box-shadow: var(--skygge); padding: 14px 10px 10px; }
   .forslag-gruppe h3 { display: flex; align-items: center; gap: 8px; margin: 0 6px 6px; font-size: 12px; text-transform: uppercase; letter-spacing: .06em; color: var(--graa-tekst); font-weight: 600; }
   .forslag-gruppe h3 svg { width: 16px; height: 16px; color: var(--blaa); }
@@ -680,6 +680,7 @@ const IKON = {
   mere: `<svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><circle cx="5" cy="12" r="1.8"/><circle cx="12" cy="12" r="1.8"/><circle cx="19" cy="12" r="1.8"/></svg>`,
   salg: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 17l6-6 4 4 8-8M15 7h6v6"/></svg>`,
   resultat: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/></svg>`,
+  marketing: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 11l18-5v12L3 14v-3zM11.6 16.8a3 3 0 1 1-5.8-1.6"/></svg>`,
 };
 
 let toastTimer;
@@ -1194,6 +1195,7 @@ DOMPurify.addHook("uponSanitizeAttribute", (_node, data) => { if (data.attrName 
 const FORSLAG = [
   { titel: "Salg og belægning", ikon: "salg", spm: ["Hvordan sælger vi i denne uge mod sidste år?", "Hvilke kommende ture er bagud mod sidste år?", "Hvilke ture er tæt på udsolgt?"] },
   { titel: "Omsætning og resultat", ikon: "resultat", spm: ["Vis resultatet for den seneste lukkede måned", "Hvordan ligger den realiserede omsætning i år mod sidste år, måned for måned?", "Hvordan går den realiserede omsætning mod budget i år?"] },
+  { titel: "Marketing og salg", ikon: "marketing", spm: ["Hvilke turserier annoncerer vi mest på lige nu, og sælger de bedre end sidste år?", "Hvor brugte vi flest annoncekroner i sidste måned, og hvordan solgte de ture?", "Var der turserier, vi annoncerede på i sidste kvartal, uden at vi fik solgt noget på dem?"] },
 ];
 const INTET_SVAR = /^(Jeg nåede ikke frem til et svar\.|\(intet svar\)$)/;
 const FEJL_MARKOER = "*(Der opstod en fejl:";
@@ -1639,7 +1641,7 @@ function visVelkomst() {
   const v = el("div", "velkomst");
   v.append(el("div", "maerke", MAERKE_SVG));
   v.append(el("h2", null, esc(hilsen()))); v.lastChild.id = "hilsen";
-  v.append(el("p", null, "Spørg på dansk om salg, belægning, omsætning, dækningsbidrag og resultat. Svarene bygger på tallene fra NAV og økonomis lukkede måneder og siger altid, hvor sikre tallene er."));
+  v.append(el("p", null, "Spørg på dansk om salg, belægning, omsætning, dækningsbidrag, resultat og marketing. Svarene bygger på tallene fra NAV og økonomis lukkede måneder og siger altid, hvor sikre tallene er."));
   const grid = el("div", "forslag-grid");
   for (const g of FORSLAG) {
     const boks = el("div", "forslag-gruppe");

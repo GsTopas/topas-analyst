@@ -1302,7 +1302,8 @@ $("log-ud").onclick = async () => {
   lukMenuer();
   if ([...streams.values()].some((s) => s.aktiv) && !(await spoerg({ titel: "Log ud?", tekst: "Et svar er ved at blive skrevet. Det bliver gemt, men du ser det først, når du logger ind igen.", ok: "Log ud" }))) return;
   streams.clear(); // allerede bekræftet, så ingen ekstra advarsel fra browseren
-  await sb.auth.signOut(); location.reload();
+  // Kun denne browser: andre enheder, Teg Plan og Claude-connectoren (login via Topas BI) forbliver logget ind.
+  await sb.auth.signOut({ scope: "local" }); location.reload();
 };
 
 sb.auth.onAuthStateChange((event, s) => {
@@ -2069,7 +2070,7 @@ async function send(tekstArg) {
     if (svar.trim()) saetIndhold(node, svar, { faerdig: true });
     else node.querySelector(".indhold").replaceChildren();
     const boks = e.logind
-      ? fejlboks(e.message, "Log ind igen", async () => { await sb.auth.signOut(); location.reload(); }, false, "", true)
+      ? fejlboks(e.message, "Log ind igen", async () => { await sb.auth.signOut({ scope: "local" }); location.reload(); }, false, "", true)
       : /failed to fetch|network|load failed/i.test(e.message)
         ? fejlboks("Ingen forbindelse til serveren. Tjek netværket, og prøv igen.", "Prøv igen", () => sendIgen(node, tekst), false, "", true)
         : fejlboks(svar.trim() ? "Svaret blev afbrudt af en fejl. Det, der nåede frem, står ovenfor." : "Agenten kunne ikke svare lige nu. Prøv igen om lidt.", "Prøv igen", () => sendIgen(node, tekst), false, e.message, true);

@@ -1,0 +1,358 @@
+<!doctype html>
+<html lang="da">
+<head>
+<meta charset="utf-8">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self' https://*.supabase.co; font-src 'self'; form-action 'none'; base-uri 'none'; object-src 'none'">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex, nofollow">
+<meta name="referrer" content="no-referrer">
+<meta name="theme-color" content="#F7F7F7">
+<title>Forbind Claude · Topas BI</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%230D5879'/%3E%3Cpath d='M4.5 24 L12.5 11.5 L17.5 18.5 L20.5 14.5 L27.5 24 Z' fill='%23FFD5A7'/%3E%3Ccircle cx='23' cy='8.5' r='2.4' fill='%23FFD5A7'/%3E%3C/svg%3E">
+<!-- frame-ancestors virker ikke i en meta-CSP (og GitHub Pages kan ikke sende headers); siden tjekker selv, at den ikke er indlejret. -->
+<!-- Samtykkesiden til login i Claude-connectoren (Supabases OAuth 2.1-server sender brugeren hertil med ?authorization_id=…).
+     Bygges til samtykke.html med konfigurationslinjen af byg_samtykke.py og lægges på gh-pages ved siden af index.html. -->
+<style>
+  :root {
+    color-scheme: light;
+    --tekst: #333333; --bg: #F7F7F7; --plade: #FFFFFF; --blaa: #0D5879; --blaa-moerk: #0A4660; --blaa-lys: #E7F0F4; --blaa-svag: #F3F7F9;
+    --roed: #C30031; --graa-linje: #EEEEEE; --graa-tekst: #616161;
+    --radius-lille: 10px;
+    --skygge-hoej: 0 16px 40px rgba(16,24,40,.16), 0 2px 8px rgba(16,24,40,.06);
+    --font: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  }
+  * { box-sizing: border-box; }
+  html, body { min-height: 100%; margin: 0; }
+  body { font: 15px/1.5 var(--font); color: var(--tekst); background: var(--bg); -webkit-font-smoothing: antialiased; }
+  button, input { font: inherit; color: inherit; }
+  button { cursor: pointer; }
+  a { color: var(--blaa); }
+  .skjult { display: none !important; }
+  :focus-visible { outline: 2px solid var(--blaa); outline-offset: 2px; }
+  main { min-height: 100vh; min-height: 100dvh; display: grid; place-items: center; padding: 24px 16px calc(24px + env(safe-area-inset-bottom)); background: radial-gradient(1200px 500px at 50% -10%, #E9F1F4 0%, var(--bg) 60%); }
+  .ramme { width: 100%; max-width: 440px; }
+  .kort { background: var(--plade); border-radius: 18px; box-shadow: var(--skygge-hoej); border: 1px solid var(--graa-linje); padding: 32px 30px 26px; }
+  @media (max-width: 420px) { .kort { padding: 26px 20px 22px; } }
+  .logo { display: flex; align-items: center; gap: 12px; margin-bottom: 22px; }
+  .logo h1 { font-size: 20px; margin: 0; letter-spacing: -.01em; line-height: 1.25; }
+  .logo small { display: block; color: var(--graa-tekst); font-size: 13.5px; font-weight: 400; }
+  .maerke { width: 40px; height: 40px; border-radius: 11px; background: var(--blaa); display: grid; place-items: center; flex: none; }
+  .maerke svg { width: 26px; height: 26px; }
+  h2 { font-size: 17px; margin: 0 0 8px; }
+  p { margin: 0 0 10px; }
+  label { display: block; font-size: 13px; color: var(--graa-tekst); font-weight: 500; margin: 16px 0 6px; }
+  .felt { width: 100%; min-height: 44px; padding: 10px 13px; border: 1px solid #D9D9D9; border-radius: var(--radius-lille); background: #fff; outline: none; font-size: 16px; }
+  .felt:focus { border-color: var(--blaa); box-shadow: 0 0 0 3px rgba(13,88,121,.14); }
+  .knap { display: inline-flex; align-items: center; justify-content: center; min-height: 44px; padding: 10px 16px; border-radius: var(--radius-lille); border: 0; background: var(--blaa); color: #fff; font-weight: 600; width: 100%; margin-top: 18px; }
+  .knap:hover { background: var(--blaa-moerk); }
+  .knap:disabled { opacity: .55; cursor: default; }
+  .knap.sekundaer { background: var(--plade); color: var(--blaa); border: 1px solid #D5DEE2; margin-top: 10px; }
+  .knap.sekundaer:hover { background: var(--blaa-svag); border-color: var(--blaa); }
+  .fejl { color: var(--roed); font-size: 13.5px; margin-top: 12px; }
+  .fejl:empty { margin: 0; }
+  .lille { font-size: 13.5px; color: var(--graa-tekst); margin-top: 14px; text-align: center; }
+  .lille button { background: none; border: 0; color: var(--blaa); padding: 4px 2px; text-decoration: underline; text-underline-offset: 2px; }
+  .boks { background: var(--blaa-svag); border: 1px solid var(--blaa-lys); border-radius: 12px; padding: 12px 14px; margin: 14px 0 4px; font-size: 14px; }
+  .boks div + div { margin-top: 4px; }
+  .dim { color: var(--graa-tekst); }
+  .chip { display: inline-block; font-size: 12px; font-weight: 600; padding: 1px 9px; border-radius: 999px; background: var(--blaa-lys); color: var(--blaa-moerk); margin-left: 4px; }
+  ul { margin: 10px 0 0; padding-left: 20px; }
+  li + li { margin-top: 4px; }
+</style>
+</head>
+<body>
+<main>
+  <div class="ramme">
+    <div class="kort" aria-live="polite">
+      <div class="logo">
+        <div class="maerke"><svg viewBox="0 0 32 32" aria-hidden="true"><path d="M4.5 24 L12.5 11.5 L17.5 18.5 L20.5 14.5 L27.5 24 Z" fill="#FFD5A7"/><circle cx="23" cy="8.5" r="2.4" fill="#FFD5A7"/></svg></div>
+        <h1>Topas BI<small>Forbind Claude med din Topas BI-konto</small></h1>
+      </div>
+
+      <div id="indlaeser"><p class="dim">Et øjeblik …</p></div>
+
+      <form id="login-form" class="skjult" novalidate>
+        <p>Log ind med din Topas BI-konto for at forbinde Claude.</p>
+        <label for="email">E-mail</label>
+        <input class="felt" id="email" type="email" autocomplete="username" required placeholder="navn@topas.dk">
+        <label for="kodeord">Kodeord</label>
+        <input class="felt" id="kodeord" type="password" autocomplete="current-password" required>
+        <button class="knap" id="login-knap" type="submit">Log ind</button>
+        <div class="fejl" id="login-fejl" role="alert"></div>
+        <div class="lille">Glemt kodeord? Kontakt Gorm (gs@topas.dk).</div>
+        <div class="lille">Logger du ind med engangskode? Log ind i <a id="app-link" href="./" target="_blank" rel="noopener">Topas BI-appen</a> i denne browser først, og genindlæs så denne side.</div>
+      </form>
+
+      <form id="skift-form" class="skjult" novalidate>
+        <h2>Vælg dit eget kodeord</h2>
+        <p>Du er logget ind med et midlertidigt kodeord. Vælg dit eget, før du forbinder Claude.</p>
+        <label for="nyt1">Nyt kodeord</label>
+        <input class="felt" id="nyt1" type="password" autocomplete="new-password" required aria-describedby="skift-regel">
+        <label for="nyt2">Gentag kodeord</label>
+        <input class="felt" id="nyt2" type="password" autocomplete="new-password" required>
+        <div class="lille" id="skift-regel" style="text-align:left">Mindst 8 tegn med bogstaver og mindst ét tal.</div>
+        <button class="knap" id="skift-knap" type="submit">Gem og fortsæt</button>
+        <div class="fejl" id="skift-fejl" role="alert"></div>
+      </form>
+
+      <section id="samtykke" class="skjult" aria-labelledby="samtykke-titel">
+        <h2 id="samtykke-titel" tabindex="-1">Forbind <span id="klient-navn">Claude</span> med Topas BI</h2>
+        <p><b id="klient-navn2">Claude</b> vil slå tal op i Topas BI for dig.</p>
+        <div class="boks">
+          <div>Logget ind som <b id="bruger-email"></b><span class="chip" id="bruger-niveau"></span></div>
+          <div class="dim">Sender dig tilbage til <span id="retur-vaert"></span></div>
+        </div>
+        <ul class="dim">
+          <li>Claude får samme adgang, som du har i appen, og opslagene logges på dig.</li>
+          <li>Du kan afbryde forbindelsen i Claude under Indstillinger → Connectors.</li>
+        </ul>
+        <button class="knap" id="godkend" type="button">Godkend</button>
+        <button class="knap sekundaer" id="afvis" type="button">Afvis</button>
+        <div class="fejl" id="samtykke-fejl" role="alert"></div>
+        <div class="lille">Ikke dig? <button type="button" class="log-ud">Log ind med en anden konto</button></div>
+      </section>
+
+      <section id="besked" class="skjult" aria-labelledby="besked-titel">
+        <h2 id="besked-titel" tabindex="-1"></h2>
+        <p id="besked-tekst"></p>
+        <button class="knap skjult" id="besked-knap" type="button"></button>
+        <div class="lille skjult" id="besked-anden"><button type="button" class="log-ud">Log ind med en anden konto</button></div>
+      </section>
+    </div>
+  </div>
+</main>
+
+<script>
+  // Kan supabase-js ikke hentes (fx CDN nede), kører modulet nedenfor ikke. Så forklarer vi det i stedet for "Et øjeblik" for evigt.
+  setTimeout(function () {
+    if (window.__samtykkeKlar) return;
+    var t = document.querySelector("#indlaeser p");
+    if (t) t.textContent = "Siden kunne ikke indlæses. Tjek netværket, og genindlæs siden.";
+  }, 15000);
+</script>
+<script>window.__TOPAS_BI__={"url": "https://oxpuloflkdcpshrabvkn.supabase.co", "anonKey": "sb_publishable_1J98JZQ2qBBer2cI-hS3Tg_rPXC2sFC"};</script>
+<script type="module">
+import { createClient } from "https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.117.3/+esm";
+
+window.__samtykkeKlar = true;
+const $ = (id) => document.getElementById(id);
+const KONFIG = window.__TOPAS_BI__;
+// Samme login-lager som appen (samme origin), så et login i appen også gælder her. Siden læser aldrig login fra adressen.
+const sb = createClient(KONFIG.url, KONFIG.anonKey, { auth: { detectSessionInUrl: false } });
+const authId = new URLSearchParams(location.search).get("authorization_id");
+const APP_URL = new URL("./", location.href).href;
+const NIVEAU_NAVN = { admin: "Admin", fuld: "Fuld adgang", begraenset: "Begrænset" };
+const SEKTIONER = ["indlaeser", "login-form", "skift-form", "samtykke", "besked"];
+// Første opslag af forbindelsen binder den til den indloggede konto. Bagefter kan en anden konto ikke bruge den.
+let bundetTil = null;
+let aktuelEmail = "";
+
+function vis(sektion, fokus) {
+  for (const s of SEKTIONER) $(s).classList.toggle("skjult", s !== sektion);
+  if (fokus) $(fokus).focus();
+}
+
+/** Viser en besked med en valgfri knap. anden = vis "Log ind med en anden konto". */
+function besked(titel, tekst, knap = null, anden = false) {
+  $("besked-titel").textContent = titel;
+  $("besked-tekst").textContent = tekst;
+  const k = $("besked-knap");
+  k.classList.toggle("skjult", !knap);
+  if (knap) { k.textContent = knap.tekst; k.disabled = false; k.onclick = knap.handling; }
+  $("besked-anden").classList.toggle("skjult", !anden);
+  vis("besked", "besked-titel");
+}
+
+const tilAppen = { tekst: "Åbn Topas BI", handling: () => location.assign(APP_URL) };
+const udloebet = () => besked("Forbindelsen er udløbet", "Start forfra i Claude: klik Forbind ved Topas BI igen.");
+const lukVinduet = () => besked("Du kan lukke vinduet", "Gå tilbage til Claude. Din konto har ikke adgang til Topas BI.");
+
+/** Sender kun videre til en https-adresse (adressen kommer fra OAuth-serveren). */
+function gaaTil(url) {
+  let u = null;
+  try { u = new URL(url); } catch { /* ugyldig */ }
+  if (u?.protocol === "https:") location.assign(u.href); else udloebet();
+}
+
+async function logUdHer(tekst = "") {
+  await sb.auth.signOut({ scope: "local" });
+  $("login-fejl").textContent = tekst;
+  vis("login-form", "email");
+}
+
+const erNetfejl = (e) => !e?.status || e.status >= 500;
+// Topas BI spærrer logins, det selv har oprettet, når brugeren deaktiveres. Et nyt login hjælper ikke.
+const erSpaerret = (e) => e?.code === "user_banned";
+async function spaerret() {
+  await sb.auth.signOut({ scope: "local" });
+  besked("Ingen adgang til Topas BI", "Din konto er spærret. Kontakt Gorm (gs@topas.dk), hvis du skal have adgang.", null, true);
+}
+
+/** Fejl fra OAuth-serveren: udløbet login, forkert opsætning (origin), netværk eller udløbet forbindelse. */
+async function oauthFejl(error, igen) {
+  const m = error?.message ?? "";
+  if (erSpaerret(error)) return spaerret();
+  if (error?.name === "AuthSessionMissingError" || error?.code === "session_not_found" || error?.code === "bad_jwt") {
+    return logUdHer("Du er blevet logget ud. Log ind igen.");
+  }
+  if (error?.status === 400 && /unauthorized request origin/i.test(m)) {
+    console.error("Topas BI-login: OAuth-serveren afviste sidens adresse", error?.code, m);
+    return besked("Login er ikke sat korrekt op", "Login-siden er ikke godkendt i Supabase endnu. Kontakt Gorm (gs@topas.dk).");
+  }
+  if (erNetfejl(error) && igen) {
+    return besked("Noget gik galt", "Forbindelsen kunne ikke hentes. Prøv igen om lidt.", { tekst: "Prøv igen", handling: igen });
+  }
+  udloebet();
+}
+
+async function start() {
+  // Godkend-knappen må ikke kunne vises inde i en anden side (clickjacking). GitHub Pages kan ikke sende frame-ancestors.
+  if (window.top !== window.self) {
+    besked("Åbn siden direkte", "Af sikkerhedshensyn virker denne side kun, når den er åbnet i sit eget vindue.");
+    return;
+  }
+  if (!authId) {
+    besked("Forbind Topas BI i Claude", "Denne side bruges, når du forbinder Topas BI i Claude. Start i Claude under Indstillinger → Connectors.", tilAppen);
+    return;
+  }
+  if (!/^[A-Za-z0-9_-]{1,128}$/.test(authId)) return udloebet();
+  const { data, error: sessFejl } = await sb.auth.getSession();
+  if (erSpaerret(sessFejl)) return spaerret();
+  if (!data.session) return vis("login-form", "email");
+  // Et gemt login kan være lukket et andet sted (log ud alle steder, nyt kodeord). Tjek det hos Auth, før det bruges.
+  const { data: u, error } = await sb.auth.getUser();
+  if (error) {
+    if (erSpaerret(error)) return spaerret();
+    if (erNetfejl(error) && error.name !== "AuthSessionMissingError") {
+      return besked("Noget gik galt", "Dit login kunne ikke tjekkes. Prøv igen om lidt.", { tekst: "Prøv igen", handling: () => { vis("indlaeser"); start().catch(fejlside); } });
+    }
+    return logUdHer("Du er blevet logget ud. Log ind igen.");
+  }
+  await efterLogin(u.user);
+}
+
+async function efterLogin(user) {
+  vis("indlaeser");
+  const email = (user.email ?? "").toLowerCase();
+  aktuelEmail = email;
+  // Forbindelsen er allerede bundet til en anden konto: den nye konto må starte forfra i Claude.
+  if (bundetTil && bundetTil !== email) {
+    besked(`Du er logget ind som ${email}`, "Gå tilbage til Claude, og klik Forbind ved Topas BI igen for at forbinde med denne konto.");
+    return;
+  }
+  if (user.user_metadata?.must_change === true) return vis("skift-form", "nyt1");
+
+  // Kun aktive brugere i Topas BI. Auth er fælles med Teg Plan, så et gyldigt login er ikke nok.
+  const { data: niveau, error } = await sb.rpc("bi_mit_niveau");
+  if (error) {
+    besked("Noget gik galt", "Din adgang kunne ikke tjekkes. Prøv igen om lidt.", { tekst: "Prøv igen", handling: () => efterLogin(user) });
+    return;
+  }
+  if (!niveau) {
+    besked(
+      "Ingen adgang til Topas BI",
+      `${email} har ikke adgang til Topas BI. Kontakt Gorm (gs@topas.dk), hvis du skal have adgang.`,
+      { tekst: "Tilbage til Claude", handling: (e) => afvisUdenAdgang(e.currentTarget) },
+      true,
+    );
+    return;
+  }
+
+  const { data, error: fejl } = await sb.auth.oauth.getAuthorizationDetails(authId);
+  if (fejl || !data) return oauthFejl(fejl, () => efterLogin(user));
+  bundetTil = email;
+  // Allerede godkendt tidligere: OAuth-serveren har godkendt igen og svarer med adressen tilbage til Claude.
+  if (!("authorization_id" in data)) return gaaTil(data.redirect_url);
+  const navn = data.client?.name || data.client?.client_name || "En app";
+  let vaert = "";
+  try { vaert = new URL(data.redirect_uri).host; } catch { vaert = data.redirect_uri || "ukendt adresse"; }
+  $("klient-navn").textContent = navn;
+  $("klient-navn2").textContent = navn;
+  $("bruger-email").textContent = email;
+  $("bruger-niveau").textContent = NIVEAU_NAVN[niveau] ?? niveau;
+  $("retur-vaert").textContent = vaert;
+  $("samtykke-fejl").textContent = "";
+  $("godkend").textContent = "Godkend";
+  // Knapperne virker først efter et øjeblik, så et klik, der var ment til noget andet (fx et vindue, der skifter), ikke godkender.
+  $("godkend").disabled = true;
+  $("afvis").disabled = true;
+  vis("samtykke", "samtykke-titel");
+  setTimeout(() => { $("godkend").disabled = false; $("afvis").disabled = false; }, 600);
+}
+
+/** "Tilbage til Claude" for en konto uden adgang: forbindelsen skal bindes (opslag), før den kan afvises. */
+async function afvisUdenAdgang(knap) {
+  if (knap) knap.disabled = true;
+  const { data, error } = await sb.auth.oauth.getAuthorizationDetails(authId);
+  if (error || !data) return oauthFejl(error, null);
+  // Godkendt tidligere (fx før kontoen blev deaktiveret): følg ikke adressen, Claude må ikke få et login.
+  if (!("authorization_id" in data)) return lukVinduet();
+  bundetTil = aktuelEmail;
+  await afvisOgTilbage();
+}
+
+/** Afviser i OAuth-serveren og sender brugeren tilbage til Claude med "afvist". Videresendelsen sker selv (gaaTil), ikke i supabase-js. */
+async function afvisOgTilbage() {
+  const { data, error } = await sb.auth.oauth.denyAuthorization(authId, { skipBrowserRedirect: true });
+  if (error || !data?.redirect_url) return oauthFejl(error, null);
+  gaaTil(data.redirect_url);
+}
+
+$("login-form").onsubmit = async (e) => {
+  e.preventDefault();
+  const email = $("email").value.trim().toLowerCase(), kodeord = $("kodeord").value;
+  $("login-fejl").textContent = "";
+  if (!email || !kodeord) { $("login-fejl").textContent = "Skriv din e-mail og dit kodeord."; return; }
+  $("login-knap").disabled = true;
+  const { data, error } = await sb.auth.signInWithPassword({ email, password: kodeord });
+  $("login-knap").disabled = false;
+  if (erSpaerret(error)) return spaerret();
+  if (error || !data.session) {
+    const m = error?.message ?? "";
+    $("login-fejl").textContent = /invalid login credentials/i.test(m) ? "Forkert e-mail eller kodeord." : /fetch|network/i.test(m) ? "Ingen forbindelse. Tjek netværket og prøv igen." : (m || "Login mislykkedes.");
+    return;
+  }
+  $("kodeord").value = "";
+  await efterLogin(data.session.user);
+};
+
+$("skift-form").onsubmit = async (e) => {
+  e.preventDefault();
+  const p1 = $("nyt1").value, p2 = $("nyt2").value;
+  $("skift-fejl").textContent = "";
+  if (p1.length < 8 || !/[A-Za-zÆØÅæøå]/.test(p1) || !/\d/.test(p1)) { $("skift-fejl").textContent = "Kodeordet skal have mindst 8 tegn med bogstaver og mindst ét tal."; return; }
+  if (p1 !== p2) { $("skift-fejl").textContent = "De to kodeord er ikke ens."; return; }
+  $("skift-knap").disabled = true;
+  const { data, error } = await sb.auth.updateUser({ password: p1, data: { must_change: false } });
+  $("skift-knap").disabled = false;
+  if (error) {
+    if (error.name === "AuthSessionMissingError") return logUdHer("Du er blevet logget ud. Log ind igen.");
+    $("skift-fejl").textContent = /same|different/i.test(error.message) ? "Vælg et andet kodeord end det nuværende." : /weak|short|characters/i.test(error.message) ? "Kodeordet er for svagt – vælg et længere." : error.message;
+    return;
+  }
+  $("nyt1").value = ""; $("nyt2").value = "";
+  await efterLogin(data.user);
+};
+
+$("godkend").onclick = async () => {
+  $("godkend").disabled = true; $("afvis").disabled = true;
+  $("samtykke-fejl").textContent = "";
+  $("godkend").textContent = "Sender dig tilbage til Claude …";
+  const { data, error } = await sb.auth.oauth.approveAuthorization(authId, { skipBrowserRedirect: true });
+  if (error || !data?.redirect_url) {
+    $("godkend").textContent = "Godkend";
+    return oauthFejl(error, null);
+  }
+  gaaTil(data.redirect_url);
+};
+$("afvis").onclick = () => { $("godkend").disabled = true; $("afvis").disabled = true; afvisOgTilbage(); };
+
+// Log kun ud på denne enhed (scope local), så andre logins, fx Claude-forbindelser og appen på telefonen, ikke afbrydes.
+for (const k of document.querySelectorAll(".log-ud")) k.onclick = () => logUdHer();
+$("app-link").href = APP_URL;
+
+const fejlside = () => besked("Noget gik galt", "Siden kunne ikke indlæses. Prøv igen, eller start forfra i Claude.", tilAppen);
+start().catch(fejlside);
+</script>
+</body>
+</html>

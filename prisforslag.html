@@ -240,7 +240,7 @@ textarea{width:100%;min-height:54px;border:1px solid var(--linje);border-radius:
   <section id="fane-port" class="skjult">
     <div class="vlinje">
       <div class="seg" id="farve">
-        <button data-c="prognose" aria-pressed="true">Prognose mod købskurve</button>
+        <button data-c="prognose" aria-pressed="true">Tempo mod købskurve</button>
         <button data-c="ly" aria-pressed="false">Mod sidste år</button>
       </div>
       <label class="check"><input type="checkbox" id="portKunForslag"> Kun serier med forslag i dag</label>
@@ -351,9 +351,9 @@ function tegnKpi() {
   document.getElementById("kpi").innerHTML = `
     <div class="k klik" data-go="beslut"><div class="v tal">${ubesv}</div><div class="l">ubesvarede forslag</div><div class="d">${haev} hæv · ${kamp} kampagne${fulgt ? " · " + fulgt + " fulgt" : ""}</div></div>
     <div class="k"><div class="v tal">${tal(AFG.length)}</div><div class="l">${PORT_FULD ? "afgange 14–365 dage" : "afgange med forslag eller hold øje"}</div><div class="d tal">${tal(solgt)} af ${tal(max)} pladser solgt (${pctU(100 * solgt / max, 1)})</div></div>
-    <div class="k klik" data-go="port"><div class="v tal" style="color:var(--groen)">${st.foran + st.udsolgt}</div><div class="l">foran kurven eller udsolgt</div><div class="d">prognose ≥ 100 % af pladserne</div></div>
-    <div class="k klik" data-go="port"><div class="v tal">${st.paa}</div><div class="l">på kurs</div><div class="d">prognose 80–99 %</div></div>
-    <div class="k klik" data-go="port"><div class="v tal" style="color:var(--roed)">${st.bagud}</div><div class="l">bagud på kurven</div><div class="d">prognose under 80 % · ${st.tidligt} for tidligt</div></div>
+    <div class="k klik" data-go="port"><div class="v tal" style="color:var(--groen)">${st.foran + st.udsolgt}</div><div class="l">foran kurven eller udsolgt</div><div class="d">sælger hurtigere end købskurven</div></div>
+    <div class="k klik" data-go="port"><div class="v tal">${st.paa}</div><div class="l">på kurs</div><div class="d">følger købskurven</div></div>
+    <div class="k klik" data-go="port"><div class="v tal" style="color:var(--roed)">${st.bagud}</div><div class="l">bagud på kurven</div><div class="d">sælger langsommere · ${st.tidligt} for tidligt</div></div>
     <div class="k"><div class="v tal">${tal(s14)}</div><div class="l">pladser solgt seneste 14 dage</div><div class="d">netto, ${PORT_FULD ? "alle afgange" : "afgangene ovenfor"}</div></div>`;
   document.querySelectorAll(".kpi .k.klik").forEach(k => k.onclick = () => { const g = k.dataset.go; if (g === "port") skiftFane("port"); else { skiftFane("idag"); saetKoe("beslut"); } });
 }
@@ -365,7 +365,7 @@ const KOL = [
   { k: "afrejse", t: "Afrejse", s: r => r.afrejse, h: true },
   { k: "forslag", t: "Forslag", s: r => ({ "hæv": 0, "kampagne": 1, "hold øje": 2 }[r.forslag]) },
   { k: "bel", t: "Solgt", s: r => r.solgt / (r.max_pax || 1), h: true },
-  { k: "prog", t: "Prognose", s: r => r.p.grad ?? -1, h: true, tip: "Forventet solgt ved afrejse ud fra seriens købskurve, i % af pladserne" },
+  { k: "prog", t: "Tempo", s: r => r.p.grad ?? -1, h: true, tip: "Salgstempo mod seriens købskurve: foran, på kurs eller bagud" },
   { k: "ly", t: "Sidste år", s: r => (r.s.ly_solgt_nu ?? -99) - 0, h: true, tip: "Solgt på sidste års afgang samme antal dage før afrejse" },
   { k: "kurve", t: "Salgskurve", s: null },
   { k: "pris", t: "Pris i dag", s: r => r.pris_nu, h: true },
@@ -406,7 +406,8 @@ function sparkline(r, w = 92, h = 24) {
   return s;
 }
 function chipForslag(f) { return `<span class="chip ${f === "hæv" ? "haev" : f === "kampagne" ? "kampagne" : "holdoeje"}">${f === "hæv" ? "Hæv" : f === "kampagne" ? "Kampagne" : "Hold øje"}</span>`; }
-function chipProg(p, kort) { return `<span class="chip ${p.status === "udsolgt" ? "foran" : p.status}" title="${p.forventet != null ? "Forventet " + tal(p.forventet) + " solgt ved afrejse" : "Under 15 % af salget sker normalt så tidligt"}">${p.grad != null && p.status !== "udsolgt" ? pctU(Math.min(p.grad, 3) * 100) : p.tekst}${kort ? "" : ""}</span>`; }
+// Tempo vises som status, ikke som et tal: en slutsalgsprognose rammer ikke bedre end et fast gennemsnit (ML-tråden 21-10).
+function chipProg(p) { return `<span class="chip ${p.status === "udsolgt" ? "foran" : p.status}" title="${p.andel != null ? "Normalt er ca. " + pctU(p.andel * 100) + " af slutsalget solgt på dette tidspunkt (" + p.kurve.navn + ")" : ""}">${p.tekst}</span>`; }
 function forslagPris(r) {
   if (r.forslag === "hæv" && r.forslag_pris_fra) {
     const a = 100 * (r.forslag_pris_fra / r.pris_nu - 1), b = 100 * (r.forslag_pris_til / r.pris_nu - 1);
@@ -490,18 +491,18 @@ function argumenter(r) {
   const s = r.s, imod = [];
   if (r.forslag !== "hold øje") {
     if (s.pointmodel_pris && s.pointmodel_pris < r.pris_nu) imod.push(`Pointmodellen (Power BI) siger ${kr(s.pointmodel_pris)}, altså lavere end prisen i dag`);
-    if (r.forslag === "hæv" && r.p.status === "bagud") imod.push(`Bagud på købskurven: forventet ${tal(r.p.forventet)} af ${r.max_pax} solgt ved afrejse. Stigninger på afgange bagud på kurven har kostet ca. 11 % af salget`);
+    if (r.forslag === "hæv" && r.p.status === "bagud") imod.push(`Salget er bagud på købskurven. Stigninger på afgange bagud på kurven har kostet ca. 11 % af salget de næste 4 uger`);
     if (r.forslag === "hæv" && r.forslag_pris_til && r.forslag_pris_til / r.pris_nu - 1 > 0.06) imod.push("Den øverste ende af spændet er over +6 %. Stigninger over 6 % har kostet ca. 30 % af salget de næste 4 uger");
     if (s.sig_web && s.sess_14d && s.sess_14d_betalt / s.sess_14d > 0.4) imod.push(`${tal(s.sess_14d_betalt)} af ${tal(s.sess_14d)} besøg på tursiden er betalt trafik, så en del af interessen er købt`);
     if (s.sig_tempo && s.sidste_aars_tur && s.ly_solgt_nu != null && s.ly_solgt_nu <= 3) imod.push(`Små tal: sidste års afgang havde kun ${s.ly_solgt_nu} solgt på samme tidspunkt`);
-    if (r.forslag === "kampagne" && r.p.status === "foran") imod.push("Prognosen mod købskurven ser fin ud, så en kampagne kan være for tidlig");
+    if (r.forslag === "kampagne" && r.p.status === "foran") imod.push("Salget er foran købskurven, så en kampagne kan være for tidlig");
     if (s.netop_haevet) imod.push("Prisen er hævet inden for de seneste 7 dage");
   }
   return { for: r.begrundelser || [], imod };
 }
 function kortSagt(r) {
   const p = r.p;
-  const progTxt = p.forventet != null && p.status !== "udsolgt" ? `Med ${r.solgt} solgt ${r.dage} dage før afrejse peger ${p.kurve.navn} på ca. ${tal(p.forventet)} solgte pladser ved afrejse (${pctU(Math.min(p.grad, 3) * 100)} af ${r.max_pax}).` : p.status === "udsolgt" ? "Afgangen er udsolgt." : (p.andel != null ? `Det er for tidligt at læse kurven: normalt er kun ${pctU(p.andel * 100)} af pladserne solgt ${r.dage} dage før afrejse.` : "Det er for tidligt at læse kurven.");
+  const progTxt = ["foran", "paa", "bagud"].includes(p.status) ? `Med ${r.solgt} af ${r.max_pax} solgt ${r.dage} dage før afrejse er salget ${{ foran: "foran", paa: "på kurs med", bagud: "bagud på" }[p.status]} ${p.kurve.navn}${p.andel != null ? `, hvor normalt ca. ${pctU(p.andel * 100)} af slutsalget er solgt på dette tidspunkt` : ""}.` : p.status === "udsolgt" ? "Afgangen er udsolgt." : (p.andel != null ? `Det er for tidligt at læse kurven: normalt er kun ${pctU(p.andel * 100)} af pladserne solgt ${r.dage} dage før afrejse.` : "Det er for tidligt at læse kurven.");
   return progTxt;
 }
 function graf(r, ly) {
@@ -510,11 +511,9 @@ function graf(r, ly) {
   const cur = kurveIAar(r);
   const lyP = ly ? (SALG[ly] || []) : [];
   const fv = [];
-  if (r.p.forventet != null && r.p.status !== "udsolgt") {
-    const k = KURVE[r.turkode];
-    if (k && r.p.andel) for (let d = r.dage; d >= 0; d -= 5) fv.push([d, Math.min(r.max_pax, r.solgt * Math.min(1, andel(k, d)) / r.p.andel)]);
-    else fv.push([r.dage, r.solgt], [0, r.p.forventet]);
-  }
+  // Købskurven tegnet for en fuld afgang (andel × max pax), så man kan se, om salget ligger over eller under
+  const k = KURVE[r.turkode];
+  if (k) for (let d = 365; d >= 0; d -= 5) fv.push([d, r.max_pax * Math.min(1, andel(k, d))]);
   const maxY = Math.max(r.max_pax, ...lyP.map(p => p[1]), ...fv.map(p => Math.min(p[1], r.max_pax * 1.5)), 1) * 1.08;
   const X = d => m.l + (1 - Math.min(d, 365) / 365) * iw, Y = v => m.t + ih - (Math.min(v, maxY) / maxY) * ih;
   let s = `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Salgskurve for ${r.turkode}">`;
@@ -528,7 +527,7 @@ function graf(r, ly) {
   const pr = (PRISER[r.turkode] || []).filter(p => p[0] != null && p[0] >= r.dage && p[0] <= 365);
   pr.forEach((p, i) => { if (i === 0 && !(PRISER[r.turkode][0][0] < 365)) return; s += `<line x1="${X(p[0])}" x2="${X(p[0])}" y1="${m.t}" y2="${m.t + ih}" stroke="#0D5879" stroke-opacity=".18"/><path d="M${X(p[0]) - 4},${m.t + ih} l4,-6 l4,6z" fill="#0D5879"><title>${p[0]} dage før: ${kr(p[1])}</title></path>`; });
   if (lyP.length > 1) s += `<polyline fill="none" stroke="#BDBDBD" stroke-width="2" points="${lyP.map(p => X(p[0]) + "," + Y(p[1])).join(" ")}"/>`; if (lyP.length > 1) etk.push({ y: Y(lyP[lyP.length - 1][1]), t: lyP[lyP.length - 1][1] + " sidste år", c: "#8C8C8C" });
-  if (fv.length > 1) { const sl = fv[fv.length - 1][1]; s += `<polyline fill="none" stroke="#0D5879" stroke-width="2" stroke-dasharray="4 3" stroke-opacity=".55" points="${fv.map(p => X(p[0]) + "," + Y(p[1])).join(" ")}"/>`; etk.push({ y: Y(sl), t: "≈" + tal(sl) + " prognose", c: "#0D5879" }); }
+  if (fv.length > 1) { const sl = fv[fv.length - 1][1]; s += `<polyline fill="none" stroke="#0D5879" stroke-width="2" stroke-dasharray="4 3" stroke-opacity=".55" points="${fv.map(p => X(p[0]) + "," + Y(p[1])).join(" ")}"/>`; }
   if (cur.length > 1) s += `<polyline fill="none" stroke="#0D5879" stroke-width="2.4" points="${cur.map(p => X(p[0]) + "," + Y(p[1])).join(" ")}"/>`;
   s += `<line x1="${X(r.dage)}" x2="${X(r.dage)}" y1="${m.t}" y2="${m.t + ih}" stroke="#333" stroke-dasharray="2 2"/><text x="${X(r.dage)}" y="${m.t - 3}" font-size="10" fill="#333" text-anchor="middle">i dag</text><circle cx="${X(r.dage)}" cy="${Y(r.solgt)}" r="3.5" fill="#0D5879"/>`;
   etk.sort((a, b) => a.y - b.y);
@@ -567,7 +566,7 @@ function tegnDetalje(el, turkode, efterHent) {
       <tr><td>Solgt ${r.dage} dage før</td><td class="h tal">${r.solgt}/${r.max_pax}</td><td class="h tal">${tal(s.ly_solgt_nu)}/${tal(s.ly_max_pax)}</td></tr>
       <tr><td>Pris ${r.dage} dage før</td><td class="h tal">${kr(r.pris_nu)}</td><td class="h tal">${kr(s.ly_pris_nu)}</td></tr>
       ${s.seneste_stigning ? `<tr><td>Solgt siden stigning ${kortDato(s.seneste_stigning)}</td><td class="h tal">${tal(s.solgt_siden_stigning)}</td><td class="h tal">${tal(s.ly_solgt_samme_periode)}${s.ly_stigninger_samme_periode ? ` · hævet ${s.ly_stigninger_samme_periode}× (${pct(s.ly_stigning_pct_samme_periode, 1)})` : ""}</td></tr>` : ""}
-      <tr><td>Endte med</td><td class="h">–</td><td class="h tal">${tal(s.ly_solgt_ialt)} solgt · ${kr(s.ly_slutpris)}</td></tr></table>` : `<div class="tom">Ingen afgang med samme turkode sidste år. Prognosen bruger ${r.p.kurve.navn}.</div>`;
+      <tr><td>Endte med</td><td class="h">–</td><td class="h tal">${tal(s.ly_solgt_ialt)} solgt · ${kr(s.ly_slutpris)}</td></tr></table>` : `<div class="tom">Ingen afgang med samme turkode sidste år. Tempoet måles mod ${r.p.kurve.navn}.</div>`;
   const pr = PRISER[r.turkode] || [];
   const forloeb = pr.length ? pr.map(p => `<span class="pt tal">${tal(p[1])}${p[0] != null ? ` <span class="lille">(${p[0]} d)</span>` : ""}</span>`).join(" → ") : DETALJE[r.turkode] === "ok" ? '<span class="tom">Ingen pristrin i Tur Booking</span>' : DETALJE[r.turkode] === "henter" ? '<span class="tom">Henter …</span>' : `<span class="tom">${s.seneste_stigning ? "Seneste stigning " + dato(s.seneste_stigning) + ". " : ""}Hele prisforløbet kommer med maskinrummets detaljekald.</span>`;
   const web = s.sess_14d != null ? `Tursiden: ${tal(s.sess_14d)} besøg på 14 dage mod ${tal(s.sess_14d_sidste_aar)} sidste år${s.sess_14d_betalt ? ` (heraf betalt ${tal(s.sess_14d_betalt)})` : ""}. Alle tursider: ${pct(100 * (s.web_vaekst_alle - 1))}.` : "";
@@ -581,13 +580,13 @@ function tegnDetalje(el, turkode, efterHent) {
       <div class="kortsagt">${kortSagt(r)}</div>
       <div class="noegle">
         <div><b class="tal">${r.solgt}/${r.max_pax}</b><span>solgt · ${s.pladser_tilbage} ledige</span></div>
-        <div><b>${chipProg(r.p)}</b><span>prognose ved afrejse</span></div>
+        <div><b>${chipProg(r.p)}</b><span>tempo mod købskurven</span></div>
         <div><b class="tal">${lyTur ? tal(s.ly_solgt_nu) + "/" + tal(s.ly_max_pax) : "–"}</b><span>sidste år samme dag</span></div>
         <div><b class="tal">${tal(s.solgt_14d)}</b><span>solgt 14 dage</span></div>
       </div>
     </div>
     <div class="afsnit graf"><h3>Salgskurve</h3>${graf(r, lyTur)}
-      <div class="forklar"><span><i style="border-color:#0D5879"></i>i år</span><span><i style="border-color:#0D5879;border-top-style:dashed;opacity:.6"></i>prognose (${r.p.kurve.navn})</span>${lyTur ? `<span><i style="border-color:#BDBDBD"></i>sidste år (${lyTur})</span>` : ""}<span>▲ prisstigning</span></div></div>
+      <div class="forklar"><span><i style="border-color:#0D5879"></i>i år</span>${KURVE[r.turkode] ? `<span><i style="border-color:#0D5879;border-top-style:dashed;opacity:.6"></i>${r.p.kurve.navn} ved fuld afgang</span>` : ""}${lyTur ? `<span><i style="border-color:#BDBDBD"></i>sidste år (${lyTur})</span>` : ""}<span>▲ prisstigning</span></div></div>
     <div class="afsnit"><h3>Hvorfor</h3><div class="argumenter">
       <div class="for"><h4>Taler for</h4><ul>${ar.for.length ? ar.for.map(x => `<li>${esc(x)}</li>`).join("") : '<li class="tom">Ingen signaler</li>'}</ul></div>
       <div class="imod"><h4>Taler imod</h4><ul>${ar.imod.length ? ar.imod.map(x => `<li>${esc(x)}</li>`).join("") : '<li class="tom">Intet modsignal i data</li>'}</ul></div>
@@ -670,7 +669,7 @@ function tegnAfgangUdenForslag(el, a) {
   el.innerHTML = `<div class="hoved"><h2>${a.turkode}</h2><div class="navn">${esc(navn)}</div><div class="lille">Afrejse ${dato(a.afrejse)} · ${a.dage} dage · ${a.region}</div>
       <div style="margin-top:10px" class="anbef holdoeje"><span class="stor">Intet forslag i dag</span></div>
       <div class="kortsagt">${kortSagt(r)}</div>
-      <div class="noegle"><div><b class="tal">${a.solgt}/${a.max_pax}</b><span>solgt</span></div><div><b>${chipProg(a.p)}</b><span>prognose</span></div><div><b class="tal">${a.ly_tur ? tal(a.ly_solgt) : "–"}</b><span>sidste år samme dag</span></div><div><b class="tal">${tal(a.pris_nu)}</b><span>pris i dag</span></div></div></div>
+      <div class="noegle"><div><b class="tal">${a.solgt}/${a.max_pax}</b><span>solgt</span></div><div><b>${chipProg(a.p)}</b><span>tempo mod købskurven</span></div><div><b class="tal">${a.ly_tur ? tal(a.ly_solgt) : "–"}</b><span>sidste år samme dag</span></div><div><b class="tal">${tal(a.pris_nu)}</b><span>pris i dag</span></div></div></div>
     <div class="afsnit graf"><h3>Salgskurve</h3>${SALG[a.turkode] || (a.ly_tur && SALG[a.ly_tur]) ? graf(r, a.ly_tur) : '<div class="tom">Salgskurven kommer med maskinrummets detaljekald.</div>'}</div>
     <div class="afsnit"><div class="note">Maskinrummet har ikke givet et forslag på afgangen i dag. I den færdige version kan man herfra bede om en ny vurdering eller sætte en påmindelse.</div></div>`;
 }
@@ -707,10 +706,10 @@ function tegnPort() {
   }
   document.getElementById("port").innerHTML = (PORT_FULD ? "" : `<div class="note" style="padding:8px 10px;margin:0">Viser de ${AFG.length} afgange med forslag eller hold øje. Alle afgange 14–365 dage kommer med, når maskinrummets porteføljekald er klar.</div>`) + h + "</tbody></table>";
   document.getElementById("legende").innerHTML = (T.farve === "ly" ? `<span><span class="felt foran"></span>mindst 2 flere solgt end sidste år</span><span><span class="felt paa"></span>på niveau (±1)</span><span><span class="felt bagud"></span>mindst 2 færre</span><span><span class="felt tidligt"></span>ingen sammenlignelig afgang</span>` :
-    `<span><span class="felt foran"></span>prognose ≥ 100 % (foran)</span><span><span class="felt paa"></span>80–99 % (på kurs)</span><span><span class="felt bagud"></span>under 80 % (bagud)</span><span><span class="felt udsolgt"></span>udsolgt</span><span><span class="felt tidligt"></span>for tidligt at læse</span>`) +
+    `<span><span class="felt foran"></span>foran købskurven</span><span><span class="felt paa"></span>på kurs</span><span><span class="felt bagud"></span>bagud</span><span><span class="felt udsolgt"></span>udsolgt</span><span><span class="felt tidligt"></span>for tidligt at læse</span>`) +
     `<span><span class="felt paa f-haev"></span>forslag: hæv</span><span><span class="felt paa f-kampagne"></span>forslag: kampagne</span><span>Tallet i feltet er belægning i %</span>`;
   document.querySelectorAll("#port .felt").forEach(f => {
-    f.onmouseenter = e => { const a = AFGK[f.dataset.t]; visTip(e, `<b>${a.turkode}</b> · ${dato(a.afrejse)} (${a.dage} d)<br>Solgt ${a.solgt}/${a.max_pax} · ${a.p.forventet != null && a.p.status !== "udsolgt" ? "prognose " + tal(a.p.forventet) : a.p.tekst}<br>Sidste år samme dag: ${a.ly_tur ? tal(a.ly_solgt) + " (" + a.ly_tur + ")" : "–"}<br>Pris ${kr(a.pris_nu)}${a.f ? "<br>Forslag i dag: " + a.f.forslag : ""}`); };
+    f.onmouseenter = e => { const a = AFGK[f.dataset.t]; visTip(e, `<b>${a.turkode}</b> · ${dato(a.afrejse)} (${a.dage} d)<br>Solgt ${a.solgt}/${a.max_pax} · tempo: ${a.p.tekst.toLowerCase()}<br>Sidste år samme dag: ${a.ly_tur ? tal(a.ly_solgt) + " (" + a.ly_tur + ")" : "–"}<br>Pris ${kr(a.pris_nu)}${a.f ? "<br>Forslag i dag: " + a.f.forslag : ""}`); };
     f.onmousemove = e => flytTip(e);
     f.onmouseleave = () => skjulTip();
     f.onclick = () => { T.valgt2 = f.dataset.t; tegnPort(); };
@@ -783,8 +782,8 @@ document.getElementById("bulkSenere").onclick = () => bulk("senere");
 document.getElementById("bulkAfvis").onclick = () => bulk("afvis");
 document.getElementById("excel").onclick = () => {
   const L = synlige();
-  const kol = ["Turkode", "Rejse", "Afrejse", "Dage", "Forslag", "Solgt", "Max pax", "Prognose solgt", "Sidste års tur", "Solgt sidste år samme dag", "Pris i dag", "Forslag fra", "Forslag til", "Kampagne fra", "Kampagne til", "Pointmodel", "Beslutning", "Begrundelser"];
-  const rk = L.map(r => [r.turkode, r.navn, r.afrejse, r.dage, r.forslag, r.solgt, r.max_pax, r.p.forventet != null ? Math.round(r.p.forventet) : "", r.s.sidste_aars_tur || "", r.s.ly_solgt_nu ?? "", r.pris_nu, r.forslag_pris_fra ?? "", r.forslag_pris_til ?? "", r.kampagne_pris_fra ?? "", r.kampagne_pris_til ?? "", r.s.pointmodel_pris ?? "", beslutning(r) || "", (r.begrundelser || []).join(" | ")]);
+  const kol = ["Turkode", "Rejse", "Afrejse", "Dage", "Forslag", "Solgt", "Max pax", "Tempo mod købskurve", "Sidste års tur", "Solgt sidste år samme dag", "Pris i dag", "Forslag fra", "Forslag til", "Kampagne fra", "Kampagne til", "Pointmodel", "Beslutning", "Begrundelser"];
+  const rk = L.map(r => [r.turkode, r.navn, r.afrejse, r.dage, r.forslag, r.solgt, r.max_pax, r.p.tekst, r.s.sidste_aars_tur || "", r.s.ly_solgt_nu ?? "", r.pris_nu, r.forslag_pris_fra ?? "", r.forslag_pris_til ?? "", r.kampagne_pris_fra ?? "", r.kampagne_pris_til ?? "", r.s.pointmodel_pris ?? "", beslutning(r) || "", (r.begrundelser || []).join(" | ")]);
   const csv = "﻿" + [kol, ...rk].map(x => x.map(v => `"${String(v).replace(/"/g, '""')}"`).join(";")).join("\r\n");
   const a = document.createElement("a"); a.href = URL.createObjectURL(new Blob([csv], { type: "text/csv" })); a.download = "prisforslag-" + IDAG + ".csv"; a.click();
 };

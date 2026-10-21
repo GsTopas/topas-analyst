@@ -2,446 +2,827 @@
 <html lang="da">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta name="robots" content="noindex, nofollow">
-<title>Prisforslag – Topas BI</title>
-<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%230D5879'/%3E%3Cpath d='M8 22 L14 12 L18 18 L21 14 L25 22 Z' fill='%23FFD5A7'/%3E%3C/svg%3E">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Prisstyring gruppeture</title>
 <style>
-  :root {
-    --tekst: #333333; --bg: #F7F7F7; --plade: #FFFFFF; --blaa: #0D5879; --blaa-moerk: #0A4660; --creme: #FFD5A7;
-    --roed: #C30031; --graa: #E6E6E6; --graa-tekst: #8C8C8C; --groen: #2E7D32; --orange: #E1652A;
-    --radius: 14px; --skygge: 0 1px 2px rgba(0,0,0,.05), 0 4px 16px rgba(13,88,121,.06);
-  }
-  * { box-sizing: border-box; }
-  html, body { margin: 0; }
-  body { font: 14px/1.45 -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; color: var(--tekst); background: var(--bg); -webkit-font-smoothing: antialiased; }
-  button, textarea, input { font: inherit; color: inherit; }
-  button { cursor: pointer; }
-  a { color: var(--blaa); }
-  .skjult { display: none !important; }
-  .side { max-width: 1320px; margin: 0 auto; padding: 20px 16px 48px; }
-  header { display: flex; align-items: center; gap: 12px; margin-bottom: 16px; flex-wrap: wrap; }
-  .maerke { width: 40px; height: 40px; border-radius: 10px; background: var(--blaa); display: grid; place-items: center; flex: none; }
-  .maerke svg { width: 26px; height: 26px; }
-  header h1 { font-size: 20px; margin: 0; letter-spacing: -.01em; }
-  header small { display: block; color: var(--graa-tekst); font-size: 13px; }
-  header .hoejre { margin-left: auto; font-size: 13px; color: var(--graa-tekst); display: flex; gap: 12px; align-items: center; }
-  .plade { background: var(--plade); border-radius: var(--radius); box-shadow: var(--skygge); padding: 16px 18px; margin-bottom: 14px; }
-  .besked { text-align: center; padding: 40px 16px; }
-  .dim { color: var(--graa-tekst); }
-
-  /* Faner med antal = filter */
-  .faner { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 12px; }
-  .fane { border: 1px solid var(--graa); background: var(--plade); border-radius: 12px; padding: 8px 14px; text-align: left; min-width: 104px; }
-  .fane b { display: block; font-size: 20px; line-height: 1.2; }
-  .fane span { font-size: 12px; color: var(--graa-tekst); }
-  .fane.aktiv { border-color: var(--blaa); box-shadow: 0 0 0 2px rgba(13,88,121,.15); }
-  .fane.haev b { color: var(--blaa); } .fane.kampagne b { color: var(--orange); } .fane.nyt b { color: var(--roed); }
-  .vaerktoej { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin-bottom: 10px; }
-  .vaerktoej input { border: 1px solid var(--graa); border-radius: 9px; padding: 6px 10px; min-width: 220px; background: #fff; }
-  .vaerktoej input:focus { outline: none; border-color: var(--blaa); box-shadow: 0 0 0 3px rgba(13,88,121,.12); }
-  .knap { border: 1px solid var(--graa); background: #fff; border-radius: 9px; padding: 6px 12px; color: var(--blaa); font-weight: 600; }
-  .knap:hover { border-color: var(--blaa); }
-  .vaerktoej .hoejre { margin-left: auto; }
-
-  /* Regneark */
-  .ramme { background: var(--plade); border-radius: var(--radius); box-shadow: var(--skygge); overflow: auto; max-height: calc(100vh - 210px); }
-  table.ark { width: 100%; border-collapse: separate; border-spacing: 0; font-size: 13.5px; }
-  .ark th, .ark td { padding: 7px 10px; border-bottom: 1px solid var(--graa); text-align: left; vertical-align: middle; white-space: nowrap; }
-  .ark thead th { position: sticky; top: 0; z-index: 2; background: #F3F6F8; font-size: 12px; font-weight: 600; color: var(--blaa-moerk); cursor: pointer; user-select: none; line-height: 1.25; }
-  .ark thead th small { display: block; font-weight: 400; color: var(--graa-tekst); }
-  .ark thead th.sorteret::after { content: " ▾"; } .ark thead th.sorteret.op::after { content: " ▴"; }
-  .ark td.t, .ark th.t { text-align: right; font-variant-numeric: tabular-nums; }
-  .ark tbody tr.linje { cursor: pointer; }
-  .ark tbody tr.linje:hover td { background: #F7FAFB; }
-  .ark tbody tr.linje.aaben td { background: #EEF4F7; }
-  .kode { font-weight: 700; }
-  .navn { display: block; font-size: 12px; color: var(--graa-tekst); max-width: 230px; overflow: hidden; text-overflow: ellipsis; }
-  .pille { display: inline-block; font-size: 11.5px; font-weight: 600; padding: 1px 8px; border-radius: 99px; background: #E7F0F4; color: var(--blaa-moerk); }
-  .pille.kampagne { background: #FCE6DC; color: #9A3A10; }
-  .pille.hold { background: var(--graa); color: var(--tekst); }
-  .pille.ny { background: var(--roed); color: #fff; margin-left: 4px; }
-  .pille.gl { background: var(--creme); color: var(--tekst); margin-left: 4px; }
-  .op { color: var(--groen); } .ned { color: var(--roed); } .adv { color: var(--orange); }
-  .lille { display: block; font-size: 11.5px; color: var(--graa-tekst); }
-  .beslutning { font-size: 12px; font-weight: 600; }
-  .beslutning.følg { color: var(--groen); } .beslutning.afvis { color: var(--roed); } .beslutning.senere { color: var(--graa-tekst); }
-
-  /* Detaljer under en linje */
-  tr.detalje > td { background: #FBFCFD; white-space: normal; padding: 14px 16px 16px; }
-  .detaljer { display: grid; grid-template-columns: minmax(240px, 1.1fr) minmax(300px, 1.2fr) minmax(260px, 1fr); gap: 18px; }
-  .detaljer h4 { margin: 0 0 6px; font-size: 12px; text-transform: uppercase; letter-spacing: .04em; color: var(--blaa-moerk); }
-  .detaljer ul { margin: 0; padding-left: 18px; }
-  .detaljer li { margin: 2px 0; }
-  table.sml { width: 100%; border-collapse: collapse; font-size: 13px; }
-  .sml th, .sml td { padding: 4px 6px; border-bottom: 1px solid var(--graa); text-align: left; white-space: normal; }
-  .sml th { font-size: 12px; color: var(--graa-tekst); font-weight: 600; }
-  .sml td.t, .sml th.t { text-align: right; }
-  .beslut .knapper { display: flex; gap: 6px; margin-bottom: 8px; }
-  .valg { border: 1px solid var(--graa); background: #fff; border-radius: 9px; padding: 5px 12px; }
-  .valg:hover { border-color: var(--blaa); }
-  .valg.aktiv.foelg { background: var(--groen); border-color: var(--groen); color: #fff; }
-  .valg.aktiv.afvis { background: var(--roed); border-color: var(--roed); color: #fff; }
-  .valg.aktiv.senere { background: var(--graa-tekst); border-color: var(--graa-tekst); color: #fff; }
-  .beslut textarea { width: 100%; min-height: 58px; resize: vertical; padding: 7px 10px; border: 1px solid var(--graa); border-radius: 9px; }
-  .beslut textarea:focus { outline: none; border-color: var(--blaa); box-shadow: 0 0 0 3px rgba(13,88,121,.12); }
-  .gem { margin-top: 6px; border: 0; background: var(--blaa); color: #fff; border-radius: 9px; padding: 6px 14px; font-weight: 600; }
-  .gem:disabled { opacity: .5; cursor: default; }
-  .status { font-size: 12.5px; color: var(--graa-tekst); margin-top: 4px; }
-  .status.ok { color: var(--groen); } .status.fejl { color: var(--roed); }
-
-  .forklaring { font-size: 13px; margin-top: 18px; }
-  .forklaring summary { cursor: pointer; color: var(--blaa); font-weight: 600; }
-  .forklaring dl { display: grid; grid-template-columns: max-content 1fr; gap: 4px 14px; margin: 10px 0; }
-  .forklaring dt { font-weight: 600; }
-  .forklaring dd { margin: 0; color: #555; }
-  @media (max-width: 800px) {
-    .detaljer { grid-template-columns: 1fr; }
-    .skjul-smal { display: none; }
-    .forklaring dl { grid-template-columns: 1fr; }
-    .forklaring dd { margin-bottom: 6px; }
-    .vaerktoej input { min-width: 0; flex: 1; }
-    .ramme { max-height: none; }
-  }
+:root{
+  --tekst:#333333; --bg:#F7F7F7; --plade:#FFFFFF; --blaa:#0D5879; --creme:#FFD5A7; --roed:#C30031;
+  --linje:#E6E6E6; --graa:#8C8C8C; --groen:#2E7D32; --orange:#E1652A;
+  --blaa-lys:#E7EFF3; --groen-lys:#E9F3EA; --roed-lys:#F9E6EB; --orange-lys:#FCEDE6; --creme-lys:#FFF4E8;
+}
+*{box-sizing:border-box}
+html,body{margin:0;background:var(--bg);color:var(--tekst);font:13px/1.4 "Segoe UI",system-ui,-apple-system,Roboto,Arial,sans-serif}
+button,input,select,textarea{font:inherit;color:inherit}
+.tal{font-variant-numeric:tabular-nums}
+/* top */
+header{display:flex;align-items:center;gap:16px;padding:12px 20px;background:var(--plade);border-bottom:1px solid var(--linje);position:sticky;top:0;z-index:20}
+.logo{width:30px;height:30px;border-radius:7px;background:var(--blaa);display:grid;place-items:center;color:#fff;font-weight:700}
+header h1{font-size:16px;margin:0}
+header .sub{color:var(--graa);font-size:12px}
+.faner{display:flex;gap:2px;margin-left:24px}
+.faner button{border:0;background:none;padding:8px 14px;border-radius:6px;cursor:pointer;color:var(--graa);font-weight:600}
+.faner button[aria-selected=true]{background:var(--blaa-lys);color:var(--blaa)}
+.faner kbd{margin-left:6px}
+.hoejre{margin-left:auto;display:flex;align-items:center;gap:12px;color:var(--graa);font-size:12px}
+.proto{background:var(--creme);color:var(--tekst);border-radius:4px;padding:2px 8px;font-weight:600}
+kbd{display:inline-block;min-width:16px;padding:0 4px;border:1px solid var(--linje);border-bottom-width:2px;border-radius:4px;background:#fff;font:11px/16px ui-monospace,Consolas,monospace;color:var(--graa);text-align:center}
+main{padding:14px 20px 40px}
+/* nøgletal */
+.kpi{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:10px;margin-bottom:12px}
+.kpi .k{background:var(--plade);border:1px solid var(--linje);border-radius:8px;padding:10px 12px;cursor:default}
+.kpi .k.klik{cursor:pointer}
+.kpi .k.klik:hover{border-color:var(--blaa)}
+.kpi .v{font-size:20px;font-weight:700}
+.kpi .l{color:var(--graa);font-size:12px}
+.kpi .d{font-size:12px;margin-top:2px}
+/* værktøjslinje */
+.vlinje{display:flex;align-items:center;gap:8px;margin:0 0 10px;flex-wrap:wrap}
+.seg{display:inline-flex;background:var(--plade);border:1px solid var(--linje);border-radius:7px;padding:2px}
+.seg button{border:0;background:none;padding:5px 10px;border-radius:5px;cursor:pointer;white-space:nowrap}
+.seg button[aria-pressed=true]{background:var(--blaa);color:#fff}
+.seg .n{opacity:.75;margin-left:4px}
+.vlinje input[type=search],.vlinje select{border:1px solid var(--linje);border-radius:7px;background:#fff;padding:6px 10px}
+.vlinje input[type=search]{width:220px}
+.knap{border:1px solid var(--linje);background:#fff;border-radius:7px;padding:6px 12px;cursor:pointer;font-weight:600}
+.knap:hover{border-color:var(--blaa);color:var(--blaa)}
+.knap.primaer{background:var(--blaa);border-color:var(--blaa);color:#fff}
+.knap.primaer:hover{filter:brightness(1.1);color:#fff}
+.knap:disabled{opacity:.45;cursor:default}
+.check{display:inline-flex;gap:6px;align-items:center;cursor:pointer;color:var(--tekst)}
+/* layout */
+.arbejde{display:grid;grid-template-columns:minmax(0,1fr) 480px;gap:14px;align-items:start}
+.ark{background:var(--plade);border:1px solid var(--linje);border-radius:8px;overflow:auto;height:calc(100vh - 232px);min-height:420px}
+table{border-collapse:separate;border-spacing:0;width:100%}
+th{position:sticky;top:0;background:#fff;z-index:2;text-align:left;font-weight:600;font-size:12px;color:var(--graa);padding:8px 8px;border-bottom:1px solid var(--linje);white-space:nowrap;cursor:pointer;user-select:none}
+th.h,td.h{text-align:right}
+th:hover{color:var(--blaa)}
+th .pil{font-size:10px;margin-left:3px}
+td{padding:6px 8px;border-bottom:1px solid #F0F0F0;vertical-align:middle;white-space:nowrap}
+tr.r{cursor:pointer}
+tr.r:hover td{background:#FAFBFC}
+tr.r.valgt td{background:var(--blaa-lys)}
+tr.r.valgt td:first-child{box-shadow:inset 3px 0 0 var(--blaa)}
+tr.r.besl td{color:var(--graa)}
+tr.gruppe td{background:var(--bg);font-weight:700;font-size:12px;padding:6px 8px;color:var(--tekst);cursor:pointer;position:sticky;top:33px;z-index:1}
+tr.gruppe .n{color:var(--graa);font-weight:400;margin-left:6px}
+td.kode b{font-size:13px}
+td.kode .navn{display:block;color:var(--graa);font-size:11px;max-width:210px;overflow:hidden;text-overflow:ellipsis}
+.chip{display:inline-block;border-radius:10px;padding:1px 8px;font-size:11px;font-weight:600;line-height:18px}
+.chip.haev{background:var(--blaa-lys);color:var(--blaa)}
+.chip.kampagne{background:var(--orange-lys);color:var(--orange)}
+.chip.holdoeje{background:#F0F0F0;color:var(--graa)}
+.chip.ny{background:var(--creme);color:var(--tekst);margin-left:4px}
+.chip.gl{background:#EDEDED;color:var(--tekst);margin-left:4px}
+.chip.foran{background:var(--groen-lys);color:var(--groen)}
+.chip.paa{background:#F0F0F0;color:var(--tekst)}
+.chip.bagud{background:var(--roed-lys);color:var(--roed)}
+.chip.tidligt{background:#fff;color:var(--graa);border:1px dashed var(--linje)}
+.bel{display:flex;align-items:center;gap:6px;justify-content:flex-end}
+.bar{width:54px;height:6px;border-radius:3px;background:#EDEDED;overflow:hidden}
+.bar i{display:block;height:100%;background:var(--blaa)}
+.lille{font-size:11px;color:var(--graa)}
+.op{color:var(--groen)} .ned{color:var(--roed)}
+.besl-ikon{font-weight:700}
+.besl-ikon.foelg{color:var(--groen)} .besl-ikon.afvis{color:var(--roed)} .besl-ikon.senere{color:var(--orange)}
+input[type=checkbox]{accent-color:var(--blaa);width:15px;height:15px;cursor:pointer}
+/* bulk */
+.bulk{display:none;position:sticky;bottom:0;background:var(--tekst);color:#fff;padding:8px 12px;gap:10px;align-items:center;border-radius:0 0 8px 8px}
+.bulk.vis{display:flex}
+.bulk .knap{background:transparent;color:#fff;border-color:#666}
+/* detalje */
+.detalje{background:var(--plade);border:1px solid var(--linje);border-radius:8px;height:calc(100vh - 232px);min-height:420px;overflow:auto}
+.detalje .hoved{padding:14px 16px 10px;border-bottom:1px solid var(--linje)}
+.detalje h2{font-size:17px;margin:0 0 2px}
+.detalje .navn{color:var(--graa)}
+.detalje .afsnit{padding:12px 16px;border-bottom:1px solid var(--linje)}
+.detalje h3{font-size:11px;text-transform:uppercase;letter-spacing:.05em;color:var(--graa);margin:0 0 8px}
+.anbef{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap}
+.anbef .stor{font-size:22px;font-weight:700;color:var(--blaa)}
+.anbef.kampagne .stor{color:var(--orange)}
+.anbef.holdoeje .stor{color:var(--tekst);font-size:17px}
+.kortsagt{margin-top:6px}
+.noegle{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-top:10px}
+.noegle div{background:var(--bg);border-radius:6px;padding:6px 8px}
+.noegle b{display:block;font-size:14px}
+.noegle span{font-size:11px;color:var(--graa)}
+.graf svg{display:block;width:100%;height:auto}
+.forklar{display:flex;gap:12px;flex-wrap:wrap;font-size:11px;color:var(--graa);margin-top:4px}
+.forklar i{display:inline-block;width:14px;height:0;border-top:2px solid;vertical-align:middle;margin-right:4px}
+.argumenter{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.argumenter ul{margin:0;padding:0;list-style:none}
+.argumenter li{padding:5px 0 5px 18px;position:relative;border-top:1px solid #F2F2F2}
+.argumenter li:first-child{border-top:0}
+.argumenter li.tom{padding-left:0}
+.argumenter li.tom::before{content:none}
+.argumenter li::before{position:absolute;left:0;top:5px;font-weight:700}
+.for li::before{content:"+";color:var(--groen)}
+.imod li::before{content:"−";color:var(--roed)}
+.argumenter h4{margin:0 0 4px;font-size:12px}
+.tom{color:var(--graa);font-style:italic}
+.stige{display:flex;gap:4px;flex-wrap:wrap}
+.trin{border:1px solid var(--linje);background:#fff;border-radius:6px;padding:4px 7px;cursor:pointer;text-align:center;min-width:70px}
+.trin b{display:block;font-size:13px}
+.trin span{font-size:10px;color:var(--graa)}
+.trin.foreslaaet{border-color:var(--blaa)}
+.trin.foreslaaet span{color:var(--blaa)}
+.trin.over{background:repeating-linear-gradient(135deg,#fff,#fff 5px,#FBEFF2 5px,#FBEFF2 8px)}
+.trin[aria-pressed=true]{background:var(--blaa);border-color:var(--blaa);color:#fff}
+.trin[aria-pressed=true] span{color:#fff}
+.trin.pm{outline:2px dashed var(--graa);outline-offset:1px}
+.advarsel{margin-top:8px;padding:6px 8px;border-radius:6px;background:var(--roed-lys);color:var(--roed);font-size:12px;display:none}
+.advarsel.vis{display:block}
+.beslut{display:flex;gap:6px;margin-bottom:8px}
+.beslut .knap{flex:1}
+.beslut .knap[aria-pressed=true]{background:var(--blaa);color:#fff;border-color:var(--blaa)}
+.beslut .knap.afv[aria-pressed=true]{background:var(--roed);border-color:var(--roed)}
+.beslut .knap.sen[aria-pressed=true]{background:var(--orange);border-color:var(--orange)}
+.aarsager{display:none;flex-wrap:wrap;gap:6px;margin-bottom:8px}
+.aarsager.vis{display:flex}
+.aarsager button{border:1px solid var(--linje);background:#fff;border-radius:12px;padding:3px 10px;cursor:pointer;font-size:12px}
+.aarsager button[aria-pressed=true]{background:var(--tekst);color:#fff;border-color:var(--tekst)}
+textarea{width:100%;min-height:54px;border:1px solid var(--linje);border-radius:6px;padding:6px 8px;resize:vertical}
+.genveje{color:var(--graa);font-size:11px;margin-top:6px}
+.prisforloeb{font-size:12px}
+.prisforloeb .pt{display:inline-block;margin-right:4px}
+.sml{width:100%;font-size:12px}
+.sml td,.sml th{padding:4px 6px;border-bottom:1px solid #F2F2F2;position:static;cursor:default}
+.sml th{color:var(--graa);font-weight:600}
+.sml td.h,.sml th.h{text-align:right}
+/* portefølje */
+.port{background:var(--plade);border:1px solid var(--linje);border-radius:8px;overflow:auto;height:calc(100vh - 262px);min-height:420px}
+#detalje2{height:calc(100vh - 262px)}
+.port table td,.port table th{padding:3px 4px;border-bottom:1px solid #F2F2F2;vertical-align:middle}
+.port th{cursor:default;text-align:center;position:sticky;top:0}
+.port th.serie,.port td.serie{position:sticky;left:0;background:#fff;text-align:left;z-index:3;min-width:132px;max-width:132px}
+.port th.serie{z-index:4}
+.port td.serie b{font-size:12px}
+.port td.serie span{display:block;color:var(--graa);font-size:10px;max-width:128px;overflow:hidden;text-overflow:ellipsis}
+.port td.md{min-width:52px;text-align:center;white-space:normal;max-width:76px}
+.port tr.region td{background:var(--bg);font-weight:700}
+.port td.sum{color:var(--graa);font-size:11px;text-align:right}
+.felt{display:inline-block;width:22px;height:22px;border-radius:4px;margin:1px;cursor:pointer;font-size:9px;line-height:22px;text-align:center;color:#fff;font-weight:700;position:relative}
+.felt.foran{background:var(--groen)} .felt.paa{background:#A6A6A6} .felt.bagud{background:var(--roed)}
+.felt.tidligt{background:#fff;border:1px dashed #BDBDBD;color:var(--graa)}
+.felt.udsolgt{background:var(--blaa)}
+.felt.f-haev{box-shadow:0 0 0 2px #fff,0 0 0 4px var(--blaa)}
+.felt.f-kampagne{box-shadow:0 0 0 2px #fff,0 0 0 4px var(--orange)}
+.felt:hover{transform:scale(1.15);z-index:5}
+.legende{display:flex;gap:14px;align-items:center;flex-wrap:wrap;font-size:12px;color:var(--graa);margin:0 0 10px}
+.legende .felt{cursor:default;width:16px;height:16px;line-height:16px;vertical-align:middle;margin-right:4px}
+.legende .felt:hover{transform:none}
+.tip{position:fixed;pointer-events:none;background:var(--tekst);color:#fff;border-radius:6px;padding:7px 9px;font-size:12px;z-index:50;display:none;max-width:280px}
+.portlayout{display:grid;grid-template-columns:minmax(0,1fr) 440px;gap:14px;align-items:start}
+/* udfald */
+.kort{background:var(--plade);border:1px solid var(--linje);border-radius:8px;padding:16px;margin-bottom:12px}
+.kort h2{font-size:15px;margin:0 0 6px}
+.toast{position:fixed;bottom:18px;left:50%;transform:translateX(-50%);background:var(--tekst);color:#fff;padding:9px 14px;border-radius:7px;display:none;z-index:60}
+.skjult{display:none!important}
+.note{color:var(--graa);font-size:11px;margin-top:6px}
 </style>
 </head>
 <body>
-<div class="side">
-  <header>
-    <div class="maerke"><svg viewBox="0 0 32 32" aria-hidden="true"><path d="M4.5 24 L12.5 11.5 L17.5 18.5 L20.5 14.5 L27.5 24 Z" fill="#FFD5A7"/><circle cx="23" cy="8.5" r="2.4" fill="#FFD5A7"/></svg></div>
-    <div><h1>Prisforslag</h1><small id="undertitel">Morgenrapport for gruppeafgange</small></div>
-    <div class="hoejre"><span id="bruger"></span><a href="./">Topas BI Agent</a></div>
-  </header>
-
-  <div id="indlaeser" class="plade besked">Henter dagens forslag …</div>
-
-  <div id="logind" class="plade besked skjult">
-    <p>Du skal være logget ind i Topas BI Agent for at se prisforslagene.</p>
-    <p><a href="./">Log ind i Topas BI Agent</a> og åbn derefter denne side igen.</p>
+<header>
+  <div class="logo">T</div>
+  <div>
+    <h1>Prisstyring · gruppeture</h1>
+    <div class="sub" id="dataDato"></div>
   </div>
+  <nav class="faner" role="tablist">
+    <button role="tab" data-fane="idag" aria-selected="true">I dag <kbd>1</kbd></button>
+    <button role="tab" data-fane="port" aria-selected="false">Portefølje <kbd>2</kbd></button>
+    <button role="tab" data-fane="udfald" aria-selected="false">Udfald <kbd>3</kbd></button>
+  </nav>
+  <div class="hoejre"><span id="bruger"></span><a href="./" style="color:var(--blaa)">Topas BI Agent</a></div>
+</header>
+<main>
+  <section class="kpi" id="kpi"></section>
 
-  <div id="fejl" class="plade besked skjult"></div>
-
-  <main id="indhold" class="skjult">
-    <div class="faner" id="faner">
-      <button class="fane aktiv" data-f="alle"><b id="n-alle">0</b><span>alle</span></button>
-      <button class="fane haev" data-f="hæv"><b id="n-hæv">0</b><span>hæv prisen</span></button>
-      <button class="fane kampagne" data-f="kampagne"><b id="n-kampagne">0</b><span>kampagne</span></button>
-      <button class="fane" data-f="hold øje"><b id="n-hold øje">0</b><span>hold øje</span></button>
-      <button class="fane nyt" data-f="nyt"><b id="n-nyt">0</b><span>nyt siden i går</span></button>
-      <button class="fane" data-f="ubesvaret"><b id="n-ubesvaret">0</b><span>ikke besvaret</span></button>
+  <section id="fane-idag">
+    <div class="vlinje">
+      <div class="seg" id="koe">
+        <button data-k="beslut" aria-pressed="true">Til beslutning<span class="n" id="n-beslut"></span></button>
+        <button data-k="holdoeje" aria-pressed="false">Hold øje<span class="n" id="n-holdoeje"></span></button>
+        <button data-k="besluttet" aria-pressed="false">Besluttet<span class="n" id="n-besluttet"></span></button>
+        <button data-k="alle" aria-pressed="false">Alle forslag<span class="n" id="n-alle"></span></button>
+      </div>
+      <div class="seg" id="region">
+        <button data-r="" aria-pressed="true">Alle</button>
+        <button data-r="Europa" aria-pressed="false">Europa</button>
+        <button data-r="Grønland" aria-pressed="false">Grønland</button>
+        <button data-r="Oversøisk" aria-pressed="false">Oversøisk</button>
+      </div>
+      <select id="maaned" title="Afrejsemåned"><option value="">Alle måneder</option></select>
+      <label class="check"><input type="checkbox" id="kunNy"> Kun nye siden i går</label>
+      <input type="search" id="soeg" placeholder="Søg turkode eller rejse  ( / )">
+      <span style="margin-left:auto"></span>
+      <button class="knap" id="excel">Hent som Excel</button>
     </div>
-
-    <div class="vaerktoej">
-      <input id="soeg" type="search" placeholder="Søg turkode eller rejse" aria-label="Søg">
-      <span class="dim" id="viser"></span>
-      <button class="knap hoejre" id="hent">Hent som Excel</button>
+    <div class="arbejde">
+      <div>
+        <div class="ark" id="ark">
+          <table>
+            <thead><tr id="thead"></tr></thead>
+            <tbody id="linjer"></tbody>
+          </table>
+        </div>
+        <div class="bulk" id="bulk">
+          <b id="bulkN"></b>
+          <button class="knap" id="bulkFoelg">Følg laveste forslag</button>
+          <button class="knap" id="bulkSenere">Senere</button>
+          <button class="knap" id="bulkAfvis">Afvis</button>
+          <span style="margin-left:auto;opacity:.7">Ryd med <kbd style="background:none;color:#ccc;border-color:#666">Esc</kbd></span>
+        </div>
+      </div>
+      <aside class="detalje" id="detalje"></aside>
     </div>
+  </section>
 
-    <div class="ramme">
-      <table class="ark" id="ark">
-        <thead><tr>
-          <th data-s="turkode">Afgang</th>
-          <th data-s="forslag">Forslag</th>
-          <th data-s="dage_til_afrejse" class="t">Afrejse<small>dage til</small></th>
-          <th data-s="solgt" class="t">Solgt i år<small>af pladser</small></th>
-          <th data-s="ly_vaekst" class="t">Sidste år<small>samme dag før afrejse</small></th>
-          <th data-s="pris_nu" class="t">Pris i dag</th>
-          <th data-s="forslag_pris" class="t">Foreslået pris</th>
-          <th data-s="pm" class="t skjul-smal">Pointmodel<small>Power BI</small></th>
-          <th data-s="web" class="t skjul-smal">Besøg tursiden<small>14 dage mod sidste år</small></th>
-          <th data-s="beslutning">Din beslutning</th>
-        </tr></thead>
-        <tbody id="linjer"></tbody>
-      </table>
+  <section id="fane-port" class="skjult">
+    <div class="vlinje">
+      <div class="seg" id="farve">
+        <button data-c="prognose" aria-pressed="true">Prognose mod købskurve</button>
+        <button data-c="ly" aria-pressed="false">Mod sidste år</button>
+      </div>
+      <label class="check"><input type="checkbox" id="portKunForslag"> Kun serier med forslag i dag</label>
     </div>
+    <div class="legende" id="legende"></div>
+    <div class="portlayout">
+      <div class="port" id="port"></div>
+      <aside class="detalje" id="detalje2"></aside>
+    </div>
+  </section>
 
-    <details class="forklaring plade">
-      <summary>Hvad betyder kolonnerne, og hvordan opstår forslagene?</summary>
-      <dl>
-        <dt>Forslag</dt><dd><b>Hæv</b>: salget peger på, at prisen kan hæves. <b>Kampagne</b>: salget går trægt, og en kampagnepris på et antal pladser kan hjælpe. Listeprisen sænkes aldrig. <b>Hold øje</b>: noget er værd at følge, men det er ikke nok til at ændre prisen endnu.</dd>
-        <dt>Solgt i år</dt><dd>Solgte pladser lige nu mod antal pladser på afgangen (max pax).</dd>
-        <dt>Sidste år</dt><dd>Hvor mange der var solgt på sidste års afgang med samme nummer, samme antal dage før afrejse. Procenten viser, hvor meget i år ligger foran (grøn) eller bagud (rød).</dd>
-        <dt>Pris i dag</dt><dd>Listeprisen i NAV.</dd>
-        <dt>Foreslået pris</dt><dd>Ved hæv: +3–5 % eller +5–8 % ved stærke signaler, højst +10 %, afrundet til …470/…970. Ved kampagne: −5 til −10 % på et antal pladser i en periode.</dd>
-        <dt>Pointmodel</dt><dd>Hvad den nuværende pointmodel i Power BI ville sætte prisen til: seriens mindstepris + 500 kr. pr. point for belægning, tid/booking mod budget og gul/rød status, højst mindstepris + 3.000 kr. Orange betyder, at pointmodellen ligger under prisen i dag og altså ville sænke den.</dd>
-        <dt>Besøg tursiden</dt><dd>Besøg på rejsens side på topas.dk de seneste 14 dage mod samme 14 dage sidste år. Står der "alle +41 %", er det væksten for alle tursider samlet. En rejse tæller kun som stærk, hvis den vokser mindst 1,3 gange så meget som alle tursider.</dd>
-        <dt>Solgt siden seneste prisstigning</dt><dd>Pladser solgt siden prisen sidst blev hævet (fra Tur Booking i NAV). Sidste år måles i samme vindue, regnet i dage før afrejse.</dd>
-        <dt>Din beslutning</dt><dd>Følg, afvis eller senere, gerne med en begrundelse. Den gemmes med dine initialer og bruges til at gøre forslagene bedre.</dd>
-      </dl>
-      <p class="dim">Grønland (GL): fyldte afgange vægtes højere end pris. Der foreslås kun stigning ved højt salg og under 25 % pladser tilbage, og kampagne kan komme fra 180 dage før afrejse. Forslagene er udfordringer til prisen, ikke beslutninger.</p>
-    </details>
-  </main>
-</div>
-
+  <section id="fane-udfald" class="skjult"></section>
+</main>
+<div class="tip" id="tip"></div>
+<div class="toast" id="toast"></div>
 <script>window.__TOPAS_BI__={"url": "https://oxpuloflkdcpshrabvkn.supabase.co", "anonKey": "sb_publishable_1J98JZQ2qBBer2cI-hS3Tg_rPXC2sFC"};</script>
 <script type="module">
 import { createClient } from "https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.117.3/+esm";
+const sb = createClient(window.__TOPAS_BI__.url, window.__TOPAS_BI__.anonKey);
+// ---------- data og hjælpere ----------
+let IDAG = "";
+const OVERSOISK = new Set(["AR","CR","KR","LK","NP","NZ","OM","PE","TZ","VN","JO","JP","IN","CU","MX","US","CA","ZA","NA","KE","MN","CN","TH","ID","EC","BO","CL","UZ"]);
+const KDAGE = [365,300,270,240,210,180,150,120,90,60,30,14];
+const MD = ["jan.","feb.","mar.","apr.","maj","jun.","jul.","aug.","sep.","okt.","nov.","dec."];
+const kr = n => n == null ? "–" : Math.round(n).toLocaleString("da-DK") + " kr.";
+const tal = n => n == null ? "–" : Math.round(n).toLocaleString("da-DK");
+const pct = (n, d = 0) => n == null ? "–" : (n > 0 ? "+" : n < 0 ? "−" : "") + Math.abs(n).toLocaleString("da-DK", { minimumFractionDigits: d, maximumFractionDigits: d }) + " %";
+const pctU = (n, d = 0) => n == null ? "–" : n.toLocaleString("da-DK", { minimumFractionDigits: d, maximumFractionDigits: d }) + " %";
+const dato = s => { const d = new Date(s + "T00:00:00"); return d.getDate() + ". " + MD[d.getMonth()] + " " + d.getFullYear(); };
+const kortDato = s => { const d = new Date(s + "T00:00:00"); return d.getDate() + ". " + MD[d.getMonth()]; };
+const esc = s => String(s ?? "").replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+const region = t => t.startsWith("GL") ? "Grønland" : OVERSOISK.has(t.slice(0, 2)) ? "Oversøisk" : "Europa";
 
-const KONFIG = window.__TOPAS_BI__;
-const sb = createClient(KONFIG.url, KONFIG.anonKey);
-const $ = (id) => document.getElementById(id);
-const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
-const tal = (n) => n == null || n === "" ? "–" : Math.round(Number(n)).toLocaleString("da-DK");
-const kr = (n) => n == null ? "–" : tal(n) + " kr.";
-const dato = (d) => d ? new Date(d + "T12:00:00").toLocaleDateString("da-DK", { day: "numeric", month: "short", year: "numeric" }) : "";
-const komma = (n, dec = 1) => String(Math.round(Number(n) * 10 ** dec) / 10 ** dec).replace(".", ",");
-const fortegn = (x) => (x >= 0 ? "+" : "−") + Math.abs(Math.round(x)) + " %";
-const ORDEN = { "hæv": 1, "kampagne": 2, "hold øje": 3 };
-const NAVN = { "hæv": "Hæv", "kampagne": "Kampagne", "hold øje": "Hold øje" };
-const KLASSE = { "hæv": "", "kampagne": "kampagne", "hold øje": "hold" };
+// Kurver og prisforløb pr. turkode. Fyldes fra signaler (salg_kurve) og, når kaldet findes, fra pris_afgang_detalje.
+const KURVE = {};   // turkode -> { dage[], andele[] }
+const SALG = {};    // turkode -> [[dage, solgt]]
+const PRISER = {};  // turkode -> [[dage, pris]]
+const DETALJE = {}; // turkode -> "henter" | "ok" | "mangler"
+let KALD_DETALJE = true, KALD_PORT = true;
 
-let rows = [];
-let filter = "alle";
-let soeg = "";
-let sortering = null; // { felt, op }
-const aabne = new Set();
-let sessionEmail = "";
-const initialer = () => sessionEmail.split("@")[0].toUpperCase();
-
-function vis(id) {
-  for (const x of ["indlaeser", "logind", "fejl", "indhold"]) $(x).classList.toggle("skjult", x !== id);
+function andel(k, d) {
+  const D_ = k.dage, a = k.andele;
+  if (d >= D_[0]) return a[0];
+  if (d <= D_[D_.length - 1]) return Math.min(1, a[a.length - 1]);
+  for (let i = 1; i < D_.length; i++) if (d >= D_[i]) { const t = (D_[i - 1] - d) / (D_[i - 1] - D_[i]); return a[i - 1] + t * (a[i] - a[i - 1]); }
+  return 1;
+}
+const kurveNavn = n => !n ? "købskurven" : /^[A-Z]{4}$/.test(n) ? `seriens købskurve (${n})` : `købskurven for ${n.toLowerCase()}`;
+const STATUS_TEKST = { udsolgt: "Udsolgt", tidligt: "For tidligt", foran: "Foran", paa: "På kurs", bagud: "Bagud" };
+// Prognosen kommer fra maskinrummet (signaler.prognose_*): solgt ÷ andel af slutsalget, der normalt er solgt på dette tidspunkt.
+function prognose(x) {
+  const st = x.prognose_status || (x.max_pax && x.solgt >= x.max_pax ? "udsolgt" : "tidligt");
+  return { status: st, tekst: STATUS_TEKST[st] || st, forventet: x.prognose_solgt ?? null, grad: x.prognose_grad ?? null, andel: x.kurve_andel ?? null, kurve: { navn: kurveNavn(x.kurve_navn), noegle: x.kurve_navn } };
 }
 
-// Afledte tal pr. afgang, som tabellen sorterer og viser på.
-function beregn(r) {
-  const s = r.signaler || {};
-  const lyNu = s.ly_solgt_nu != null ? Number(s.ly_solgt_nu) : null;
-  r._s = s;
-  r._ly_vaekst = s.sidste_aars_tur && lyNu != null && lyNu > 0 ? 100 * (Number(s.solgt) / lyNu - 1) : null;
-  r._web = s.sess_14d != null && Number(s.sess_14d_sidste_aar) > 0 ? 100 * (Number(s.sess_14d) / Number(s.sess_14d_sidste_aar) - 1) : null;
-  r._pm = s.pointmodel_pris != null ? Number(s.pointmodel_pris) : null;
-  r._forslag_pris = r.forslag === "hæv" ? Number(r.forslag_pris_fra) : r.forslag === "kampagne" ? Number(r.kampagne_pris_til) : null;
-}
-
-function sorterVaerdi(r, felt) {
-  switch (felt) {
-    case "forslag": return ORDEN[r.forslag] * 1000 - (r.nyt ? 100 : 0) - Number(r.score || 0);
-    case "solgt": return Number(r._s.belaegning ?? 0);
-    case "ly_vaekst": return r._ly_vaekst;
-    case "pm": return r._pm == null ? null : r._pm - Number(r.pris_nu);
-    case "web": return r._web;
-    case "forslag_pris": return r._forslag_pris;
-    case "beslutning": return r.beslutning || "";
-    default: return r[felt];
-  }
-}
-
-function filtreret() {
-  let l = rows;
-  if (filter === "nyt") l = l.filter((r) => r.nyt);
-  else if (filter === "ubesvaret") l = l.filter((r) => !r.beslutning && r.forslag !== "hold øje");
-  else if (filter !== "alle") l = l.filter((r) => r.forslag === filter);
-  if (soeg) {
-    const q = soeg.toLowerCase();
-    l = l.filter((r) => r.turkode.toLowerCase().includes(q) || String(r._s.navn || "").toLowerCase().includes(q));
-  }
-  const { felt, op } = sortering || { felt: "forslag", op: true };
-  return [...l].sort((a, b) => {
-    const x = sorterVaerdi(a, felt), y = sorterVaerdi(b, felt);
-    if (x == null && y == null) return 0;
-    if (x == null) return 1;
-    if (y == null) return -1;
-    const c = typeof x === "string" ? x.localeCompare(y, "da") : x - y;
-    return op ? c : -c;
+let AFG = [], AFGK = {}, F = [], FK = {}, NAVN_SERIE = {}, PORT_FULD = false;
+function indlaes(forslag, portefoelje) {
+  F = forslag.map(r => {
+    const s = r.signaler || {};
+    const o = { ...r, s, dage: r.dage_til_afrejse, max_pax: s.max_pax, solgt: s.solgt, navn: s.navn || "", region: region(r.turkode), lokal: null };
+    o.p = prognose({ ...s, turkode: r.turkode });
+    if (s.salg_kurve) SALG[r.turkode] = s.salg_kurve;
+    if (s.ly_salg_kurve && s.sidste_aars_tur) SALG[s.sidste_aars_tur] = s.ly_salg_kurve;
+    return o;
   });
+  FK = Object.fromEntries(F.map(r => [r.turkode, r]));
+  NAVN_SERIE = {}; F.forEach(r => { NAVN_SERIE[r.turkode.slice(0, 4)] = r.navn; });
+  PORT_FULD = !!portefoelje;
+  const kilde = portefoelje || F.map(r => ({ turkode: r.turkode, afrejse: r.afrejse, dage_til_afrejse: r.dage, max_pax: r.max_pax, solgt: r.solgt, pris_nu: r.pris_nu, sidste_aars_tur: r.s.sidste_aars_tur, ly_solgt_nu: r.s.ly_solgt_nu, solgt_14d: r.s.solgt_14d, ...r.s }));
+  AFG = kilde.map(x => ({ turkode: x.turkode, afrejse: x.afrejse, dage: x.dage_til_afrejse ?? x.dage, max_pax: x.max_pax, solgt: x.solgt, pris_nu: x.pris_nu, ly_tur: x.sidste_aars_tur || null, ly_solgt: x.ly_solgt_nu ?? null, solgt_14d: x.solgt_14d ?? 0, navn: x.navn || "", p: prognose(x) }));
+  AFG.forEach(a => { a.region = region(a.turkode); a.f = FK[a.turkode] || null; if (a.f) a.p = a.f.p; if (!a.navn && a.f) a.navn = a.f.navn; if (a.navn) NAVN_SERIE[a.turkode.slice(0, 4)] ||= a.navn; });
+  AFGK = Object.fromEntries(AFG.map(a => [a.turkode, a]));
+}
+// Detaljekald (S3): daglig salgskurve i år og sidste år, prisforløb og købskurve. Siden virker uden, indtil kaldet findes.
+async function hentDetalje(turkode, el) {
+  if (!KALD_DETALJE || DETALJE[turkode]) return;
+  DETALJE[turkode] = "henter";
+  const { data, error } = await sb.rpc("pris_afgang_detalje", { p_turkode: turkode });
+  if (error) { DETALJE[turkode] = "mangler"; if (error.code === "PGRST202" || /Could not find the function/i.test(error.message)) KALD_DETALJE = false; return; }
+  const d = Array.isArray(data) ? data[0] : data;
+  if (d) {
+    const ly = FK[turkode]?.s.sidste_aars_tur || AFGK[turkode]?.ly_tur;
+    if (d.salg_kurve?.length) SALG[turkode] = d.salg_kurve;
+    if (d.ly_salg_kurve?.length && ly) SALG[ly] = d.ly_salg_kurve;
+    if (d.prisforloeb) PRISER[turkode] = d.prisforloeb;
+    if (d.ly_prisforloeb && ly) PRISER[ly] = d.ly_prisforloeb;
+    if (d.koebskurve?.dage) KURVE[turkode] = d.koebskurve;
+  }
+  DETALJE[turkode] = "ok";
+  if (el && el.dataset.t === turkode) tegnDetalje(el, turkode, true);
 }
 
-function prisForslag(r) {
+// ---------- tilstand ----------
+const T = { fane: "idag", koe: "beslut", region: "", maaned: "", kunNy: false, soeg: "", sort: null, retning: 1, valgt: null, markeret: new Set(), lukket: new Set(), farve: "prognose", portKun: false, valgt2: null };
+const beslutning = r => r.beslutning; // kun gemte beslutninger styrer køen
+
+// ---------- nøgletal ----------
+function tegnKpi() {
+  const forslag = F.filter(r => r.forslag !== "hold øje");
+  const ubesv = forslag.filter(r => !beslutning(r)).length;
+  const solgt = AFG.reduce((s, a) => s + a.solgt, 0), max = AFG.reduce((s, a) => s + a.max_pax, 0);
+  const st = { foran: 0, paa: 0, bagud: 0, tidligt: 0, udsolgt: 0 };
+  AFG.forEach(a => st[a.p.status]++);
+  const s14 = AFG.reduce((s, a) => s + a.solgt_14d, 0);
+  const haev = forslag.filter(r => r.forslag === "hæv").length, kamp = forslag.length - haev;
+  const fulgt = F.filter(r => beslutning(r) === "følg").length;
+  document.getElementById("kpi").innerHTML = `
+    <div class="k klik" data-go="beslut"><div class="v tal">${ubesv}</div><div class="l">ubesvarede forslag</div><div class="d">${haev} hæv · ${kamp} kampagne${fulgt ? " · " + fulgt + " fulgt" : ""}</div></div>
+    <div class="k"><div class="v tal">${tal(AFG.length)}</div><div class="l">${PORT_FULD ? "afgange 14–365 dage" : "afgange med forslag eller hold øje"}</div><div class="d tal">${tal(solgt)} af ${tal(max)} pladser solgt (${pctU(100 * solgt / max, 1)})</div></div>
+    <div class="k klik" data-go="port"><div class="v tal" style="color:var(--groen)">${st.foran + st.udsolgt}</div><div class="l">foran kurven eller udsolgt</div><div class="d">prognose ≥ 100 % af pladserne</div></div>
+    <div class="k klik" data-go="port"><div class="v tal">${st.paa}</div><div class="l">på kurs</div><div class="d">prognose 80–99 %</div></div>
+    <div class="k klik" data-go="port"><div class="v tal" style="color:var(--roed)">${st.bagud}</div><div class="l">bagud på kurven</div><div class="d">prognose under 80 % · ${st.tidligt} for tidligt</div></div>
+    <div class="k"><div class="v tal">${tal(s14)}</div><div class="l">pladser solgt seneste 14 dage</div><div class="d">netto, ${PORT_FULD ? "alle afgange" : "afgangene ovenfor"}</div></div>`;
+  document.querySelectorAll(".kpi .k.klik").forEach(k => k.onclick = () => { const g = k.dataset.go; if (g === "port") skiftFane("port"); else { skiftFane("idag"); saetKoe("beslut"); } });
+}
+
+// ---------- arbejdskø ----------
+const KOL = [
+  { k: "vaelg", t: '<input type="checkbox" id="alleBoks" title="Vælg alle synlige">', s: null },
+  { k: "turkode", t: "Afgang", s: r => r.turkode },
+  { k: "afrejse", t: "Afrejse", s: r => r.afrejse, h: true },
+  { k: "forslag", t: "Forslag", s: r => ({ "hæv": 0, "kampagne": 1, "hold øje": 2 }[r.forslag]) },
+  { k: "bel", t: "Solgt", s: r => r.solgt / (r.max_pax || 1), h: true },
+  { k: "prog", t: "Prognose", s: r => r.p.grad ?? -1, h: true, tip: "Forventet solgt ved afrejse ud fra seriens købskurve, i % af pladserne" },
+  { k: "ly", t: "Sidste år", s: r => (r.s.ly_solgt_nu ?? -99) - 0, h: true, tip: "Solgt på sidste års afgang samme antal dage før afrejse" },
+  { k: "kurve", t: "Salgskurve", s: null },
+  { k: "pris", t: "Pris i dag", s: r => r.pris_nu, h: true },
+  { k: "fp", t: "Forslag", s: r => r.forslag_pris_fra ?? r.kampagne_pris_til ?? 0, h: true },
+  { k: "besl", t: "", s: r => beslutning(r) || "" },
+];
+function synlige() {
+  let L = F.filter(r => {
+    const b = beslutning(r);
+    if (T.koe === "beslut" && (r.forslag === "hold øje" || b)) return false;
+    if (T.koe === "holdoeje" && r.forslag !== "hold øje") return false;
+    if (T.koe === "besluttet" && !b) return false;
+    if (T.region && r.region !== T.region) return false;
+    if (T.maaned && r.afrejse.slice(0, 7) !== T.maaned) return false;
+    if (T.kunNy && !r.nyt) return false;
+    if (T.soeg) { const q = T.soeg.toLowerCase(); if (!(r.turkode.toLowerCase().includes(q) || r.navn.toLowerCase().includes(q))) return false; }
+    return true;
+  });
+  if (T.sort) { const k = KOL.find(c => c.k === T.sort); L.sort((a, b) => { const x = k.s(a), y = k.s(b); return (x > y ? 1 : x < y ? -1 : 0) * T.retning; }); }
+  else L.sort((a, b) => ({ "hæv": 0, "kampagne": 1, "hold øje": 2 }[a.forslag] - { "hæv": 0, "kampagne": 1, "hold øje": 2 }[b.forslag]) || (b.nyt - a.nyt) || (a.dage - b.dage));
+  return L;
+}
+// Salgskurven i år: punkter fra i dag og bagud plus dagens salg
+function kurveIAar(r) {
+  const c = (SALG[r.turkode] || []).filter(p => p[0] >= r.dage);
+  if (!c.length || c[c.length - 1][0] !== r.dage) c.push([r.dage, r.solgt]);
+  return c;
+}
+function sparkline(r, w = 92, h = 24) {
+  const max = Math.max(r.max_pax || 1, 1);
+  const X = d => w - (Math.min(d, 365) / 365) * w, Y = v => h - 2 - (Math.min(v, max) / max) * (h - 4);
+  const cur = kurveIAar(r);
+  const ly = r.s?.sidste_aars_tur ? SALG[r.s.sidste_aars_tur] : null;
+  let s = `<svg width="${w}" height="${h}" viewBox="0 0 ${w} ${h}" aria-hidden="true"><line x1="0" x2="${w}" y1="${Y(max)}" y2="${Y(max)}" stroke="#E6E6E6" stroke-dasharray="2 2"/>`;
+  if (ly && ly.length) s += `<polyline fill="none" stroke="#BDBDBD" stroke-width="1.3" points="${ly.map(p => X(p[0]) + "," + Y(p[1])).join(" ")}"/>`;
+  if (cur.length > 1) s += `<polyline fill="none" stroke="#0D5879" stroke-width="1.8" points="${cur.map(p => X(p[0]) + "," + Y(p[1])).join(" ")}"/>`;
+  s += `<circle cx="${X(r.dage)}" cy="${Y(r.solgt)}" r="2.2" fill="#0D5879"/></svg>`;
+  return s;
+}
+function chipForslag(f) { return `<span class="chip ${f === "hæv" ? "haev" : f === "kampagne" ? "kampagne" : "holdoeje"}">${f === "hæv" ? "Hæv" : f === "kampagne" ? "Kampagne" : "Hold øje"}</span>`; }
+function chipProg(p, kort) { return `<span class="chip ${p.status === "udsolgt" ? "foran" : p.status}" title="${p.forventet != null ? "Forventet " + tal(p.forventet) + " solgt ved afrejse" : "Under 15 % af salget sker normalt så tidligt"}">${p.grad != null && p.status !== "udsolgt" ? pctU(Math.min(p.grad, 3) * 100) : p.tekst}${kort ? "" : ""}</span>`; }
+function forslagPris(r) {
+  if (r.forslag === "hæv" && r.forslag_pris_fra) {
+    const a = 100 * (r.forslag_pris_fra / r.pris_nu - 1), b = 100 * (r.forslag_pris_til / r.pris_nu - 1);
+    return `<b class="tal">${tal(r.forslag_pris_fra)}${r.forslag_pris_til !== r.forslag_pris_fra ? "–" + tal(r.forslag_pris_til) : ""}</b><div class="lille">${pct(a)}${r.forslag_pris_til !== r.forslag_pris_fra ? " til " + pct(b) : ""}</div>`;
+  }
+  if (r.forslag === "kampagne" && r.kampagne_pris_fra) {
+    const lo = Math.min(r.kampagne_pris_fra, r.kampagne_pris_til), hi = Math.max(r.kampagne_pris_fra, r.kampagne_pris_til);
+    return `<b class="tal" style="color:var(--orange)">${tal(lo)}–${tal(hi)}</b><div class="lille">kampagnepris</div>`;
+  }
+  return '<span class="lille">–</span>';
+}
+function tegnTabel() {
+  const L = synlige();
+  const th = KOL.map(c => c.k === "vaelg" ? `<th style="width:28px;cursor:default">${c.t}</th>` :
+    `<th class="${c.h ? "h" : ""}" data-s="${c.s ? c.k : ""}" title="${c.tip || ""}">${c.t}${T.sort === c.k ? `<span class="pil">${T.retning > 0 ? "▲" : "▼"}</span>` : ""}</th>`).join("");
+  document.getElementById("thead").innerHTML = th;
+  const grupper = T.sort ? [["", L]] : [["hæv", L.filter(r => r.forslag === "hæv")], ["kampagne", L.filter(r => r.forslag === "kampagne")], ["hold øje", L.filter(r => r.forslag === "hold øje")]].filter(g => g[1].length);
+  const navn = { "hæv": "Hæv prisen", "kampagne": "Kampagnekandidater", "hold øje": "Hold øje" };
+  let h = "";
+  for (const [g, rows] of grupper) {
+    if (g) h += `<tr class="gruppe" data-g="${g}"><td colspan="${KOL.length}">${T.lukket.has(g) ? "▸" : "▾"} ${navn[g]}<span class="n">${rows.length}</span></td></tr>`;
+    if (T.lukket.has(g)) continue;
+    for (const r of rows) {
+      const b = beslutning(r), ly = r.s.ly_solgt_nu;
+      const lyTxt = r.s.sidste_aars_tur ? `<b class="tal">${tal(ly)}</b><span class="lille">/${tal(r.s.ly_max_pax)}</span><div class="lille ${r.solgt - ly > 0 ? "op" : r.solgt - ly < 0 ? "ned" : ""}">${r.solgt - ly > 0 ? "+" : r.solgt - ly < 0 ? "−" : "±"}${Math.abs(r.solgt - ly)} pladser</div>` : '<span class="lille">ingen</span>';
+      h += `<tr class="r${T.valgt === r.turkode ? " valgt" : ""}${b ? " besl" : ""}" data-t="${r.turkode}">
+        <td><input type="checkbox" class="mk" ${T.markeret.has(r.turkode) ? "checked" : ""} aria-label="Vælg ${r.turkode}"></td>
+        <td class="kode"><b>${r.turkode}</b>${r.nyt ? '<span class="chip ny">Ny</span>' : ""}${r.groenland ? '<span class="chip gl">GL</span>' : ""}<span class="navn">${esc(r.navn)}</span></td>
+        <td class="h tal">${kortDato(r.afrejse)} ${r.afrejse.slice(2, 4)}<div class="lille">${r.dage} dage</div></td>
+        <td>${chipForslag(r.forslag)}</td>
+        <td class="h"><div class="bel"><span class="tal"><b>${r.solgt}</b><span class="lille">/${r.max_pax}</span></span><span class="bar"><i style="width:${Math.min(100, 100 * r.solgt / (r.max_pax || 1))}%"></i></span></div><div class="lille">${r.s.pladser_tilbage} ledige</div></td>
+        <td class="h">${chipProg(r.p)}</td>
+        <td class="h">${lyTxt}</td>
+        <td>${sparkline(r)}</td>
+        <td class="h tal">${tal(r.pris_nu)}</td>
+        <td class="h">${forslagPris(r)}</td>
+        <td class="besl-ikon ${b === "følg" ? "foelg" : b === "afvis" ? "afvis" : b === "senere" ? "senere" : ""}" title="${b || "Ikke besluttet"}">${b === "følg" ? "✓" : b === "afvis" ? "✕" : b === "senere" ? "⏱" : ""}</td>
+      </tr>`;
+    }
+  }
+  if (!L.length) h = `<tr><td colspan="${KOL.length}" style="padding:30px;text-align:center;color:var(--graa)">${T.koe === "beslut" ? "Alle forslag i dag er besluttet. Godt gået." : "Ingen afgange matcher filtrene."}</td></tr>`;
+  document.getElementById("linjer").innerHTML = h;
+  const ant = c => F.filter(r => c(r)).length;
+  document.getElementById("n-beslut").textContent = ant(r => r.forslag !== "hold øje" && !beslutning(r));
+  document.getElementById("n-holdoeje").textContent = ant(r => r.forslag === "hold øje");
+  document.getElementById("n-besluttet").textContent = ant(r => !!beslutning(r));
+  document.getElementById("n-alle").textContent = F.length;
+  const ab = document.getElementById("alleBoks");
+  ab.checked = L.length > 0 && L.every(r => T.markeret.has(r.turkode));
+  ab.onclick = e => { e.stopPropagation(); if (ab.checked) L.forEach(r => T.markeret.add(r.turkode)); else L.forEach(r => T.markeret.delete(r.turkode)); tegnTabel(); };
+  tegnBulk();
+  if (!T.valgt || !L.find(r => r.turkode === T.valgt)) { T.valgt = L[0]?.turkode || null; }
+  tegnDetalje(document.getElementById("detalje"), T.valgt);
+  markerValgt();
+}
+function markerValgt() {
+  document.querySelectorAll("#linjer tr.r").forEach(tr => tr.classList.toggle("valgt", tr.dataset.t === T.valgt));
+  const tr = document.querySelector(`#linjer tr.r[data-t="${T.valgt}"]`);
+  if (tr) { const ark = document.getElementById("ark"), top = tr.offsetTop - 70, bund = tr.offsetTop + tr.offsetHeight - ark.clientHeight + 10; if (ark.scrollTop > top) ark.scrollTop = top; else if (ark.scrollTop < bund) ark.scrollTop = bund; }
+}
+function tegnBulk() {
+  const n = T.markeret.size, el = document.getElementById("bulk");
+  el.classList.toggle("vis", n > 0);
+  document.getElementById("bulkN").textContent = n + " valgt";
+}
+
+// ---------- detalje ----------
+function prisTrin(r) {
+  const op = [], p0 = r.pris_nu, loft = p0 * 1.10;
+  let p = Math.floor(p0 / 500) * 500 - 30; // …470 / …970
+  while (p <= p0) p += 500;
+  for (; p <= loft + 1; p += 500) op.push(p);
+  return op;
+}
+function kampagneTrin(r) {
+  const lo = Math.min(r.kampagne_pris_fra, r.kampagne_pris_til), hi = Math.max(r.kampagne_pris_fra, r.kampagne_pris_til);
+  const op = []; for (let p = hi; p >= lo - 1; p -= 500) op.push(p);
+  return op;
+}
+function argumenter(r) {
+  const s = r.s, imod = [];
+  if (r.forslag !== "hold øje") {
+    if (s.pointmodel_pris && s.pointmodel_pris < r.pris_nu) imod.push(`Pointmodellen (Power BI) siger ${kr(s.pointmodel_pris)}, altså lavere end prisen i dag`);
+    if (r.forslag === "hæv" && r.p.status === "bagud") imod.push(`Bagud på købskurven: forventet ${tal(r.p.forventet)} af ${r.max_pax} solgt ved afrejse. Stigninger på afgange bagud på kurven har kostet ca. 11 % af salget`);
+    if (r.forslag === "hæv" && r.forslag_pris_til && r.forslag_pris_til / r.pris_nu - 1 > 0.06) imod.push("Den øverste ende af spændet er over +6 %. Stigninger over 6 % har kostet ca. 30 % af salget de næste 4 uger");
+    if (s.sig_web && s.sess_14d && s.sess_14d_betalt / s.sess_14d > 0.4) imod.push(`${tal(s.sess_14d_betalt)} af ${tal(s.sess_14d)} besøg på tursiden er betalt trafik, så en del af interessen er købt`);
+    if (s.sig_tempo && s.sidste_aars_tur && s.ly_solgt_nu != null && s.ly_solgt_nu <= 3) imod.push(`Små tal: sidste års afgang havde kun ${s.ly_solgt_nu} solgt på samme tidspunkt`);
+    if (r.forslag === "kampagne" && r.p.status === "foran") imod.push("Prognosen mod købskurven ser fin ud, så en kampagne kan være for tidlig");
+    if (s.netop_haevet) imod.push("Prisen er hævet inden for de seneste 7 dage");
+  }
+  return { for: r.begrundelser || [], imod };
+}
+function kortSagt(r) {
+  const p = r.p;
+  const progTxt = p.forventet != null && p.status !== "udsolgt" ? `Med ${r.solgt} solgt ${r.dage} dage før afrejse peger ${p.kurve.navn} på ca. ${tal(p.forventet)} solgte pladser ved afrejse (${pctU(Math.min(p.grad, 3) * 100)} af ${r.max_pax}).` : p.status === "udsolgt" ? "Afgangen er udsolgt." : (p.andel != null ? `Det er for tidligt at læse kurven: normalt er kun ${pctU(p.andel * 100)} af pladserne solgt ${r.dage} dage før afrejse.` : "Det er for tidligt at læse kurven.");
+  return progTxt;
+}
+function graf(r, ly) {
+  const W = 448, H = 210, m = { l: 26, r: 84, t: 14, b: 30 };
+  const iw = W - m.l - m.r, ih = H - m.t - m.b;
+  const cur = kurveIAar(r);
+  const lyP = ly ? (SALG[ly] || []) : [];
+  const fv = [];
+  if (r.p.forventet != null && r.p.status !== "udsolgt") {
+    const k = KURVE[r.turkode];
+    if (k && r.p.andel) for (let d = r.dage; d >= 0; d -= 5) fv.push([d, Math.min(r.max_pax, r.solgt * Math.min(1, andel(k, d)) / r.p.andel)]);
+    else fv.push([r.dage, r.solgt], [0, r.p.forventet]);
+  }
+  const maxY = Math.max(r.max_pax, ...lyP.map(p => p[1]), ...fv.map(p => Math.min(p[1], r.max_pax * 1.5)), 1) * 1.08;
+  const X = d => m.l + (1 - Math.min(d, 365) / 365) * iw, Y = v => m.t + ih - (Math.min(v, maxY) / maxY) * ih;
+  let s = `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Salgskurve for ${r.turkode}">`;
+  for (const d of [365, 300, 240, 180, 120, 60, 0]) s += `<line x1="${X(d)}" x2="${X(d)}" y1="${m.t}" y2="${m.t + ih}" stroke="#F2F2F2"/><text x="${X(d)}" y="${m.t + ih + 13}" font-size="10" fill="#8C8C8C" text-anchor="middle">${d}</text>`;
+  s += `<text x="${m.l + iw / 2}" y="${H - 3}" font-size="10" fill="#8C8C8C" text-anchor="middle">dage før afrejse</text>`;
+  const yt = [0, Math.round(r.max_pax / 2), r.max_pax];
+  for (const v of yt) s += `<text x="${m.l - 6}" y="${Y(v) + 3}" font-size="10" fill="#8C8C8C" text-anchor="end">${v}</text>`;
+  s += `<line x1="${m.l}" x2="${m.l + iw}" y1="${Y(r.max_pax)}" y2="${Y(r.max_pax)}" stroke="#8C8C8C" stroke-dasharray="3 3"/>`;
+  const etk = [{ y: Y(r.max_pax), t: "max " + r.max_pax, c: "#8C8C8C" }];
+  // prisændringer
+  const pr = (PRISER[r.turkode] || []).filter(p => p[0] != null && p[0] >= r.dage && p[0] <= 365);
+  pr.forEach((p, i) => { if (i === 0 && !(PRISER[r.turkode][0][0] < 365)) return; s += `<line x1="${X(p[0])}" x2="${X(p[0])}" y1="${m.t}" y2="${m.t + ih}" stroke="#0D5879" stroke-opacity=".18"/><path d="M${X(p[0]) - 4},${m.t + ih} l4,-6 l4,6z" fill="#0D5879"><title>${p[0]} dage før: ${kr(p[1])}</title></path>`; });
+  if (lyP.length > 1) s += `<polyline fill="none" stroke="#BDBDBD" stroke-width="2" points="${lyP.map(p => X(p[0]) + "," + Y(p[1])).join(" ")}"/>`; if (lyP.length > 1) etk.push({ y: Y(lyP[lyP.length - 1][1]), t: lyP[lyP.length - 1][1] + " sidste år", c: "#8C8C8C" });
+  if (fv.length > 1) { const sl = fv[fv.length - 1][1]; s += `<polyline fill="none" stroke="#0D5879" stroke-width="2" stroke-dasharray="4 3" stroke-opacity=".55" points="${fv.map(p => X(p[0]) + "," + Y(p[1])).join(" ")}"/>`; etk.push({ y: Y(sl), t: "≈" + tal(sl) + " prognose", c: "#0D5879" }); }
+  if (cur.length > 1) s += `<polyline fill="none" stroke="#0D5879" stroke-width="2.4" points="${cur.map(p => X(p[0]) + "," + Y(p[1])).join(" ")}"/>`;
+  s += `<line x1="${X(r.dage)}" x2="${X(r.dage)}" y1="${m.t}" y2="${m.t + ih}" stroke="#333" stroke-dasharray="2 2"/><text x="${X(r.dage)}" y="${m.t - 3}" font-size="10" fill="#333" text-anchor="middle">i dag</text><circle cx="${X(r.dage)}" cy="${Y(r.solgt)}" r="3.5" fill="#0D5879"/>`;
+  etk.sort((a, b) => a.y - b.y);
+  for (let i = 1; i < etk.length; i++) if (etk[i].y - etk[i - 1].y < 12) etk[i].y = etk[i - 1].y + 12;
+  etk.forEach(e => { s += `<text x="${m.l + iw + 5}" y="${e.y + 3}" font-size="10" fill="${e.c}">${e.t}</text>`; });
+  return s + "</svg>";
+}
+function tegnDetalje(el, turkode, efterHent) {
+  if (!turkode) { el.innerHTML = `<div class="afsnit tom">Vælg en afgang.</div>`; return; }
+  const r = FK[turkode] || null;
+  const a = AFGK[turkode];
+  const top = el.scrollTop;
+  if (el.dataset.t !== turkode) { el.scrollTop = 0; el.dataset.t = turkode; }
+  if (!efterHent) hentDetalje(turkode, el);
+  if (!r) { tegnAfgangUdenForslag(el, a); if (efterHent) el.scrollTop = top; return; }
+  const s = r.s, b = r.lokal || { beslutning: r.beslutning, feedback: r.feedback };
+  const ar = argumenter(r);
+  const lyTur = s.sidste_aars_tur;
+  let anbef;
+  if (r.forslag === "hæv") anbef = `<div class="anbef"><span class="stor tal">Hæv til ${tal(r.forslag_pris_fra)} kr.</span><span class="tal">${pct(100 * (r.forslag_pris_fra / r.pris_nu - 1), 1)} fra ${kr(r.pris_nu)}</span>${r.forslag_pris_til !== r.forslag_pris_fra ? `<span class="lille">spænd op til ${kr(r.forslag_pris_til)}</span>` : ""}</div>`;
+  else if (r.forslag === "kampagne") anbef = `<div class="anbef kampagne"><span class="stor tal">Kampagne ${tal(Math.min(r.kampagne_pris_fra, r.kampagne_pris_til))}–${tal(Math.max(r.kampagne_pris_fra, r.kampagne_pris_til))} kr.</span><span class="lille">på et fast antal pladser i en begrænset periode. Listeprisen ${kr(r.pris_nu)} bliver stående</span></div>`;
+  else anbef = `<div class="anbef holdoeje"><span class="stor">Hold øje · ingen prisændring i dag</span></div>`;
+  let stige = "";
   if (r.forslag === "hæv") {
-    const pf = 100 * (Number(r.forslag_pris_fra) / Number(r.pris_nu) - 1), pt = 100 * (Number(r.forslag_pris_til) / Number(r.pris_nu) - 1);
-    const spaend = r.forslag_pris_til && r.forslag_pris_til !== r.forslag_pris_fra ? `${tal(r.forslag_pris_fra)}–${tal(r.forslag_pris_til)}` : tal(r.forslag_pris_fra);
-    return `<b>${spaend}</b><span class="lille">${fortegn(pf)}${Math.round(pt) !== Math.round(pf) ? " til " + fortegn(pt) : ""}</span>`;
+    const op = prisTrin(r), valgt = b.pris ?? r.forslag_pris_fra;
+    stige = `<div class="afsnit"><h3>Vælg pris <span style="text-transform:none;letter-spacing:0">· …470/…970, højst +10 %</span></h3><div class="stige">${op.map(p => { const d = 100 * (p / r.pris_nu - 1); return `<button class="trin${p >= r.forslag_pris_fra && p <= r.forslag_pris_til ? " foreslaaet" : ""}${d > 6.0001 ? " over" : ""}${s.pointmodel_pris === p ? " pm" : ""}" data-p="${p}" aria-pressed="${p === valgt}"><b class="tal">${tal(p)}</b><span>${pct(d, 1)}${p >= r.forslag_pris_fra && p <= r.forslag_pris_til ? " · forslag" : ""}</span></button>`; }).join("")}</div>
+      <div class="advarsel" id="adv">Over +6 %: stigninger i den størrelse har kostet ca. 30 % af salget de næste 4 uger (effektanalysen 2024–26).</div>
+      <div class="note">Skraveret = over +6 %. Blå kant = maskinrummets forslag.${s.pointmodel_pris ? ` Pointmodellen: ${kr(s.pointmodel_pris)}${s.pointmodel_pris < r.pris_nu ? " (under prisen i dag)" : ""}.` : ""}</div></div>`;
+  } else if (r.forslag === "kampagne") {
+    const op = kampagneTrin(r), valgt = b.pris ?? op[0];
+    stige = `<div class="afsnit"><h3>Kampagnepris og pladser</h3><div class="stige">${op.map(p => `<button class="trin foreslaaet" data-p="${p}" aria-pressed="${p === valgt}"><b class="tal">${tal(p)}</b><span>${pct(100 * (p / r.pris_nu - 1), 1)}</span></button>`).join("")}</div>
+      <div style="margin-top:8px;display:flex;gap:8px;align-items:center">på <input type="number" min="1" max="${s.pladser_tilbage}" value="${b.pladser ?? Math.min(4, s.pladser_tilbage)}" id="kPladser" style="width:56px;border:1px solid var(--linje);border-radius:6px;padding:4px 6px"> pladser i <select id="kPeriode" style="border:1px solid var(--linje);border-radius:6px;padding:4px 6px"><option>14 dage</option><option>21 dage</option><option>30 dage</option></select></div>
+      <div class="note">Laveste pris de seneste 30 dage hentes fra prisloggen, hvis kampagnen skal vise en førpris.</div></div>`;
   }
-  if (r.forslag === "kampagne") return `<b>${tal(r.kampagne_pris_til)}–${tal(r.kampagne_pris_fra)}</b><span class="lille">kampagnepris</span>`;
-  return '<span class="dim">–</span>';
-}
-
-function linje(r) {
-  const s = r._s;
-  const ly = s.sidste_aars_tur
-    ? `${s.ly_solgt_nu ?? 0}/${s.ly_max_pax ?? "–"}${r._ly_vaekst != null ? `<span class="lille ${r._ly_vaekst >= 0 ? "op" : "ned"}">${fortegn(r._ly_vaekst)}</span>` : '<span class="lille">&nbsp;</span>'}`
-    : '<span class="dim">ingen</span>';
-  const pm = r._pm == null ? '<span class="dim">–</span>'
-    : `<span class="${r._pm < Number(r.pris_nu) ? "adv" : ""}">${tal(r._pm)}</span><span class="lille">${r._pm < Number(r.pris_nu) ? "lavere end i dag" : r._pm > Number(r.pris_nu) ? "højere end i dag" : "som i dag"}</span>`;
-  const web = r._web == null ? '<span class="dim">–</span>'
-    : `<span class="${s.sig_web ? "op" : ""}">${fortegn(r._web)}</span><span class="lille">${s.sess_14d} mod ${s.sess_14d_sidste_aar}</span>`;
-  return `<tr class="linje${aabne.has(r.forslag_id) ? " aaben" : ""}" data-id="${r.forslag_id}">
-    <td><span class="kode">${esc(r.turkode)}</span>${r.nyt ? '<span class="pille ny">Ny</span>' : ""}${r.groenland ? '<span class="pille gl">GL</span>' : ""}<span class="navn" title="${esc(s.navn)}">${esc(s.navn || "")}</span></td>
-    <td><span class="pille ${KLASSE[r.forslag]}">${NAVN[r.forslag]}</span></td>
-    <td class="t">${dato(r.afrejse)}<span class="lille">${r.dage_til_afrejse} dage</span></td>
-    <td class="t"><b>${s.solgt ?? "–"}/${s.max_pax ?? "–"}</b><span class="lille">${s.pladser_tilbage > 0 ? s.pladser_tilbage + " ledige" : "udsolgt"}</span></td>
-    <td class="t">${ly}</td>
-    <td class="t">${tal(r.pris_nu)}</td>
-    <td class="t">${prisForslag(r)}</td>
-    <td class="t skjul-smal">${pm}</td>
-    <td class="t skjul-smal">${web}</td>
-    <td>${r.beslutning ? `<span class="beslutning ${esc(r.beslutning)}">${esc(r.beslutning[0].toUpperCase() + r.beslutning.slice(1))}</span><span class="lille">${esc(r.initialer || "")}</span>` : '<span class="dim">Åbn ▸</span>'}</td>
-  </tr>`;
-}
-
-function sammenligning(r) {
-  const s = r._s;
-  const harLy = !!s.sidste_aars_tur;
-  const lyTxt = (v) => harLy ? v : '<span class="dim">–</span>';
-  const n = Number(s.ly_stigninger_samme_periode || 0);
-  const lyStig = n === 0 ? "ingen" : `${n} (${s.ly_stigning_pct_samme_periode != null ? "+" + komma(s.ly_stigning_pct_samme_periode) + " %" : ""})`;
-  const siden = s.seneste_stigning ? `siden prisstigning ${dato(s.seneste_stigning)}` : "siden salgsstart";
-  const linjer = [
-    ["Solgte pladser nu", `${s.solgt}/${s.max_pax}`, lyTxt(`${s.ly_solgt_nu ?? 0}/${s.ly_max_pax ?? "–"}`)],
-    ["Pris på dette tidspunkt", kr(r.pris_nu), lyTxt(kr(s.ly_pris_nu))],
-    [`Solgt ${siden}`, s.solgt_siden_stigning ?? 0, lyTxt(s.ly_solgt_samme_periode ?? 0)],
-    ["Prisstigninger i samme periode", "–", lyTxt(lyStig)],
-    ["Besøg på tursiden, 14 dage", s.sess_14d ?? "–", s.sess_14d_sidste_aar ?? "–"],
-    ["Endte med (sidste år)", "", lyTxt(`${s.ly_solgt_ialt ?? "–"} solgt, ${kr(s.ly_slutpris)}`)],
-  ];
-  return `<table class="sml"><thead><tr><th></th><th class="t">I år<br>${esc(r.turkode)}</th><th class="t">Sidste år<br>${harLy ? esc(s.sidste_aars_tur) : "ingen afgang"}</th></tr></thead><tbody>${
-    linjer.map(([a, b, c]) => `<tr><td>${a}</td><td class="t">${b}</td><td class="t">${c}</td></tr>`).join("")
-  }</tbody></table>
-  <p class="lille" style="margin-top:6px">Sidste år er målt samme antal dage før afrejse som i dag (${r.dage_til_afrejse} dage).${
-    s.web_vaekst_alle != null ? ` Alle tursider på topas.dk: ${fortegn(100 * Number(s.web_vaekst_alle) - 100)} mod sidste år.` : ""}${
-    Number(s.sess_14d_betalt) > 0 ? ` Heraf betalt trafik i år: ${s.sess_14d_betalt}.` : ""}${
-    Number(s.annonceforbrug_30d_kr) > 0 ? ` Meta-annoncer 30 dage: ${kr(s.annonceforbrug_30d_kr)}` : ""}</p>`;
-}
-
-function detalje(r) {
-  const tr = document.createElement("tr");
-  tr.className = "detalje";
-  tr.innerHTML = `<td colspan="10"><div class="detaljer">
-    <div><h4>Hvorfor</h4><ul>${(r.begrundelser || []).map((b) => `<li>${esc(b)}</li>`).join("") || "<li>Ingen begrundelse</li>"}</ul>
-      ${r._pm != null ? `<p class="lille" style="margin-top:8px">Pointmodellen i Power BI siger ${kr(r._pm)}${r._pm < Number(r.pris_nu) ? ", altså lavere end prisen i dag. At følge den ville være et prisfald, som kræver kompensation." : "."}</p>` : ""}</div>
-    <div><h4>I år mod sidste år</h4>${sammenligning(r)}</div>
-    <div class="beslut"><h4>Din beslutning</h4>
-      <div class="knapper">
-        <button class="valg foelg" data-v="følg">Følg</button>
-        <button class="valg afvis" data-v="afvis">Afvis</button>
-        <button class="valg senere" data-v="senere">Senere</button>
+  const lyTabel = lyTur ? `<table class="sml"><tr><th></th><th class="h">I år · ${r.turkode}</th><th class="h">Sidste år · ${lyTur}</th></tr>
+      <tr><td>Solgt ${r.dage} dage før</td><td class="h tal">${r.solgt}/${r.max_pax}</td><td class="h tal">${tal(s.ly_solgt_nu)}/${tal(s.ly_max_pax)}</td></tr>
+      <tr><td>Pris ${r.dage} dage før</td><td class="h tal">${kr(r.pris_nu)}</td><td class="h tal">${kr(s.ly_pris_nu)}</td></tr>
+      ${s.seneste_stigning ? `<tr><td>Solgt siden stigning ${kortDato(s.seneste_stigning)}</td><td class="h tal">${tal(s.solgt_siden_stigning)}</td><td class="h tal">${tal(s.ly_solgt_samme_periode)}${s.ly_stigninger_samme_periode ? ` · hævet ${s.ly_stigninger_samme_periode}× (${pct(s.ly_stigning_pct_samme_periode, 1)})` : ""}</td></tr>` : ""}
+      <tr><td>Endte med</td><td class="h">–</td><td class="h tal">${tal(s.ly_solgt_ialt)} solgt · ${kr(s.ly_slutpris)}</td></tr></table>` : `<div class="tom">Ingen afgang med samme turkode sidste år. Prognosen bruger ${r.p.kurve.navn}.</div>`;
+  const pr = PRISER[r.turkode] || [];
+  const forloeb = pr.length ? pr.map(p => `<span class="pt tal">${tal(p[1])}${p[0] != null ? ` <span class="lille">(${p[0]} d)</span>` : ""}</span>`).join(" → ") : DETALJE[r.turkode] === "ok" ? '<span class="tom">Ingen pristrin i Tur Booking</span>' : DETALJE[r.turkode] === "henter" ? '<span class="tom">Henter …</span>' : `<span class="tom">${s.seneste_stigning ? "Seneste stigning " + dato(s.seneste_stigning) + ". " : ""}Hele prisforløbet kommer med maskinrummets detaljekald.</span>`;
+  const web = s.sess_14d != null ? `Tursiden: ${tal(s.sess_14d)} besøg på 14 dage mod ${tal(s.sess_14d_sidste_aar)} sidste år${s.sess_14d_betalt ? ` (heraf betalt ${tal(s.sess_14d_betalt)})` : ""}. Alle tursider: ${pct(100 * (s.web_vaekst_alle - 1))}.` : "";
+  el.innerHTML = `
+    <div class="hoved">
+      <div style="display:flex;justify-content:space-between;gap:8px;align-items:start">
+        <div><h2>${r.turkode}${r.nyt ? '<span class="chip ny">Ny i dag</span>' : ""}${s.tjekpunkt ? `<span class="chip gl">Tjekpunkt ${s.tjekpunkt} dage</span>` : ""}</h2><div class="navn">${esc(r.navn)}</div><div class="lille">Afrejse ${dato(r.afrejse)} · ${r.dage} dage · ${r.region}</div></div>
+        <div>${chipForslag(r.forslag)}</div>
       </div>
-      <textarea maxlength="2000" placeholder="Hvorfor? Fx hvis du er uenig (valgfrit)">${esc(r.feedback || "")}</textarea>
-      <button class="gem" disabled>Gem</button>
-      <div class="status">${r.beslutning ? `Gemt: ${esc(r.beslutning)} (${esc(r.initialer || "")})` : ""}</div>
+      <div style="margin-top:10px">${anbef}</div>
+      <div class="kortsagt">${kortSagt(r)}</div>
+      <div class="noegle">
+        <div><b class="tal">${r.solgt}/${r.max_pax}</b><span>solgt · ${s.pladser_tilbage} ledige</span></div>
+        <div><b>${chipProg(r.p)}</b><span>prognose ved afrejse</span></div>
+        <div><b class="tal">${lyTur ? tal(s.ly_solgt_nu) + "/" + tal(s.ly_max_pax) : "–"}</b><span>sidste år samme dag</span></div>
+        <div><b class="tal">${tal(s.solgt_14d)}</b><span>solgt 14 dage</span></div>
+      </div>
     </div>
-  </div></td>`;
-  let valgt = r.beslutning || null;
-  const knapper = tr.querySelectorAll(".valg");
-  const gem = tr.querySelector(".gem");
-  const tekst = tr.querySelector("textarea");
-  const status = tr.querySelector(".status");
-  const markér = () => knapper.forEach((k) => k.classList.toggle("aktiv", k.dataset.v === valgt));
-  markér();
-  const opdaterGem = () => { gem.disabled = !valgt || (valgt === r.beslutning && tekst.value.trim() === (r.feedback || "")); };
-  knapper.forEach((k) => (k.onclick = () => { valgt = valgt === k.dataset.v ? null : k.dataset.v; markér(); opdaterGem(); }));
-  tekst.oninput = opdaterGem;
-  gem.onclick = async () => {
-    gem.disabled = true;
-    status.className = "status";
-    status.textContent = "Gemmer …";
-    const { error } = await sb.rpc("pris_giv_beslutning", { p_forslag_id: r.forslag_id, p_beslutning: valgt, p_feedback: tekst.value });
-    if (error) { status.className = "status fejl"; status.textContent = "Kunne ikke gemme: " + error.message; opdaterGem(); return; }
-    r.beslutning = valgt; r.feedback = tekst.value.trim(); r.initialer = initialer();
-    status.className = "status ok";
-    status.textContent = `Gemt: ${valgt}${r.feedback ? " med begrundelse" : ""}`;
-    const l = tr.previousElementSibling;
-    if (l) l.cells[9].innerHTML = `<span class="beslutning ${esc(valgt)}">${esc(valgt[0].toUpperCase() + valgt.slice(1))}</span><span class="lille">${esc(r.initialer)}</span>`;
-    opdaterGem();
-    taelFaner();
-  };
-  return tr;
+    <div class="afsnit graf"><h3>Salgskurve</h3>${graf(r, lyTur)}
+      <div class="forklar"><span><i style="border-color:#0D5879"></i>i år</span><span><i style="border-color:#0D5879;border-top-style:dashed;opacity:.6"></i>prognose (${r.p.kurve.navn})</span>${lyTur ? `<span><i style="border-color:#BDBDBD"></i>sidste år (${lyTur})</span>` : ""}<span>▲ prisstigning</span></div></div>
+    <div class="afsnit"><h3>Hvorfor</h3><div class="argumenter">
+      <div class="for"><h4>Taler for</h4><ul>${ar.for.length ? ar.for.map(x => `<li>${esc(x)}</li>`).join("") : '<li class="tom">Ingen signaler</li>'}</ul></div>
+      <div class="imod"><h4>Taler imod</h4><ul>${ar.imod.length ? ar.imod.map(x => `<li>${esc(x)}</li>`).join("") : '<li class="tom">Intet modsignal i data</li>'}</ul></div>
+    </div>${web ? `<div class="note">${web}</div>` : ""}</div>
+    ${stige}
+    <div class="afsnit"><h3>Din beslutning</h3>
+      <div class="beslut">
+        <button class="knap fl" data-v="følg" aria-pressed="${b.beslutning === "følg"}">${r.forslag === "hold øje" ? "Enig" : "Følg"} <kbd>F</kbd></button>
+        <button class="knap afv" data-v="afvis" aria-pressed="${b.beslutning === "afvis"}">Afvis <kbd>A</kbd></button>
+        <button class="knap sen" data-v="senere" aria-pressed="${b.beslutning === "senere"}">Senere <kbd>S</kbd></button>
+      </div>
+      <div class="aarsager ${b.beslutning === "afvis" ? "vis" : ""}" id="aarsager">${["Gruppe eller blokbooking på vej", "Omkostning eller fly ændrer sig", "Konkurrent er billigere", "Markedsføring er planlagt", "For tidligt", "Data er forkerte", "Andet"].map(x => `<button data-a="${x}" aria-pressed="${b.aarsag === x}">${x}</button>`).join("")}</div>
+      <div class="aarsager ${b.beslutning === "senere" ? "vis" : ""}" id="senere">${["I morgen", "Om 7 dage", "Ved næste tjekpunkt", "Ved næste salg"].map(x => `<button data-u="${x}" aria-pressed="${b.udsaet === x}">${x}</button>`).join("")}</div>
+      <textarea id="fb" placeholder="Hvorfor? Fx hvis du er uenig (valgfrit). Det bruges til at gøre forslagene bedre.">${esc(b.feedback || "")}</textarea>
+      <div style="display:flex;gap:8px;align-items:center;margin-top:8px"><button class="knap primaer" id="gem" ${b.beslutning ? "" : "disabled"}>Gem og næste <kbd style="background:none;color:#fff;border-color:rgba(255,255,255,.5)">↵</kbd></button><span class="lille" id="gemt">${r.beslutning ? `Gemt: ${esc(r.beslutning)}${r.initialer ? " (" + esc(r.initialer) + ")" : ""}` : ""}</span>${r.beslutning ? '<button class="knap" id="fortryd" style="margin-left:auto">Fortryd</button>' : ""}</div>
+      <div class="genveje"><kbd>↑</kbd><kbd>↓</kbd> skift afgang · <kbd>F</kbd> <kbd>A</kbd> <kbd>S</kbd> beslut · <kbd>X</kbd> markér · <kbd>/</kbd> søg</div>
+    </div>
+    <div class="afsnit"><h3>I år mod sidste år</h3>${lyTabel}</div>
+    <div class="afsnit"><h3>Prisforløb (Tur Booking)</h3><div class="prisforloeb">${forloeb}</div></div>`;
+  // hændelser
+  const tilst = r.lokal || (r.lokal = { beslutning: r.beslutning, feedback: r.feedback || "", pris: null, gemt: false });
+  const opdGem = () => { el.querySelector("#gem").disabled = !tilst.beslutning; };
+  el.querySelectorAll(".beslut .knap").forEach(k => k.onclick = () => vaelgBeslutning(el, r, k.dataset.v));
+  el.querySelectorAll("#aarsager button").forEach(k => k.onclick = () => { tilst.aarsag = k.dataset.a; el.querySelectorAll("#aarsager button").forEach(x => x.setAttribute("aria-pressed", x === k)); });
+  el.querySelectorAll("#senere button").forEach(k => k.onclick = () => { tilst.udsaet = k.dataset.u; el.querySelectorAll("#senere button").forEach(x => x.setAttribute("aria-pressed", x === k)); });
+  el.querySelectorAll(".stige .trin").forEach(k => k.onclick = () => { tilst.pris = +k.dataset.p; el.querySelectorAll(".stige .trin").forEach(x => x.setAttribute("aria-pressed", x === k)); visAdv(el, r, tilst.pris); });
+  if (r.forslag === "hæv") visAdv(el, r, tilst.pris ?? r.forslag_pris_fra);
+  el.querySelector("#fb").oninput = e => { tilst.feedback = e.target.value; };
+  el.querySelector("#gem").onclick = () => gem(r, el);
+  const fo = el.querySelector("#fortryd"); if (fo) fo.onclick = () => { r.lokal = { ...tilst, beslutning: "fortryd" }; gem(r, el); };
+  const kp = el.querySelector("#kPladser"); if (kp) { tilst.pladser ??= +kp.value; kp.oninput = () => { tilst.pladser = +kp.value; }; }
+  const kd = el.querySelector("#kPeriode"); if (kd) { tilst.periode ??= parseInt(kd.value); kd.onchange = () => { tilst.periode = parseInt(kd.value); }; }
+  opdGem();
+  if (efterHent) el.scrollTop = top;
+}
+function visAdv(el, r, p) { const a = el.querySelector("#adv"); if (a) a.classList.toggle("vis", p / r.pris_nu - 1 > 0.06001); }
+function vaelgBeslutning(el, r, v) {
+  const t = r.lokal; t.beslutning = v; t.gemt = false;
+  el.querySelectorAll(".beslut .knap").forEach(x => x.setAttribute("aria-pressed", x.dataset.v === v));
+  el.querySelector("#aarsager").classList.toggle("vis", v === "afvis");
+  el.querySelector("#senere").classList.toggle("vis", v === "senere");
+  el.querySelector("#gem").disabled = false;
+}
+// Gemmer via pris_giv_beslutning. Med S5 sendes pris, årsag og udsættelse som felter; uden S5 skrives de forrest i feedbacken.
+const AARSAG_KODE = { "Gruppe eller blokbooking på vej": "gruppe_paa_vej", "Omkostning eller fly ændrer sig": "omkostning", "Konkurrent er billigere": "konkurrent", "Markedsføring er planlagt": "markedsfoering", "For tidligt": "for_tidligt", "Data er forkerte": "data_forkert", "Andet": "andet" };
+const UDSAET_KODE = { "I morgen": "i_morgen", "Om 7 dage": "7_dage", "Ved næste tjekpunkt": "naeste_tjekpunkt", "Ved næste salg": "naeste_salg" };
+let S5 = true;
+async function send(r, t) {
+  const pris = t.beslutning === "følg" && r.forslag !== "hold øje" ? (t.pris ?? (r.forslag === "hæv" ? r.forslag_pris_fra : Math.max(r.kampagne_pris_fra, r.kampagne_pris_til))) : null;
+  const fri = (t.feedback || "").trim();
+  if (S5) {
+    const { error } = await sb.rpc("pris_giv_beslutning", { p_forslag_id: r.forslag_id, p_beslutning: t.beslutning, p_feedback: fri, p_valgt_pris: pris, p_aarsag: t.beslutning === "afvis" ? AARSAG_KODE[t.aarsag] ?? null : null, p_udsaet_til: t.beslutning === "senere" ? UDSAET_KODE[t.udsaet] ?? null : null, p_kampagne_pladser: r.forslag === "kampagne" && t.beslutning === "følg" ? t.pladser ?? null : null, p_kampagne_dage: r.forslag === "kampagne" && t.beslutning === "følg" ? t.periode ?? null : null });
+    if (!error) return null;
+    if (!(error.code === "PGRST202" || /Could not find the function/i.test(error.message))) return error;
+    S5 = false;
+  }
+  const mærker = [pris ? `[pris ${pris}]` : "", t.beslutning === "følg" && r.forslag === "kampagne" && t.pladser ? `[pladser ${t.pladser}, ${t.periode || 14} dage]` : "", t.beslutning === "afvis" && t.aarsag ? `[årsag: ${t.aarsag}]` : "", t.beslutning === "senere" && t.udsaet ? `[senere: ${t.udsaet}]` : ""].filter(Boolean).join(" ");
+  const { error } = await sb.rpc("pris_giv_beslutning", { p_forslag_id: r.forslag_id, p_beslutning: t.beslutning, p_feedback: (mærker + (mærker && fri ? " " : "") + fri).slice(0, 2000) });
+  return error || null;
+}
+async function gem(r, el) {
+  const t = r.lokal;
+  if (!t?.beslutning) return;
+  const knap = el.querySelector("#gem"); if (knap) knap.disabled = true;
+  const st = el.querySelector("#gemt"); if (st) st.textContent = "Gemmer …";
+  const fejl = await send(r, t);
+  if (fejl) { if (st) { st.textContent = "Kunne ikke gemme: " + fejl.message; st.style.color = "var(--roed)"; } if (knap) knap.disabled = false; return; }
+  r.beslutning = t.beslutning === "fortryd" ? null : t.beslutning; r.feedback = t.feedback; r.initialer = INITIALER; t.gemt = true;
+  toast(t.beslutning === "fortryd" ? `${r.turkode}: beslutningen er fortrudt` : `${r.turkode}: ${t.beslutning}${t.beslutning === "følg" && t.pris ? " · " + kr(t.pris) : ""}${t.aarsag && t.beslutning === "afvis" ? " · " + t.aarsag : ""} er gemt`);
+  if (t.beslutning === "fortryd") r.lokal = null;
+  tegnKpi();
+  const L = synlige(), i = L.findIndex(x => x.turkode === r.turkode);
+  if (el.id === "detalje") { const naeste = L[i + 1] || L[i - 1]; T.valgt = (T.koe === "beslut" ? (synlige().find((x, j) => j >= Math.max(0, i)) || naeste) : naeste)?.turkode || r.turkode; tegnTabel(); }
+  else { tegnDetalje(el, r.turkode); tegnPort(); }
+}
+function tegnAfgangUdenForslag(el, a) {
+  const navn = NAVN_SERIE[a.turkode.slice(0, 4)] || "";
+  const r = { ...a, s: {}, begrundelser: [] };
+  el.innerHTML = `<div class="hoved"><h2>${a.turkode}</h2><div class="navn">${esc(navn)}</div><div class="lille">Afrejse ${dato(a.afrejse)} · ${a.dage} dage · ${a.region}</div>
+      <div style="margin-top:10px" class="anbef holdoeje"><span class="stor">Intet forslag i dag</span></div>
+      <div class="kortsagt">${kortSagt(r)}</div>
+      <div class="noegle"><div><b class="tal">${a.solgt}/${a.max_pax}</b><span>solgt</span></div><div><b>${chipProg(a.p)}</b><span>prognose</span></div><div><b class="tal">${a.ly_tur ? tal(a.ly_solgt) : "–"}</b><span>sidste år samme dag</span></div><div><b class="tal">${tal(a.pris_nu)}</b><span>pris i dag</span></div></div></div>
+    <div class="afsnit graf"><h3>Salgskurve</h3>${SALG[a.turkode] || (a.ly_tur && SALG[a.ly_tur]) ? graf(r, a.ly_tur) : '<div class="tom">Salgskurven kommer med maskinrummets detaljekald.</div>'}</div>
+    <div class="afsnit"><div class="note">Maskinrummet har ikke givet et forslag på afgangen i dag. I den færdige version kan man herfra bede om en ny vurdering eller sætte en påmindelse.</div></div>`;
 }
 
-function taelFaner() {
-  const n = {
-    "alle": rows.length,
-    "hæv": rows.filter((r) => r.forslag === "hæv").length,
-    "kampagne": rows.filter((r) => r.forslag === "kampagne").length,
-    "hold øje": rows.filter((r) => r.forslag === "hold øje").length,
-    "nyt": rows.filter((r) => r.nyt).length,
-    "ubesvaret": rows.filter((r) => !r.beslutning && r.forslag !== "hold øje").length,
+// ---------- portefølje ----------
+function tegnPort() {
+  const md = []; for (let i = 0; i < 12; i++) { const d = new Date(2026, 10 + i, 1); md.push(d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0")); }
+  const serier = {};
+  AFG.forEach(a => { const k = a.turkode.slice(0, 4); (serier[k] ||= { k, region: a.region, afg: [] }).afg.push(a); });
+  let liste = Object.values(serier);
+  if (T.portKun) liste = liste.filter(s => s.afg.some(a => a.f && a.f.forslag !== "hold øje"));
+  const farve = a => {
+    if (T.farve === "ly") {
+      if (!a.ly_tur || a.ly_solgt == null) return "tidligt";
+      const d = a.solgt - a.ly_solgt; return d >= 2 ? "foran" : d <= -2 ? "bagud" : "paa";
+    }
+    return a.p.status;
   };
-  for (const k in n) $("n-" + k).textContent = n[k];
-}
-
-function tegn() {
-  const liste = filtreret();
-  const tb = $("linjer");
-  tb.innerHTML = liste.length ? liste.map(linje).join("") : '<tr><td colspan="10" class="dim">Ingen afgange matcher.</td></tr>';
-  for (const r of liste) if (aabne.has(r.forslag_id)) tb.querySelector(`tr[data-id="${r.forslag_id}"]`).after(detalje(r));
-  $("viser").textContent = `Viser ${liste.length} af ${rows.length} afgange · klik på en linje for detaljer`;
-  document.querySelectorAll("#ark thead th").forEach((th) => {
-    const på = sortering && th.dataset.s === sortering.felt;
-    th.classList.toggle("sorteret", !!på);
-    th.classList.toggle("op", !!(på && sortering.op));
+  let h = `<table><thead><tr><th class="serie">Serie</th>${md.map(m => `<th>${MD[+m.slice(5) - 1]} ${m.slice(2, 4)}</th>`).join("")}<th class="h">Solgt</th></tr></thead><tbody>`;
+  for (const reg of ["Europa", "Grønland", "Oversøisk"]) {
+    const ser = liste.filter(s => s.region === reg).sort((a, b) => a.k.localeCompare(b.k));
+    if (!ser.length) continue;
+    const sol = ser.reduce((x, s) => x + s.afg.reduce((y, a) => y + a.solgt, 0), 0), mx = ser.reduce((x, s) => x + s.afg.reduce((y, a) => y + a.max_pax, 0), 0);
+    h += `<tr class="region"><td class="serie" style="background:var(--bg)">${reg} <span class="lille">${ser.length} serier</span></td><td colspan="${md.length}"></td><td class="sum tal">${tal(sol)}/${tal(mx)}</td></tr>`;
+    for (const s of ser) {
+      const sol = s.afg.reduce((y, a) => y + a.solgt, 0), mx = s.afg.reduce((y, a) => y + a.max_pax, 0);
+      h += `<tr><td class="serie"><b>${s.k}</b><span>${esc(NAVN_SERIE[s.k] || "")}</span></td>`;
+      for (const m of md) {
+        const fs = s.afg.filter(a => a.afrejse.slice(0, 7) === m);
+        h += `<td class="md">${fs.map(a => { const f = a.f && a.f.forslag !== "hold øje" ? (a.f.forslag === "hæv" ? " f-haev" : " f-kampagne") : ""; return `<span class="felt ${farve(a)}${f}${T.valgt2 === a.turkode ? " valgt" : ""}" data-t="${a.turkode}" style="${T.valgt2 === a.turkode ? "outline:2px solid #333;outline-offset:2px" : ""}">${a.max_pax ? Math.round(100 * a.solgt / a.max_pax) : ""}</span>`; }).join("")}</td>`;
+      }
+      h += `<td class="sum tal">${sol}/${mx}</td></tr>`;
+    }
+  }
+  document.getElementById("port").innerHTML = (PORT_FULD ? "" : `<div class="note" style="padding:8px 10px;margin:0">Viser de ${AFG.length} afgange med forslag eller hold øje. Alle afgange 14–365 dage kommer med, når maskinrummets porteføljekald er klar.</div>`) + h + "</tbody></table>";
+  document.getElementById("legende").innerHTML = (T.farve === "ly" ? `<span><span class="felt foran"></span>mindst 2 flere solgt end sidste år</span><span><span class="felt paa"></span>på niveau (±1)</span><span><span class="felt bagud"></span>mindst 2 færre</span><span><span class="felt tidligt"></span>ingen sammenlignelig afgang</span>` :
+    `<span><span class="felt foran"></span>prognose ≥ 100 % (foran)</span><span><span class="felt paa"></span>80–99 % (på kurs)</span><span><span class="felt bagud"></span>under 80 % (bagud)</span><span><span class="felt udsolgt"></span>udsolgt</span><span><span class="felt tidligt"></span>for tidligt at læse</span>`) +
+    `<span><span class="felt paa f-haev"></span>forslag: hæv</span><span><span class="felt paa f-kampagne"></span>forslag: kampagne</span><span>Tallet i feltet er belægning i %</span>`;
+  document.querySelectorAll("#port .felt").forEach(f => {
+    f.onmouseenter = e => { const a = AFGK[f.dataset.t]; visTip(e, `<b>${a.turkode}</b> · ${dato(a.afrejse)} (${a.dage} d)<br>Solgt ${a.solgt}/${a.max_pax} · ${a.p.forventet != null && a.p.status !== "udsolgt" ? "prognose " + tal(a.p.forventet) : a.p.tekst}<br>Sidste år samme dag: ${a.ly_tur ? tal(a.ly_solgt) + " (" + a.ly_tur + ")" : "–"}<br>Pris ${kr(a.pris_nu)}${a.f ? "<br>Forslag i dag: " + a.f.forslag : ""}`); };
+    f.onmousemove = e => flytTip(e);
+    f.onmouseleave = () => skjulTip();
+    f.onclick = () => { T.valgt2 = f.dataset.t; tegnPort(); };
   });
+  if (!T.valgt2) T.valgt2 = (AFG.find(a => a.f && a.f.forslag === "hæv") || AFG[0]).turkode;
+  tegnDetalje(document.getElementById("detalje2"), T.valgt2);
+}
+const tip = document.getElementById("tip");
+function visTip(e, h) { tip.innerHTML = h; tip.style.display = "block"; flytTip(e); }
+function flytTip(e) { tip.style.left = Math.min(e.clientX + 14, innerWidth - 300) + "px"; tip.style.top = (e.clientY + 14) + "px"; }
+function skjulTip() { tip.style.display = "none"; }
+
+// ---------- udfald ----------
+function tegnUdfald() {
+  document.getElementById("fane-udfald").innerHTML = `
+    <div class="kort"><h2>Hvad skete der efter beslutningerne?</h2>
+      <p style="margin:0 0 8px">Her samles alle forslag med beslutning, og hvad der skete bagefter, så vi kan se, om forslagene rammer. Siden fyldes, når der er truffet beslutninger og gået 30 dage.</p>
+      <table class="sml" style="max-width:900px"><tr><th>Afgang</th><th>Forslag</th><th>Beslutning</th><th class="h">Pris før</th><th class="h">Pris efter</th><th class="h">Solgt 30 dage før</th><th class="h">Solgt 30 dage efter</th><th class="h">Sammenlignelige afgange</th></tr>
+      <tr><td colspan="8" class="tom" style="padding:16px">Ingen beslutninger med 30 dages udfald endnu (første morgenkørsel var 21-10-2026).</td></tr></table>
+    </div>
+    <div class="kort"><h2>Nøgletal, når der er data</h2>
+      <ul style="margin:0;padding-left:18px">
+        <li>Hvor mange forslag der blev fulgt, afvist og udsat, og de hyppigste årsager til afvisning</li>
+        <li>Salg de næste 30 dage på fulgte forslag mod sammenlignelige afgange (samme metode som effektanalysen)</li>
+        <li>Merindtægt: prisforskel gange solgte pladser efter stigningen</li>
+        <li>Forslag, hvor prisen blev ændret i NAV uden en beslutning her, og beslutninger, der ikke er ført ind i NAV</li>
+      </ul>
+      <div class="note">Kilde i den færdige version: public.pris_forslag_udfald.</div>
+    </div>`;
 }
 
-$("linjer").addEventListener("click", (e) => {
-  const tr = e.target.closest("tr.linje");
-  if (!tr) return;
-  const id = Number(tr.dataset.id);
-  const r = rows.find((x) => x.forslag_id === id);
-  if (aabne.has(id)) { aabne.delete(id); tr.classList.remove("aaben"); if (tr.nextElementSibling?.classList.contains("detalje")) tr.nextElementSibling.remove(); }
-  else { aabne.add(id); tr.classList.add("aaben"); tr.after(detalje(r)); }
-});
-
-document.querySelectorAll("#ark thead th").forEach((th) => (th.onclick = () => {
-  const felt = th.dataset.s;
-  const stigende = felt === "turkode" || felt === "beslutning" || felt === "forslag" || felt === "dage_til_afrejse";
-  sortering = sortering && sortering.felt === felt ? { felt, op: !sortering.op } : { felt, op: stigende };
-  tegn();
-}));
-
-document.querySelectorAll("#faner .fane").forEach((b) => (b.onclick = () => {
-  filter = b.dataset.f;
-  document.querySelectorAll("#faner .fane").forEach((x) => x.classList.toggle("aktiv", x === b));
-  tegn();
-}));
-$("soeg").oninput = (e) => { soeg = e.target.value.trim(); tegn(); };
-
-// Excel: CSV med semikolon og BOM, så dansk Excel åbner den direkte med æøå og decimalkomma.
-$("hent").onclick = () => {
-  const hoved = ["Turkode", "Rejse", "Forslag", "Ny", "Afrejse", "Dage til afrejse", "Solgt", "Pladser", "Ledige",
-    "Sidste års afgang", "Solgt sidste år samme tid", "Pladser sidste år", "I år mod sidste år %", "Pris i dag", "Foreslået pris fra",
-    "Foreslået pris til", "Kampagnepris fra", "Kampagnepris til", "Pointmodel", "Sidste års pris samme tid", "Sidste års slutpris",
-    "Solgt siden seneste prisstigning", "Seneste prisstigning", "Solgt sidste år samme periode", "Prisstigninger sidste år samme periode",
-    "Besøg 14 dage", "Besøg samme 14 dage sidste år", "Besøg vækst %", "Alle tursider vækst %", "Hvorfor", "Beslutning", "Feedback"];
-  const v = (x) => x == null || x === "" ? "" : typeof x === "number" ? String(Math.round(x * 10) / 10).replace(".", ",") : `"${String(x).replace(/"/g, '""')}"`;
-  const n = (x) => x == null || x === "" ? null : Number(x);
-  const linjer = filtreret().map((r) => { const s = r._s; return [
-    r.turkode, s.navn, NAVN[r.forslag], r.nyt ? "Ja" : "", r.afrejse, n(r.dage_til_afrejse), n(s.solgt), n(s.max_pax), n(s.pladser_tilbage),
-    s.sidste_aars_tur, n(s.ly_solgt_nu), n(s.ly_max_pax), r._ly_vaekst, n(r.pris_nu), n(r.forslag_pris_fra), n(r.forslag_pris_til),
-    n(r.kampagne_pris_til), n(r.kampagne_pris_fra), r._pm, n(s.ly_pris_nu), n(s.ly_slutpris),
-    n(s.solgt_siden_stigning), s.seneste_stigning, s.sidste_aars_tur ? n(s.ly_solgt_samme_periode) : null, s.sidste_aars_tur ? n(s.ly_stigninger_samme_periode) : null,
-    n(s.sess_14d), n(s.sess_14d_sidste_aar), r._web, s.web_vaekst_alle != null ? 100 * Number(s.web_vaekst_alle) - 100 : null,
-    (r.begrundelser || []).join(" · "), r.beslutning, r.feedback,
-  ].map(v).join(";"); });
-  const csv = "﻿" + [hoved.map(v).join(";"), ...linjer].join("\r\n");
-  const a = document.createElement("a");
-  a.href = URL.createObjectURL(new Blob([csv], { type: "text/csv;charset=utf-8" }));
-  a.download = `prisforslag-${rows[0]?.dato || "i-dag"}.csv`;
-  a.click();
-  setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+// ---------- faner, filtre, tastatur ----------
+function skiftFane(f) {
+  T.fane = f;
+  document.querySelectorAll(".faner button").forEach(b => b.setAttribute("aria-selected", b.dataset.fane === f));
+  for (const x of ["idag", "port", "udfald"]) document.getElementById("fane-" + x).classList.toggle("skjult", x !== f);
+  if (f === "idag") tegnTabel(); else if (f === "port") tegnPort(); else tegnUdfald();
+}
+function saetKoe(k) { T.koe = k; document.querySelectorAll("#koe button").forEach(b => b.setAttribute("aria-pressed", b.dataset.k === k)); T.valgt = null; tegnTabel(); }
+document.querySelectorAll(".faner button").forEach(b => b.onclick = () => skiftFane(b.dataset.fane));
+document.querySelectorAll("#koe button").forEach(b => b.onclick = () => saetKoe(b.dataset.k));
+document.querySelectorAll("#region button").forEach(b => b.onclick = () => { T.region = b.dataset.r; document.querySelectorAll("#region button").forEach(x => x.setAttribute("aria-pressed", x === b)); tegnTabel(); });
+document.querySelectorAll("#farve button").forEach(b => b.onclick = () => { T.farve = b.dataset.c; document.querySelectorAll("#farve button").forEach(x => x.setAttribute("aria-pressed", x === b)); tegnPort(); });
+document.getElementById("portKunForslag").onchange = e => { T.portKun = e.target.checked; tegnPort(); };
+const mSel = document.getElementById("maaned");
+[...new Set(F.map(r => r.afrejse.slice(0, 7)))].sort().forEach(m => mSel.insertAdjacentHTML("beforeend", `<option value="${m}">${MD[+m.slice(5) - 1]} ${m.slice(0, 4)}</option>`));
+mSel.onchange = () => { T.maaned = mSel.value; tegnTabel(); };
+document.getElementById("kunNy").onchange = e => { T.kunNy = e.target.checked; tegnTabel(); };
+document.getElementById("soeg").oninput = e => { T.soeg = e.target.value.trim(); tegnTabel(); };
+document.getElementById("thead").onclick = e => { const th = e.target.closest("th"); if (!th || !th.dataset.s) return; if (T.sort === th.dataset.s) { if (T.retning === -1) { T.sort = null; T.retning = 1; } else T.retning = -1; } else { T.sort = th.dataset.s; T.retning = 1; } tegnTabel(); };
+document.getElementById("linjer").onclick = e => {
+  const g = e.target.closest("tr.gruppe"); if (g) { const k = g.dataset.g; T.lukket.has(k) ? T.lukket.delete(k) : T.lukket.add(k); tegnTabel(); return; }
+  const tr = e.target.closest("tr.r"); if (!tr) return;
+  if (e.target.classList.contains("mk")) { e.target.checked ? T.markeret.add(tr.dataset.t) : T.markeret.delete(tr.dataset.t); tegnBulk(); return; }
+  T.valgt = tr.dataset.t; markerValgt(); tegnDetalje(document.getElementById("detalje"), T.valgt);
 };
+async function bulk(v) {
+  let n = 0, fejl = 0;
+  for (const t of [...T.markeret]) {
+    const r = FK[t]; if (!r) continue;
+    const l = { ...(r.lokal || {}), beslutning: v, pris: v === "følg" && r.forslag === "hæv" ? r.forslag_pris_fra : r.lokal?.pris ?? null, feedback: r.lokal?.feedback || "" };
+    const e = await send(r, l);
+    if (e) { fejl++; continue; }
+    r.lokal = { ...l, gemt: true }; r.beslutning = v; r.initialer = INITIALER; n++;
+  }
+  T.markeret.clear(); toast(`${n} afgange: ${v} er gemt${fejl ? ` · ${fejl} kunne ikke gemmes` : ""}`); tegnKpi(); tegnTabel();
+}
+document.getElementById("bulkFoelg").onclick = () => bulk("følg");
+document.getElementById("bulkSenere").onclick = () => bulk("senere");
+document.getElementById("bulkAfvis").onclick = () => bulk("afvis");
+document.getElementById("excel").onclick = () => {
+  const L = synlige();
+  const kol = ["Turkode", "Rejse", "Afrejse", "Dage", "Forslag", "Solgt", "Max pax", "Prognose solgt", "Sidste års tur", "Solgt sidste år samme dag", "Pris i dag", "Forslag fra", "Forslag til", "Kampagne fra", "Kampagne til", "Pointmodel", "Beslutning", "Begrundelser"];
+  const rk = L.map(r => [r.turkode, r.navn, r.afrejse, r.dage, r.forslag, r.solgt, r.max_pax, r.p.forventet != null ? Math.round(r.p.forventet) : "", r.s.sidste_aars_tur || "", r.s.ly_solgt_nu ?? "", r.pris_nu, r.forslag_pris_fra ?? "", r.forslag_pris_til ?? "", r.kampagne_pris_fra ?? "", r.kampagne_pris_til ?? "", r.s.pointmodel_pris ?? "", beslutning(r) || "", (r.begrundelser || []).join(" | ")]);
+  const csv = "﻿" + [kol, ...rk].map(x => x.map(v => `"${String(v).replace(/"/g, '""')}"`).join(";")).join("\r\n");
+  const a = document.createElement("a"); a.href = URL.createObjectURL(new Blob([csv], { type: "text/csv" })); a.download = "prisforslag-" + IDAG + ".csv"; a.click();
+};
+document.addEventListener("keydown", e => {
+  const iFelt = ["INPUT", "TEXTAREA", "SELECT"].includes(document.activeElement.tagName);
+  if (e.key === "Escape") { if (iFelt) document.activeElement.blur(); T.markeret.clear(); if (T.fane === "idag") tegnTabel(); return; }
+  if (iFelt) return;
+  if (e.key === "1") return skiftFane("idag");
+  if (e.key === "2") return skiftFane("port");
+  if (e.key === "3") return skiftFane("udfald");
+  if (T.fane !== "idag") return;
+  const L = synlige(), i = L.findIndex(r => r.turkode === T.valgt), el = document.getElementById("detalje");
+  if (e.key === "ArrowDown" || e.key === "j") { e.preventDefault(); const n = L[Math.min(L.length - 1, i + 1)]; if (n) { T.valgt = n.turkode; markerValgt(); tegnDetalje(el, T.valgt); } }
+  else if (e.key === "ArrowUp" || e.key === "k") { e.preventDefault(); const n = L[Math.max(0, i - 1)]; if (n) { T.valgt = n.turkode; markerValgt(); tegnDetalje(el, T.valgt); } }
+  else if (e.key === "/") { e.preventDefault(); document.getElementById("soeg").focus(); }
+  else if (e.key === "x" && T.valgt) { T.markeret.has(T.valgt) ? T.markeret.delete(T.valgt) : T.markeret.add(T.valgt); tegnTabel(); }
+  else if ((e.key === "f" || e.key === "a" || e.key === "s") && T.valgt) { vaelgBeslutning(el, FK[T.valgt], { f: "følg", a: "afvis", s: "senere" }[e.key]); if (e.key === "a") el.querySelector("#fb").focus(); }
+  else if (e.key === "Enter" && T.valgt && FK[T.valgt].lokal?.beslutning) gem(FK[T.valgt], el);
+});
+function toast(t) { const el = document.getElementById("toast"); el.textContent = t; el.style.display = "block"; clearTimeout(toast.h); toast.h = setTimeout(() => el.style.display = "none", 2600); }
 
+let INITIALER = "";
+function besked(h) { document.querySelector("main").innerHTML = `<div class="kort" style="max-width:640px;margin:40px auto">${h}</div>`; }
 async function start() {
   const { data: { session } } = await sb.auth.getSession();
-  if (!session) { vis("logind"); return; }
-  sessionEmail = session.user.email || "";
-  $("bruger").textContent = sessionEmail;
+  if (!session) { besked(`<h2>Log ind først</h2><p>Prisstyringen bruger dit login fra Topas BI Agent. <a href="./">Log ind i Topas BI Agent</a> i samme browser, og åbn så siden igen.</p>`); return; }
+  const mail = session.user.email || "";
+  INITIALER = mail.split("@")[0].toUpperCase();
+  document.getElementById("bruger").textContent = mail;
   const { data, error } = await sb.rpc("pris_dagens_forslag");
-  if (error) {
-    $("fejl").innerHTML = `<p>Kunne ikke hente forslagene: ${esc(error.message)}</p><p><a href="./">Log ind igen i Topas BI Agent</a></p>`;
-    vis("fejl"); return;
-  }
-  if (!data || !data.length) {
-    $("fejl").innerHTML = "<p>Der er ingen forslag at vise. Enten har morgenkørslen ikke kørt endnu, eller din bruger har ikke adgang til prisforslag.</p>";
-    vis("fejl"); return;
-  }
-  rows = data;
-  rows.forEach(beregn);
-  $("undertitel").textContent = `Morgenrapport ${dato(rows[0].dato)} · gruppeafgange 14–365 dage frem`;
-  taelFaner();
-  vis("indhold");
-  tegn();
+  if (error) { besked(`<h2>Kunne ikke hente forslagene</h2><p>${esc(error.message)}</p><p><a href="./">Log ind igen i Topas BI Agent</a></p>`); return; }
+  if (!data?.length) { besked(`<h2>Ingen forslag</h2><p>Enten har morgenkørslen ikke kørt endnu, eller din bruger har ikke adgang til prisforslag.</p>`); return; }
+  let port = null;
+  const pr = await sb.rpc("pris_portefoelje");
+  if (!pr.error && pr.data?.length) port = pr.data;
+  IDAG = data[0].dato;
+  indlaes(data, port);
+  document.getElementById("dataDato").textContent = `Morgenkørsel ${dato(IDAG)} · ${F.length} afgange med forslag eller hold øje${PORT_FULD ? ` · ${AFG.length} afgange i alt` : ""}`;
+  tegnKpi();
+  tegnTabel();
 }
 start();
 </script>

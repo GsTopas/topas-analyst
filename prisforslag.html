@@ -1,0 +1,313 @@
+<!doctype html>
+<html lang="da">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex, nofollow">
+<title>Prisforslag – Topas BI</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%230D5879'/%3E%3Cpath d='M8 22 L14 12 L18 18 L21 14 L25 22 Z' fill='%23FFD5A7'/%3E%3C/svg%3E">
+<style>
+  :root {
+    --tekst: #333333; --bg: #F7F7F7; --plade: #FFFFFF; --blaa: #0D5879; --blaa-moerk: #0A4660; --creme: #FFD5A7;
+    --roed: #C30031; --graa: #E6E6E6; --graa-tekst: #8C8C8C; --groen: #2E7D32; --orange: #E1652A;
+    --radius: 14px; --skygge: 0 1px 2px rgba(0,0,0,.05), 0 4px 16px rgba(13,88,121,.06);
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; }
+  body { font: 15px/1.5 -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; color: var(--tekst); background: var(--bg); -webkit-font-smoothing: antialiased; }
+  button, textarea { font: inherit; color: inherit; }
+  button { cursor: pointer; }
+  a { color: var(--blaa); }
+  .skjult { display: none !important; }
+  .side { max-width: 980px; margin: 0 auto; padding: 20px 16px 48px; }
+  header { display: flex; align-items: center; gap: 12px; margin-bottom: 16px; flex-wrap: wrap; }
+  .maerke { width: 40px; height: 40px; border-radius: 10px; background: var(--blaa); display: grid; place-items: center; flex: none; }
+  .maerke svg { width: 26px; height: 26px; }
+  header h1 { font-size: 20px; margin: 0; letter-spacing: -.01em; }
+  header small { display: block; color: var(--graa-tekst); font-size: 13px; }
+  header .hoejre { margin-left: auto; font-size: 13px; color: var(--graa-tekst); display: flex; gap: 12px; align-items: center; }
+  .plade { background: var(--plade); border-radius: var(--radius); box-shadow: var(--skygge); padding: 16px 18px; margin-bottom: 14px; }
+  .opsummering { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; }
+  .tal { background: var(--plade); border-radius: var(--radius); box-shadow: var(--skygge); padding: 12px 14px; }
+  .tal b { display: block; font-size: 24px; line-height: 1.2; }
+  .tal span { font-size: 13px; color: var(--graa-tekst); }
+  .tal.haev b { color: var(--blaa); } .tal.kampagne b { color: var(--orange); } .tal.nyt b { color: var(--roed); }
+  h2 { font-size: 16px; margin: 22px 0 10px; display: flex; align-items: baseline; gap: 8px; }
+  h2 small { font-weight: 400; color: var(--graa-tekst); font-size: 13px; }
+  .forslag { background: var(--plade); border-radius: var(--radius); box-shadow: var(--skygge); padding: 14px 16px; margin-bottom: 10px; border-left: 4px solid var(--blaa); }
+  .forslag.kampagne { border-left-color: var(--orange); }
+  .forslag.hold { border-left-color: var(--graa); }
+  .top { display: flex; gap: 10px; align-items: baseline; flex-wrap: wrap; }
+  .kode { font-weight: 700; font-size: 16px; }
+  .dim { color: var(--graa-tekst); font-size: 13px; }
+  .pille { font-size: 12px; font-weight: 600; padding: 1px 8px; border-radius: 99px; background: #E7F0F4; color: var(--blaa-moerk); }
+  .pille.kampagne { background: #FCE6DC; color: #9A3A10; }
+  .pille.hold { background: var(--graa); color: var(--tekst); }
+  .pille.ny { background: var(--roed); color: #fff; }
+  .pille.gl { background: var(--creme); color: var(--tekst); }
+  .pris { margin-left: auto; text-align: right; white-space: nowrap; }
+  .pris b { font-size: 17px; }
+  .pris .pil { color: var(--graa-tekst); margin: 0 4px; }
+  ul.grunde { margin: 8px 0 6px; padding-left: 18px; }
+  ul.grunde li { margin: 2px 0; }
+  .noegle { display: flex; gap: 14px; flex-wrap: wrap; font-size: 13px; color: var(--graa-tekst); }
+  .noegle b { color: var(--tekst); font-weight: 600; }
+  .beslut { display: flex; gap: 8px; flex-wrap: wrap; align-items: flex-start; margin-top: 10px; border-top: 1px solid var(--graa); padding-top: 10px; }
+  .beslut .knapper { display: flex; gap: 6px; }
+  .valg { border: 1px solid var(--graa); background: #fff; border-radius: 9px; padding: 6px 12px; font-size: 14px; }
+  .valg:hover { border-color: var(--blaa); }
+  .valg.aktiv.foelg { background: var(--groen); border-color: var(--groen); color: #fff; }
+  .valg.aktiv.afvis { background: var(--roed); border-color: var(--roed); color: #fff; }
+  .valg.aktiv.senere { background: var(--graa-tekst); border-color: var(--graa-tekst); color: #fff; }
+  .beslut textarea { flex: 1; min-width: 220px; min-height: 38px; resize: vertical; padding: 7px 10px; border: 1px solid var(--graa); border-radius: 9px; font-size: 14px; }
+  .beslut textarea:focus { outline: none; border-color: var(--blaa); box-shadow: 0 0 0 3px rgba(13,88,121,.12); }
+  .gem { border: 0; background: var(--blaa); color: #fff; border-radius: 9px; padding: 7px 14px; font-weight: 600; font-size: 14px; }
+  .gem:disabled { opacity: .5; cursor: default; }
+  .status { font-size: 13px; color: var(--graa-tekst); width: 100%; }
+  .status.ok { color: var(--groen); } .status.fejl { color: var(--roed); }
+  table { width: 100%; border-collapse: collapse; background: var(--plade); border-radius: var(--radius); overflow: hidden; box-shadow: var(--skygge); font-size: 14px; }
+  th, td { text-align: left; padding: 8px 10px; border-bottom: 1px solid var(--graa); vertical-align: top; }
+  th { font-weight: 600; font-size: 13px; background: #FAFAFA; }
+  td.tal-k { text-align: right; white-space: nowrap; }
+  .vis-flere { border: 1px solid var(--graa); background: #fff; border-radius: 9px; padding: 7px 14px; color: var(--blaa); }
+  .filter { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 4px; }
+  .filter button { border: 1px solid var(--graa); background: #fff; border-radius: 99px; padding: 3px 12px; font-size: 13px; }
+  .filter button.aktiv { background: var(--blaa); border-color: var(--blaa); color: #fff; }
+  .besked { text-align: center; padding: 40px 16px; }
+  .forklaring { font-size: 13px; color: var(--graa-tekst); }
+  .forklaring summary { cursor: pointer; color: var(--blaa); }
+  @media (max-width: 640px) {
+    .opsummering { grid-template-columns: repeat(2, 1fr); }
+    .pris { margin-left: 0; text-align: left; width: 100%; }
+    .skjul-mobil { display: none; }
+  }
+</style>
+</head>
+<body>
+<div class="side">
+  <header>
+    <div class="maerke"><svg viewBox="0 0 32 32" aria-hidden="true"><path d="M4.5 24 L12.5 11.5 L17.5 18.5 L20.5 14.5 L27.5 24 Z" fill="#FFD5A7"/><circle cx="23" cy="8.5" r="2.4" fill="#FFD5A7"/></svg></div>
+    <div><h1>Prisforslag</h1><small id="undertitel">Morgenrapport for gruppeafgange</small></div>
+    <div class="hoejre"><span id="bruger"></span><a href="./">Topas BI Agent</a></div>
+  </header>
+
+  <div id="indlaeser" class="plade besked">Henter dagens forslag …</div>
+
+  <div id="logind" class="plade besked skjult">
+    <p>Du skal være logget ind i Topas BI Agent for at se prisforslagene.</p>
+    <p><a href="./">Log ind i Topas BI Agent</a> og åbn derefter denne side igen.</p>
+  </div>
+
+  <div id="fejl" class="plade besked skjult"></div>
+
+  <main id="indhold" class="skjult">
+    <div class="opsummering">
+      <div class="tal nyt"><b id="t-nyt">0</b><span>nyt siden i går</span></div>
+      <div class="tal haev"><b id="t-haev">0</b><span>hæv prisen</span></div>
+      <div class="tal kampagne"><b id="t-kampagne">0</b><span>kampagnekandidater</span></div>
+      <div class="tal"><b id="t-hold">0</b><span>hold øje</span></div>
+    </div>
+
+    <h2>Nyt siden i går <small id="nyt-forkl"></small></h2>
+    <div id="nyt"></div>
+
+    <h2>Forslag <small>de stærkeste først</small></h2>
+    <div class="filter" id="filter">
+      <button data-f="alle" class="aktiv">Alle</button>
+      <button data-f="hæv">Hæv</button>
+      <button data-f="kampagne">Kampagne</button>
+      <button data-f="ubesvaret">Ikke besvaret</button>
+    </div>
+    <div id="forslag"></div>
+    <button id="flere" class="vis-flere skjult">Vis alle forslag</button>
+
+    <h2>Hold øje <small id="hold-antal"></small></h2>
+    <div id="hold"></div>
+
+    <details class="forklaring plade" style="margin-top:22px">
+      <summary>Sådan virker forslagene</summary>
+      <p><b>Hæv</b> foreslås, når salget ligger foran samme turkode sidste år (indeks ≥ 120), når ca. 17 % af pladserne er solgt siden seneste prisstigning (det typiske i 2025), når der er få pladser tilbage, eller når tursiden får markant flere besøg eller en mail om serien får høj klikrate – de to sidste kun sammen med salg på serien. Der skal være solgt mindst én plads siden seneste stigning. Spændet er +3–5 % eller +5–8 % af listeprisen, højst +10 %, afrundet til …470/…970.</p>
+      <p><b>Kampagne</b> foreslås for afgange 45–150 dage før afrejse med under 40 % belægning, der ligger langt bag sidste år eller ikke har solgt på serien i 14 dage: −5 til −10 % på et antal pladser i en periode. Listeprisen sænkes aldrig.</p>
+      <p><b>Grønland</b> (GL): belægning vægter mere end pris. Hæv kun ved højt tempo og under 25 % pladser tilbage; kampagne fra 180 dage.</p>
+      <p>Din beslutning og begrundelse gemmes med dine initialer og bruges til at justere reglerne. Forslagene er udfordringer til prisen – ikke beslutninger.</p>
+    </details>
+  </main>
+</div>
+
+<script>window.__TOPAS_BI__={"url": "https://oxpuloflkdcpshrabvkn.supabase.co", "anonKey": "sb_publishable_1J98JZQ2qBBer2cI-hS3Tg_rPXC2sFC"};</script>
+<script type="module">
+import { createClient } from "https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.117.3/+esm";
+
+const KONFIG = window.__TOPAS_BI__;
+const sb = createClient(KONFIG.url, KONFIG.anonKey);
+const $ = (id) => document.getElementById(id);
+const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+const kr = (n) => n == null ? "–" : Math.round(Number(n)).toLocaleString("da-DK") + " kr.";
+const dato = (d) => d ? new Date(d + "T12:00:00").toLocaleDateString("da-DK", { day: "numeric", month: "short", year: "numeric" }) : "";
+const pct = (n) => n == null ? "–" : String(Math.round(Number(n) * 10) / 10).replace(".", ",") + " %";
+const TOP = 10;
+
+let rows = [];
+let filter = "alle";
+let visAlle = false;
+
+function vis(id) {
+  for (const x of ["indlaeser", "logind", "fejl", "indhold"]) $(x).classList.toggle("skjult", x !== id);
+}
+
+function prisTekst(r) {
+  if (r.forslag === "hæv") {
+    const til = r.forslag_pris_til && r.forslag_pris_til !== r.forslag_pris_fra ? `–${kr(r.forslag_pris_til)}` : "";
+    return `<span class="dim">${kr(r.pris_nu)}</span><span class="pil">→</span><b>${kr(r.forslag_pris_fra).replace(" kr.", "")}${til || " kr."}</b>`;
+  }
+  if (r.forslag === "kampagne") {
+    return `<span class="dim">${kr(r.pris_nu)}</span><span class="pil">→ kampagne</span><b>${kr(r.kampagne_pris_til).replace(" kr.", "")}–${kr(r.kampagne_pris_fra)}</b>`;
+  }
+  return `<b>${kr(r.pris_nu)}</b>`;
+}
+
+function noegletal(r) {
+  const s = r.signaler || {};
+  const dele = [
+    `<span>Solgt <b>${s.solgt ?? "–"}/${s.max_pax ?? "–"}</b> (${pct(s.belaegning)})</span>`,
+    s.indeks != null ? `<span>Indeks <b>${Math.round(s.indeks)}</b>${s.sammenlignelig ? "" : " (ikke sammenlignelig)"}</span>` : "",
+    s.seneste_stigning ? `<span>Seneste stigning <b>${dato(s.seneste_stigning)}</b>, solgt siden <b>${s.solgt_siden_stigning}</b></span>` : `<span>Ingen stigning endnu, solgt <b>${s.solgt_siden_stigning ?? 0}</b></span>`,
+    s.sess_14d != null ? `<span class="skjul-mobil">Tursiden 14 dage <b>${s.sess_14d}</b> besøg</span>` : "",
+    Number(s.annonceforbrug_30d_kr) > 0 ? `<span class="skjul-mobil">Meta 30 dage <b>${kr(s.annonceforbrug_30d_kr)}</b></span>` : "",
+  ];
+  return `<div class="noegle">${dele.join("")}</div>`;
+}
+
+function kort(r) {
+  const klasse = r.forslag === "hæv" ? "" : r.forslag === "kampagne" ? "kampagne" : "hold";
+  const navn = r.forslag === "hæv" ? "Hæv" : r.forslag === "kampagne" ? "Kampagne" : "Hold øje";
+  const d = document.createElement("div");
+  d.className = `forslag ${klasse}`;
+  d.dataset.id = r.forslag_id;
+  d.innerHTML = `
+    <div class="top">
+      <span class="kode">${esc(r.turkode)}</span>
+      <span class="pille ${klasse}">${navn}</span>
+      ${r.nyt ? '<span class="pille ny">Ny</span>' : ""}
+      ${r.groenland ? '<span class="pille gl">Grønland</span>' : ""}
+      <span class="dim">afrejse ${dato(r.afrejse)} · ${r.dage_til_afrejse} dage</span>
+      <span class="pris">${prisTekst(r)}</span>
+    </div>
+    <ul class="grunde">${(r.begrundelser || []).map((b) => `<li>${esc(b)}</li>`).join("")}</ul>
+    ${noegletal(r)}
+    <div class="beslut">
+      <div class="knapper">
+        <button class="valg foelg" data-v="følg">Følg</button>
+        <button class="valg afvis" data-v="afvis">Afvis</button>
+        <button class="valg senere" data-v="senere">Senere</button>
+      </div>
+      <textarea maxlength="2000" placeholder="Hvorfor? Fx hvis du er uenig (valgfrit)">${esc(r.feedback || "")}</textarea>
+      <button class="gem" disabled>Gem</button>
+      <div class="status">${r.beslutning ? `Gemt: ${esc(r.beslutning)} (${esc(r.initialer || "")})` : ""}</div>
+    </div>`;
+  let valgt = r.beslutning || null;
+  const knapper = d.querySelectorAll(".valg");
+  const gem = d.querySelector(".gem");
+  const tekst = d.querySelector("textarea");
+  const status = d.querySelector(".status");
+  const markér = () => knapper.forEach((k) => k.classList.toggle("aktiv", k.dataset.v === valgt));
+  markér();
+  const opdaterGem = () => { gem.disabled = !valgt || (valgt === r.beslutning && tekst.value.trim() === (r.feedback || "")); };
+  knapper.forEach((k) => (k.onclick = () => { valgt = valgt === k.dataset.v ? null : k.dataset.v; markér(); opdaterGem(); }));
+  tekst.oninput = opdaterGem;
+  gem.onclick = async () => {
+    gem.disabled = true;
+    status.className = "status";
+    status.textContent = "Gemmer …";
+    const { error } = await sb.rpc("pris_giv_beslutning", { p_forslag_id: r.forslag_id, p_beslutning: valgt, p_feedback: tekst.value });
+    if (error) { status.className = "status fejl"; status.textContent = "Kunne ikke gemme: " + error.message; opdaterGem(); return; }
+    r.beslutning = valgt; r.feedback = tekst.value.trim(); r.initialer = initialer();
+    status.className = "status ok";
+    status.textContent = `Gemt: ${valgt}${r.feedback ? " med begrundelse" : ""}`;
+    opdaterGem();
+  };
+  return d;
+}
+
+let sessionEmail = "";
+const initialer = () => sessionEmail.split("@")[0].toUpperCase();
+
+function holdTabel(liste) {
+  if (!liste.length) return '<p class="dim">Ingen.</p>';
+  return `<table><thead><tr><th>Afgang</th><th class="skjul-mobil">Afrejse</th><th>Pris</th><th>Hvorfor</th></tr></thead><tbody>${
+    liste.map((r) => `<tr><td><b>${esc(r.turkode)}</b>${r.nyt ? ' <span class="pille ny">Ny</span>' : ""}${r.groenland ? ' <span class="pille gl">GL</span>' : ""}</td>
+      <td class="skjul-mobil">${dato(r.afrejse)}<br><span class="dim">${r.dage_til_afrejse} dage</span></td>
+      <td class="tal-k">${kr(r.pris_nu)}</td>
+      <td>${(r.begrundelser || []).map(esc).join("<br>")}</td></tr>`).join("")
+  }</tbody></table>`;
+}
+
+function tegn() {
+  const forslag = rows.filter((r) => r.forslag !== "hold øje");
+  const hold = rows.filter((r) => r.forslag === "hold øje");
+  const nye = rows.filter((r) => r.nyt);
+  $("t-nyt").textContent = nye.length;
+  $("t-haev").textContent = rows.filter((r) => r.forslag === "hæv").length;
+  $("t-kampagne").textContent = rows.filter((r) => r.forslag === "kampagne").length;
+  $("t-hold").textContent = hold.length;
+  $("undertitel").textContent = `Morgenrapport ${dato(rows[0]?.dato)} · gruppeafgange 14–365 dage frem`;
+
+  // Nyt siden i går: kort liste; forslag med knapper står nedenfor.
+  const nyeForslag = nye.filter((r) => r.forslag !== "hold øje");
+  const nyeHold = nye.filter((r) => r.forslag === "hold øje");
+  const foersteKoersel = nye.length === rows.length && rows.length > 0;
+  $("nyt-forkl").textContent = "";
+  if (foersteKoersel) {
+    $("nyt").innerHTML = '<p class="dim">Første kørsel – alt er nyt i dag. Fra i morgen står kun det, der er kommet til eller har ændret sig, her.</p>';
+  } else {
+    $("nyt").innerHTML = nye.length
+      ? `<div class="plade" style="padding:12px 16px">${
+          nyeForslag.length ? `<div><b>${nyeForslag.length} forslag:</b> ${nyeForslag.map((r) => `${esc(r.turkode)} (${r.forslag})`).join(", ")}</div>` : ""
+        }${nyeHold.length ? `<details style="margin-top:4px"><summary class="dim">${nyeHold.length} nye at holde øje med</summary><div class="dim">${nyeHold.map((r) => esc(r.turkode)).join(", ")}</div></details>` : ""}</div>`
+      : '<p class="dim">Intet nyt siden i går.</p>';
+  }
+
+  let liste = forslag;
+  if (filter === "hæv" || filter === "kampagne") liste = liste.filter((r) => r.forslag === filter);
+  if (filter === "ubesvaret") liste = liste.filter((r) => !r.beslutning);
+  const vis = visAlle ? liste : liste.slice(0, TOP);
+  const boks = $("forslag");
+  boks.innerHTML = "";
+  if (!vis.length) boks.innerHTML = '<p class="dim">Ingen forslag i dag.</p>';
+  vis.forEach((r) => boks.appendChild(kort(r)));
+  $("flere").classList.toggle("skjult", visAlle || liste.length <= TOP);
+  $("flere").textContent = `Vis alle ${liste.length} forslag`;
+
+  $("hold-antal").textContent = hold.length ? `${hold.length} afgange` : "";
+  $("hold").innerHTML = holdTabel(hold);
+}
+
+$("flere").onclick = () => { visAlle = true; tegn(); };
+document.querySelectorAll("#filter button").forEach((b) => (b.onclick = () => {
+  filter = b.dataset.f; visAlle = false;
+  document.querySelectorAll("#filter button").forEach((x) => x.classList.toggle("aktiv", x === b));
+  tegn();
+}));
+
+async function start() {
+  const { data: { session } } = await sb.auth.getSession();
+  if (!session) { vis("logind"); return; }
+  sessionEmail = session.user.email || "";
+  $("bruger").textContent = sessionEmail;
+  const { data, error } = await sb.rpc("pris_dagens_forslag");
+  if (error) {
+    $("fejl").innerHTML = `<p>Kunne ikke hente forslagene: ${esc(error.message)}</p><p><a href="./">Log ind igen i Topas BI Agent</a></p>`;
+    vis("fejl"); return;
+  }
+  if (!data || !data.length) {
+    $("fejl").innerHTML = "<p>Der er ingen forslag at vise. Enten har morgenkørslen ikke kørt endnu, eller din bruger har ikke adgang til prisforslag.</p>";
+    vis("fejl"); return;
+  }
+  rows = data;
+  vis("indhold");
+  tegn();
+}
+start();
+</script>
+</body>
+</html>

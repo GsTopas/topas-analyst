@@ -335,7 +335,8 @@ async function hentDetalje(turkode, el) {
 
 // ---------- tilstand ----------
 const T = { fane: "idag", koe: "beslut", region: "", maaned: "", kunNy: false, soeg: "", sort: null, retning: 1, valgt: null, markeret: new Set(), lukket: new Set(), farve: "prognose", portKun: false, valgt2: null };
-const beslutning = r => r.beslutning; // kun gemte beslutninger styrer køen
+// Kun gemte beslutninger styrer køen. En afgang, der blev udsat på en tidligere dag, holdes ude, til tidspunktet er nået (udsat fra pris_forslag_liste).
+const beslutning = r => r.beslutning || (r.udsat ? "senere" : null);
 
 // ---------- nøgletal ----------
 function tegnKpi() {
@@ -601,13 +602,13 @@ function tegnDetalje(el, turkode, efterHent) {
       <div class="aarsager ${b.beslutning === "afvis" ? "vis" : ""}" id="aarsager">${["Gruppe eller blokbooking på vej", "Omkostning eller fly ændrer sig", "Konkurrent er billigere", "Markedsføring er planlagt", "For tidligt", "Data er forkerte", "Andet"].map(x => `<button data-a="${x}" aria-pressed="${b.aarsag === x}">${x}</button>`).join("")}</div>
       <div class="aarsager ${b.beslutning === "senere" ? "vis" : ""}" id="senere">${["I morgen", "Om 7 dage", "Ved næste tjekpunkt", "Ved næste salg"].map(x => `<button data-u="${x}" aria-pressed="${b.udsaet === x}">${x}</button>`).join("")}</div>
       <textarea id="fb" placeholder="Hvorfor? Fx hvis du er uenig (valgfrit). Det bruges til at gøre forslagene bedre.">${esc(b.feedback || "")}</textarea>
-      <div style="display:flex;gap:8px;align-items:center;margin-top:8px"><button class="knap primaer" id="gem" ${b.beslutning ? "" : "disabled"}>Gem og næste <kbd style="background:none;color:#fff;border-color:rgba(255,255,255,.5)">↵</kbd></button><span class="lille" id="gemt">${r.beslutning ? `Gemt: ${esc(r.beslutning)}${r.initialer ? " (" + esc(r.initialer) + ")" : ""}` : ""}</span>${r.beslutning ? '<button class="knap" id="fortryd" style="margin-left:auto">Fortryd</button>' : ""}</div>
+      <div style="display:flex;gap:8px;align-items:center;margin-top:8px"><button class="knap primaer" id="gem" ${b.beslutning ? "" : "disabled"}>Gem og næste <kbd style="background:none;color:#fff;border-color:rgba(255,255,255,.5)">↵</kbd></button><span class="lille" id="gemt">${r.beslutning ? `Gemt: ${esc(r.beslutning)}${r.valgt_pris ? " · " + kr(r.valgt_pris) : ""}${r.initialer ? " (" + esc(r.initialer) + ")" : ""}` : r.udsat ? `Udsat${r.udsat_til_dato ? " til " + dato(r.udsat_til_dato) : ""}` : ""}</span>${r.beslutning ? '<button class="knap" id="fortryd" style="margin-left:auto">Fortryd</button>' : ""}</div>
       <div class="genveje"><kbd>↑</kbd><kbd>↓</kbd> skift afgang · <kbd>F</kbd> <kbd>A</kbd> <kbd>S</kbd> beslut · <kbd>X</kbd> markér · <kbd>/</kbd> søg</div>
     </div>
     <div class="afsnit"><h3>I år mod sidste år</h3>${lyTabel}</div>
     <div class="afsnit"><h3>Prisforløb (Tur Booking)</h3><div class="prisforloeb">${forloeb}</div></div>`;
   // hændelser
-  const tilst = r.lokal || (r.lokal = { beslutning: r.beslutning, feedback: r.feedback || "", pris: null, gemt: false });
+  const tilst = r.lokal || (r.lokal = { beslutning: r.beslutning, feedback: r.feedback || "", pris: r.valgt_pris ?? null, aarsag: Object.keys(AARSAG_KODE).find(k => AARSAG_KODE[k] === r.aarsag), udsaet: Object.keys(UDSAET_KODE).find(k => UDSAET_KODE[k] === r.udsaet_til), gemt: false });
   const opdGem = () => { el.querySelector("#gem").disabled = !tilst.beslutning; };
   el.querySelectorAll(".beslut .knap").forEach(k => k.onclick = () => vaelgBeslutning(el, r, k.dataset.v));
   el.querySelectorAll("#aarsager button").forEach(k => k.onclick = () => { tilst.aarsag = k.dataset.a; el.querySelectorAll("#aarsager button").forEach(x => x.setAttribute("aria-pressed", x === k)); });
@@ -633,12 +634,12 @@ function vaelgBeslutning(el, r, v) {
 // Gemmer via pris_giv_beslutning. Med S5 sendes pris, årsag og udsættelse som felter; uden S5 skrives de forrest i feedbacken.
 const AARSAG_KODE = { "Gruppe eller blokbooking på vej": "gruppe_paa_vej", "Omkostning eller fly ændrer sig": "omkostning", "Konkurrent er billigere": "konkurrent", "Markedsføring er planlagt": "markedsfoering", "For tidligt": "for_tidligt", "Data er forkerte": "data_forkert", "Andet": "andet" };
 const UDSAET_KODE = { "I morgen": "i_morgen", "Om 7 dage": "7_dage", "Ved næste tjekpunkt": "naeste_tjekpunkt", "Ved næste salg": "naeste_salg" };
-let S5 = true;
+let S5 = true; // pris_gem_beslutning findes
 async function send(r, t) {
   const pris = t.beslutning === "følg" && r.forslag !== "hold øje" ? (t.pris ?? (r.forslag === "hæv" ? r.forslag_pris_fra : Math.max(r.kampagne_pris_fra, r.kampagne_pris_til))) : null;
   const fri = (t.feedback || "").trim();
   if (S5) {
-    const { error } = await sb.rpc("pris_giv_beslutning", { p_forslag_id: r.forslag_id, p_beslutning: t.beslutning, p_feedback: fri, p_valgt_pris: pris, p_aarsag: t.beslutning === "afvis" ? AARSAG_KODE[t.aarsag] ?? null : null, p_udsaet_til: t.beslutning === "senere" ? UDSAET_KODE[t.udsaet] ?? null : null, p_kampagne_pladser: r.forslag === "kampagne" && t.beslutning === "følg" ? t.pladser ?? null : null, p_kampagne_dage: r.forslag === "kampagne" && t.beslutning === "følg" ? t.periode ?? null : null });
+    const { error } = await sb.rpc("pris_gem_beslutning", { p_forslag_id: r.forslag_id, p_beslutning: t.beslutning, p_feedback: fri, p_valgt_pris: pris, p_aarsag: t.beslutning === "afvis" ? AARSAG_KODE[t.aarsag] ?? null : null, p_udsaet_til: t.beslutning === "senere" ? UDSAET_KODE[t.udsaet] ?? null : null, p_kampagne_pladser: r.forslag === "kampagne" && t.beslutning === "følg" ? t.pladser ?? null : null, p_kampagne_dage: r.forslag === "kampagne" && t.beslutning === "følg" ? t.periode ?? null : null });
     if (!error) return null;
     if (!(error.code === "PGRST202" || /Could not find the function/i.test(error.message))) return error;
     S5 = false;
@@ -655,6 +656,7 @@ async function gem(r, el) {
   const fejl = await send(r, t);
   if (fejl) { if (st) { st.textContent = "Kunne ikke gemme: " + fejl.message; st.style.color = "var(--roed)"; } if (knap) knap.disabled = false; return; }
   r.beslutning = t.beslutning === "fortryd" ? null : t.beslutning; r.feedback = t.feedback; r.initialer = INITIALER; t.gemt = true;
+  r.valgt_pris = t.beslutning === "følg" ? (t.pris ?? null) : null; r.aarsag = t.beslutning === "afvis" ? AARSAG_KODE[t.aarsag] ?? null : null; r.udsaet_til = t.beslutning === "senere" ? UDSAET_KODE[t.udsaet] ?? null : null;
   toast(t.beslutning === "fortryd" ? `${r.turkode}: beslutningen er fortrudt` : `${r.turkode}: ${t.beslutning}${t.beslutning === "følg" && t.pris ? " · " + kr(t.pris) : ""}${t.aarsag && t.beslutning === "afvis" ? " · " + t.aarsag : ""} er gemt`);
   if (t.beslutning === "fortryd") r.lokal = null;
   tegnKpi();
@@ -812,7 +814,8 @@ async function start() {
   const mail = session.user.email || "";
   INITIALER = mail.split("@")[0].toUpperCase();
   document.getElementById("bruger").textContent = mail;
-  const { data, error } = await sb.rpc("pris_dagens_forslag");
+  let { data, error } = await sb.rpc("pris_forslag_liste");
+  if (error && (error.code === "PGRST202" || /Could not find the function/i.test(error.message))) ({ data, error } = await sb.rpc("pris_dagens_forslag"));
   if (error) { besked(`<h2>Kunne ikke hente forslagene</h2><p>${esc(error.message)}</p><p><a href="./">Log ind igen i Topas BI Agent</a></p>`); return; }
   if (!data?.length) { besked(`<h2>Ingen forslag</h2><p>Enten har morgenkørslen ikke kørt endnu, eller din bruger har ikke adgang til prisforslag.</p>`); return; }
   let port = null;

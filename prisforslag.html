@@ -439,7 +439,7 @@ function tegnTabel() {
         <td class="h tal">${kortDato(r.afrejse)} ${r.afrejse.slice(2, 4)}<div class="lille">${r.dage} dage</div></td>
         <td>${chipForslag(r.forslag)}</td>
         <td class="h"><div class="bel"><span class="tal"><b>${r.solgt}</b><span class="lille">/${r.max_pax}</span></span><span class="bar"><i style="width:${Math.min(100, 100 * r.solgt / (r.max_pax || 1))}%"></i></span></div><div class="lille">${r.s.pladser_tilbage} ledige</div></td>
-        <td class="h">${chipProg(r.p)}</td>
+        <td class="h">${chipProg(r.p)}${r.s.advarsel_under_kurve ? '<div class="lille ned" title="Bagud på købskurven: overvej en mindre stigning">⚠ advarsel</div>' : ""}</td>
         <td class="h">${lyTxt}</td>
         <td>${sparkline(r)}</td>
         <td class="h tal">${tal(r.pris_nu)}</td>
@@ -491,14 +491,16 @@ function argumenter(r) {
   const s = r.s, imod = [];
   if (r.forslag !== "hold øje") {
     if (s.pointmodel_pris && s.pointmodel_pris < r.pris_nu) imod.push(`Pointmodellen (Power BI) siger ${kr(s.pointmodel_pris)}, altså lavere end prisen i dag`);
-    if (r.forslag === "hæv" && r.p.status === "bagud") imod.push(`Salget er bagud på købskurven. Stigninger på afgange bagud på kurven har kostet ca. 11 % af salget de næste 4 uger`);
+    if (r.forslag === "hæv" && r.p.status === "bagud" && !s.advarsel_under_kurve) imod.push(`Salget er bagud på købskurven. Stigninger på afgange bagud på kurven har kostet ca. 11 % af salget de næste 4 uger`);
     if (r.forslag === "hæv" && r.forslag_pris_til && r.forslag_pris_til / r.pris_nu - 1 > 0.06) imod.push("Den øverste ende af spændet er over +6 %. Stigninger over 6 % har kostet ca. 30 % af salget de næste 4 uger");
     if (s.sig_web && s.sess_14d && s.sess_14d_betalt / s.sess_14d > 0.4) imod.push(`${tal(s.sess_14d_betalt)} af ${tal(s.sess_14d)} besøg på tursiden er betalt trafik, så en del af interessen er købt`);
     if (s.sig_tempo && s.sidste_aars_tur && s.ly_solgt_nu != null && s.ly_solgt_nu <= 3) imod.push(`Små tal: sidste års afgang havde kun ${s.ly_solgt_nu} solgt på samme tidspunkt`);
     if (r.forslag === "kampagne" && r.p.status === "foran") imod.push("Salget er foran købskurven, så en kampagne kan være for tidlig");
     if (s.netop_haevet) imod.push("Prisen er hævet inden for de seneste 7 dage");
   }
-  return { for: r.begrundelser || [], imod };
+  // Maskinrummets advarsel (sidste begrundelse, "Advarsel: …") hører under "taler imod"
+  const adv = (r.begrundelser || []).filter(x => /^Advarsel/i.test(x));
+  return { for: (r.begrundelser || []).filter(x => !/^Advarsel/i.test(x)), imod: [...adv, ...imod], adv };
 }
 function kortSagt(r) {
   const p = r.p;
@@ -553,7 +555,7 @@ function tegnDetalje(el, turkode, efterHent) {
   let stige = "";
   if (r.forslag === "hæv") {
     const op = prisTrin(r), valgt = b.pris ?? r.forslag_pris_fra;
-    stige = `<div class="afsnit"><h3>Vælg pris <span style="text-transform:none;letter-spacing:0">· …470/…970, højst +10 %</span></h3><div class="stige">${op.map(p => { const d = 100 * (p / r.pris_nu - 1); return `<button class="trin${p >= r.forslag_pris_fra && p <= r.forslag_pris_til ? " foreslaaet" : ""}${d > 6.0001 ? " over" : ""}${s.pointmodel_pris === p ? " pm" : ""}" data-p="${p}" aria-pressed="${p === valgt}"><b class="tal">${tal(p)}</b><span>${pct(d, 1)}${p >= r.forslag_pris_fra && p <= r.forslag_pris_til ? " · forslag" : ""}</span></button>`; }).join("")}</div>
+    stige = `<div class="afsnit"><h3>Vælg pris <span style="text-transform:none;letter-spacing:0">· …470/…970, forslag højst +6 %</span></h3>${s.advarsel_under_kurve ? `<div class="advarsel vis" style="margin:0 0 8px">${esc(ar.adv[0] || "Advarsel: afgangen er bagud på seriens købskurve. Overvej en mindre stigning.")}</div>` : ""}<div class="stige">${op.map(p => { const d = 100 * (p / r.pris_nu - 1); return `<button class="trin${p >= r.forslag_pris_fra && p <= r.forslag_pris_til ? " foreslaaet" : ""}${d > 6.0001 ? " over" : ""}${s.pointmodel_pris === p ? " pm" : ""}" data-p="${p}" aria-pressed="${p === valgt}"><b class="tal">${tal(p)}</b><span>${pct(d, 1)}${p >= r.forslag_pris_fra && p <= r.forslag_pris_til ? " · forslag" : ""}</span></button>`; }).join("")}</div>
       <div class="advarsel" id="adv">Over +6 %: stigninger i den størrelse har kostet ca. 30 % af salget de næste 4 uger (effektanalysen 2024–26).</div>
       <div class="note">Skraveret = over +6 %. Blå kant = maskinrummets forslag.${s.pointmodel_pris ? ` Pointmodellen: ${kr(s.pointmodel_pris)}${s.pointmodel_pris < r.pris_nu ? " (under prisen i dag)" : ""}.` : ""}</div></div>`;
   } else if (r.forslag === "kampagne") {

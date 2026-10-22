@@ -131,6 +131,7 @@ input[type=checkbox]{accent-color:var(--blaa);width:15px;height:15px;cursor:poin
 .trin.pm{outline:2px dashed var(--graa);outline-offset:1px}
 .advarsel{margin-top:8px;padding:6px 8px;border-radius:6px;background:var(--roed-lys);color:var(--roed);font-size:12px;display:none}
 .advarsel.vis{display:block}
+.nav-pax{color:var(--orange)}
 .note.uds{position:relative}
 details.info{display:inline}
 details.info summary{display:inline-block;vertical-align:middle;list-style:none;cursor:pointer;width:15px;height:15px;border-radius:50%;border:1px solid var(--blaa);color:var(--blaa);font:600 10px/13px Georgia,serif;font-style:italic;text-align:center;user-select:none}
@@ -440,6 +441,8 @@ function forslagPris(r) {
   }
   return '<span class="lille">–</span>';
 }
+// Reel kapacitet (22-10): max_pax er seriens antal pladser, når NAV viser færre. NAV's tal står i signaler.nav_max_pax.
+const navPax = r => r.s?.nav_max_pax != null && r.s.nav_max_pax < r.max_pax ? ` <span class="nav-pax" title="Regnet mod den reelle kapacitet på ${r.max_pax} pladser. NAV viser ${r.s.nav_max_pax} pladser">· NAV ${r.s.nav_max_pax}</span>` : "";
 const serieAf = r => r.rute || r.turkode.slice(0, 4);
 function koebTxt(r) {
   const m = r.s.median_koebsdag;
@@ -471,7 +474,7 @@ function tegnTabel() {
         <td class="kode"><b>${r.turkode}</b>${r.nyt ? '<span class="chip ny">Ny</span>' : ""}${r.groenland ? '<span class="chip gl">GL</span>' : ""}<span class="navn">${esc(r.navn)}</span></td>
         <td class="h tal">${kortDato(r.afrejse)} ${r.afrejse.slice(2, 4)}<div class="lille">${r.dage} dage</div></td>
         <td>${chipForslag(r.forslag)}</td>
-        <td class="h"><div class="bel"><span class="tal"><b>${r.solgt}</b><span class="lille">/${r.max_pax}</span></span><span class="bar"><i style="width:${Math.min(100, 100 * r.solgt / (r.max_pax || 1))}%"></i></span></div><div class="lille">${r.s.pladser_tilbage} ledige</div></td>
+        <td class="h"><div class="bel"><span class="tal"><b>${r.solgt}</b><span class="lille">/${r.max_pax}</span></span><span class="bar"><i style="width:${Math.min(100, 100 * r.solgt / (r.max_pax || 1))}%"></i></span></div><div class="lille">${r.s.pladser_tilbage} ledige${navPax(r)}</div></td>
         <td class="h">${chipProg(r.p)}${r.s.advarsel_under_kurve ? '<div class="lille ned" title="Bagud på købskurven: overvej en mindre stigning">⚠ advarsel</div>' : ""}</td>
         <td class="h">${lyTxt}</td>
         <td class="h">${koebTxt(r)}</td>
@@ -514,18 +517,24 @@ function tegnBulk() {
 const loftPct = r => r.groenland ? 6 : 10, LAV_PCT = 5;
 // ML-trådens udsolgt-prognose: rangerer kampagnekandidater (lav chance først), vises kun i grove trin.
 const udsolgtSort = r => r.s?.p_udsolgt ?? 9;
+// Relativt efter tertiler blandt dagens forslag (22-10: basisrate ca. 15 %, højeste ca. 0,66), ikke faste grænser.
+let UDS_T = null;
+function udsolgtTertiler() {
+  const v = F.map(r => r.s.p_udsolgt).filter(x => x != null).sort((a, b) => a - b);
+  UDS_T = v.length >= 3 ? [v[Math.floor(v.length / 3)], v[Math.floor(2 * v.length / 3)]] : null;
+}
 function udsolgtTekst(s) {
-  if (s.p_udsolgt == null) return "";
-  const t = s.p_udsolgt < 0.35 ? "lav" : s.p_udsolgt <= 0.55 ? "middel" : "høj";
-  return `Udsolgt-modellen: ${t} chance for at blive udsolgt (usikker, bruges kun til at rangere kampagner).`;
+  if (s.p_udsolgt == null || !UDS_T) return "";
+  const t = s.p_udsolgt < UDS_T[0] ? "lav" : s.p_udsolgt < UDS_T[1] ? "middel" : "høj";
+  return `Udsolgt-modellen: ${t} chance for at blive udsolgt sammenlignet med dagens øvrige forslag (usikker, bruges kun til at rangere kampagner).`;
 }
 function infoUdsolgt(s) {
   const b = s.udsolgt_prognose_beregnet ? dato(String(s.udsolgt_prognose_beregnet).slice(0, 10)) : "";
   return `<details class="info"><summary aria-label="Sådan beregnes udsolgt-chancen">i</summary><div class="pop">
     <b>Chance for udsolgt</b>
     <p>En machine learning-model (gradient boosting), trænet på afrejste afgange fra 2025 og frem. Den ser på dage til afrejse, belægning, ledige pladser, salgstempo de sidste 28 dage, om serien var udsolgt sidste år, indeks mod samme turkode sidste år, Grønland og sæson.</p>
-    <p><b>Hvor præcis?</b> Testet på 2024–26: af de 20 afgange med højest chance blev 60–72 % udsolgt (mod 32–44 % af alle). Ca. hver tredje på toplisten bliver altså ikke udsolgt. Den er mest præcis tæt på afrejse og siger i snit ca. 5 procentpoint for højt.</p>
-    <p><b>Forbehold:</b> Afgange uden salg bygger næsten kun på sidste år. Udsolgt er målt mod max pax i NAV, som kan være sat ned. Brug den som pejling, ikke som facit. Siden viser den derfor kun som lav, middel eller høj.</p>
+    <p><b>Hvor præcis?</b> Testet på 2024–26: af de 20 afgange med højest chance blev ca. 40 % udsolgt (mod 13–20 % af alle), AUC 0,71–0,75. Mere end halvdelen på toplisten bliver altså ikke udsolgt.</p>
+    <p><b>Forbehold:</b> Afgange uden salg bygger næsten kun på sidste år. Udsolgt er målt mod den reelle kapacitet (seriens antal pladser, hvis NAV viser færre). Brug den som pejling, ikke som facit. Siden viser den derfor kun som lav, middel eller høj i forhold til dagens øvrige forslag (tredjedele).</p>
     ${b ? `<p class="lille">Beregnet ${b}.</p>` : ""}</div></details>`;
 }
 function prisTrin(r) {
@@ -636,7 +645,7 @@ function tegnDetalje(el, turkode, efterHent) {
       <div style="margin-top:10px">${anbef}</div>
       <div class="kortsagt">${kortSagt(r)}</div>
       <div class="noegle">
-        <div><b class="tal">${r.solgt}/${r.max_pax}</b><span>solgt · ${s.pladser_tilbage} ledige</span></div>
+        <div><b class="tal">${r.solgt}/${r.max_pax}</b><span>solgt · ${s.pladser_tilbage} ledige${navPax(r)}</span></div>
         <div><b>${chipProg(r.p)}</b><span>tempo mod købskurven</span></div>
         <div><b class="tal">${lyTur ? tal(s.ly_solgt_nu) + "/" + tal(s.ly_max_pax) : "–"}</b><span>sidste år samme dag</span></div>
         <div><b class="tal">${tal(s.solgt_14d)}</b><span>solgt 14 dage</span></div>
@@ -884,6 +893,7 @@ async function start() {
   if (!st.error && st.data?.length) st.data.forEach(x => { START[x.turkode] = x; });
   IDAG = data[0].dato;
   indlaes(data, port);
+  udsolgtTertiler();
   document.getElementById("dataDato").textContent = `Morgenkørsel ${dato(IDAG)} · ${F.length} afgange med forslag eller hold øje${PORT_FULD ? ` · ${AFG.length} afgange i alt` : ""}`;
   tegnKpi();
   tegnTabel();

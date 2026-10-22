@@ -66,7 +66,7 @@ tr.r.besl td{color:var(--graa)}
 tr.gruppe td{background:var(--bg);font-weight:700;font-size:12px;padding:6px 8px;color:var(--tekst);cursor:pointer;position:sticky;top:46px;z-index:1}
 tr.gruppe .n{color:var(--graa);font-weight:400;margin-left:6px}
 td.kode b{font-size:13px}
-td.kode .navn{display:block;color:var(--graa);font-size:11px;max-width:170px;overflow:hidden;text-overflow:ellipsis}
+td.kode .navn{display:block;color:var(--graa);font-size:11px;max-width:158px;overflow:hidden;text-overflow:ellipsis}
 .chip{display:inline-block;border-radius:10px;padding:1px 8px;font-size:11px;font-weight:600;line-height:18px}
 .chip.haev{background:var(--blaa-lys);color:var(--blaa)}
 .chip.kampagne{background:var(--orange-lys);color:var(--orange)}
@@ -304,7 +304,18 @@ function prognose(x) {
   return { status: st, tekst: STATUS_TEKST[st] || st, forventet: x.prognose_solgt ?? null, grad: x.prognose_grad ?? null, andel: x.kurve_andel ?? null, kurve: { navn: kurveNavn(x.kurve_navn), noegle: x.kurve_navn } };
 }
 
-let AFG = [], AFGK = {}, F = [], FK = {}, NAVN_SERIE = {}, PORT_FULD = false;
+let AFG = [], AFGK = {}, F = [], FK = {}, NAVN_SERIE = {}, PORT_FULD = false, START = {};
+// S9: startpris pr. afgang (pris_startpris_liste). Uden kaldet vises intet.
+function startTekst(t) {
+  const x = START[t]; if (!x || x.startpris == null) return "";
+  if (x.startpris_kilde === "uaendret" || !x.stigninger) return `Startpris ${kr(x.startpris)}, aldrig ændret`;
+  return `Startpris ${kr(x.startpris)} ${x.stigning_kr >= 0 ? "Hævet" : "Sat ned"} ${kr(Math.abs(x.stigning_kr))} (${pct(x.stigning_pct, 1)}) i ${x.stigninger} trin`;
+}
+function startCelle(t) {
+  const x = START[t]; if (!x || x.startpris == null) return "";
+  const u = x.startpris_kilde === "uaendret" || !x.stigninger;
+  return `<div class="lille" title="${startTekst(t)}${x.plan_startpris ? `. Plan: ${kr(x.plan_startpris)}` : ""}">start ${u ? "uændret" : `${tal(x.startpris)} <span class="${x.stigning_pct > 0 ? "op" : x.stigning_pct < 0 ? "ned" : ""}">${pct(x.stigning_pct, 0)}</span>`}</div>`;
+}
 function indlaes(forslag, portefoelje) {
   F = forslag.map(r => {
     const s = r.signaler || {};
@@ -466,7 +477,7 @@ function tegnTabel() {
         <td class="h">${koebTxt(r)}</td>
         <td class="h">${webTxt(r)}</td>
         <td>${sparkline(r)}</td>
-        <td class="h tal">${tal(r.pris_nu)}</td>
+        <td class="h tal">${tal(r.pris_nu)}${startCelle(r.turkode)}</td>
         <td class="h">${forslagPris(r)}</td>
         <td class="besl-ikon ${b === "følg" ? "foelg" : b === "afvis" ? "afvis" : b === "senere" ? "senere" : ""}" title="${b || "Ikke besluttet"}">${b === "følg" ? "✓" : b === "afvis" ? "✕" : b === "senere" ? "⏱" : ""}</td>
       </tr>`;
@@ -651,7 +662,7 @@ function tegnDetalje(el, turkode, efterHent) {
       <div class="genveje"><kbd>↑</kbd><kbd>↓</kbd> skift afgang · <kbd>F</kbd> <kbd>A</kbd> <kbd>S</kbd> beslut · <kbd>X</kbd> markér · <kbd>/</kbd> søg</div>
     </div>
     <div class="afsnit"><h3>I år mod sidste år</h3>${lyTabel}</div>
-    <div class="afsnit"><h3>Prisforløb (Tur Booking)</h3><div class="prisforloeb">${forloeb}</div></div>`;
+    <div class="afsnit"><h3>Prisforløb (Tur Booking)</h3>${startTekst(r.turkode) ? `<div class="kortsagt" style="margin:0 0 6px">${startTekst(r.turkode)}.${START[r.turkode].plan_startpris ? ` Planens startpris: ${kr(START[r.turkode].plan_startpris)}` : ""}</div>` : ""}<div class="prisforloeb">${forloeb}</div></div>`;
   // hændelser
   const tilst = r.lokal || (r.lokal = { beslutning: r.beslutning, feedback: r.feedback || "", pris: r.valgt_pris ?? null, aarsag: Object.keys(AARSAG_KODE).find(k => AARSAG_KODE[k] === r.aarsag), udsaet: Object.keys(UDSAET_KODE).find(k => UDSAET_KODE[k] === r.udsaet_til), gemt: false });
   const opdGem = () => { el.querySelector("#gem").disabled = !tilst.beslutning; };
@@ -719,7 +730,7 @@ function tegnAfgangUdenForslag(el, a) {
   el.innerHTML = `<div class="hoved"><h2>${a.turkode}</h2><div class="navn">${esc(navn)}</div><div class="lille">Afrejse ${dato(a.afrejse)} · ${a.dage} dage · ${a.region}</div>
       <div style="margin-top:10px" class="anbef holdoeje"><span class="stor">Intet forslag i dag</span></div>
       <div class="kortsagt">${kortSagt(r)}</div>
-      <div class="noegle"><div><b class="tal">${a.solgt}/${a.max_pax}</b><span>solgt</span></div><div><b>${chipProg(a.p)}</b><span>tempo mod købskurven</span></div><div><b class="tal">${a.ly_tur ? tal(a.ly_solgt) : "–"}</b><span>sidste år samme dag</span></div><div><b class="tal">${tal(a.pris_nu)}</b><span>pris i dag</span></div></div></div>
+      <div class="noegle"><div><b class="tal">${a.solgt}/${a.max_pax}</b><span>solgt</span></div><div><b>${chipProg(a.p)}</b><span>tempo mod købskurven</span></div><div><b class="tal">${a.ly_tur ? tal(a.ly_solgt) : "–"}</b><span>sidste år samme dag</span></div><div><b class="tal">${tal(a.pris_nu)}</b><span>pris i dag</span>${startCelle(a.turkode)}</div></div></div>
     <div class="afsnit graf"><h3>Salgskurve</h3>${SALG[a.turkode] || (a.ly_tur && SALG[a.ly_tur]) ? graf(r, a.ly_tur) : '<div class="tom">Salgskurven kommer med maskinrummets detaljekald.</div>'}</div>
     <div class="afsnit"><div class="note">Maskinrummet har ikke givet et forslag på afgangen i dag. I den færdige version kan man herfra bede om en ny vurdering eller sætte en påmindelse.</div></div>`;
 }
@@ -759,7 +770,7 @@ function tegnPort() {
     `<span><span class="felt foran"></span>foran købskurven</span><span><span class="felt paa"></span>på kurs</span><span><span class="felt bagud"></span>bagud</span><span><span class="felt udsolgt"></span>udsolgt</span><span><span class="felt tidligt"></span>for tidligt at læse</span>`) +
     `<span><span class="felt paa f-haev"></span>forslag: hæv</span><span><span class="felt paa f-kampagne"></span>forslag: kampagne</span><span>Tallet i feltet er belægning i %</span>`;
   document.querySelectorAll("#port .felt").forEach(f => {
-    f.onmouseenter = e => { const a = AFGK[f.dataset.t]; visTip(e, `<b>${a.turkode}</b> · ${dato(a.afrejse)} (${a.dage} d)<br>Solgt ${a.solgt}/${a.max_pax} · tempo: ${a.p.tekst.toLowerCase()}<br>Sidste år samme dag: ${a.ly_tur ? tal(a.ly_solgt) + " (" + a.ly_tur + ")" : "–"}<br>Pris ${kr(a.pris_nu)}${a.f ? "<br>Forslag i dag: " + a.f.forslag : ""}`); };
+    f.onmouseenter = e => { const a = AFGK[f.dataset.t]; visTip(e, `<b>${a.turkode}</b> · ${dato(a.afrejse)} (${a.dage} d)<br>Solgt ${a.solgt}/${a.max_pax} · tempo: ${a.p.tekst.toLowerCase()}<br>Sidste år samme dag: ${a.ly_tur ? tal(a.ly_solgt) + " (" + a.ly_tur + ")" : "–"}<br>Pris ${kr(a.pris_nu)}${startTekst(a.turkode) ? "<br>" + startTekst(a.turkode) : ""}${a.f ? "<br>Forslag i dag: " + a.f.forslag : ""}`); };
     f.onmousemove = e => flytTip(e);
     f.onmouseleave = () => skjulTip();
     f.onclick = () => { T.valgt2 = f.dataset.t; tegnPort(); };
@@ -832,8 +843,8 @@ document.getElementById("bulkSenere").onclick = () => bulk("senere");
 document.getElementById("bulkAfvis").onclick = () => bulk("afvis");
 document.getElementById("excel").onclick = () => {
   const L = synlige();
-  const kol = ["Turkode", "Rejse", "Afrejse", "Dage", "Forslag", "Solgt", "Max pax", "Tempo mod købskurve", "Sidste års tur", "Solgt sidste år samme dag", "Køber typisk (dage før)", "Trafik tursiden mod sidste år (%)", "Pris i dag", "Forslag fra", "Forslag til", "Kampagne fra", "Kampagne til", "Pointmodel", "Beslutning", "Begrundelser"];
-  const rk = L.map(r => [r.turkode, r.navn, r.afrejse, r.dage, r.forslag, r.solgt, r.max_pax, r.p.tekst, r.s.sidste_aars_tur || "", r.s.ly_solgt_nu ?? "", r.s.median_koebsdag ?? "", r.s.web_vaekst_pct ?? "", r.pris_nu, r.forslag_pris_fra ?? "", r.forslag_pris_til ?? "", r.kampagne_pris_fra ?? "", r.kampagne_pris_til ?? "", r.s.pointmodel_pris ?? "", beslutning(r) || "", (r.begrundelser || []).join(" | ")]);
+  const kol = ["Turkode", "Rejse", "Afrejse", "Dage", "Forslag", "Solgt", "Max pax", "Tempo mod købskurve", "Sidste års tur", "Solgt sidste år samme dag", "Køber typisk (dage før)", "Trafik tursiden mod sidste år (%)", "Pris i dag", "Startpris", "Ændring siden start (%)", "Stigninger", "Planens startpris", "Forslag fra", "Forslag til", "Kampagne fra", "Kampagne til", "Pointmodel", "Beslutning", "Begrundelser"];
+  const rk = L.map(r => [r.turkode, r.navn, r.afrejse, r.dage, r.forslag, r.solgt, r.max_pax, r.p.tekst, r.s.sidste_aars_tur || "", r.s.ly_solgt_nu ?? "", r.s.median_koebsdag ?? "", r.s.web_vaekst_pct ?? "", r.pris_nu, START[r.turkode]?.startpris ?? "", START[r.turkode]?.stigning_pct ?? "", START[r.turkode]?.stigninger ?? "", START[r.turkode]?.plan_startpris ?? "", r.forslag_pris_fra ?? "", r.forslag_pris_til ?? "", r.kampagne_pris_fra ?? "", r.kampagne_pris_til ?? "", r.s.pointmodel_pris ?? "", beslutning(r) || "", (r.begrundelser || []).join(" | ")]);
   const csv = "﻿" + [kol, ...rk].map(x => x.map(v => `"${String(v).replace(/"/g, '""')}"`).join(";")).join("\r\n");
   const a = document.createElement("a"); a.href = URL.createObjectURL(new Blob([csv], { type: "text/csv" })); a.download = "prisforslag-" + IDAG + ".csv"; a.click();
 };
@@ -868,8 +879,9 @@ async function start() {
   if (error) { besked(`<h2>Kunne ikke hente forslagene</h2><p>${esc(error.message)}</p><p><a href="./">Log ind igen i Topas BI Agent</a></p>`); return; }
   if (!data?.length) { besked(`<h2>Ingen forslag</h2><p>Enten har morgenkørslen ikke kørt endnu, eller din bruger har ikke adgang til prisforslag.</p>`); return; }
   let port = null;
-  const pr = await sb.rpc("pris_portefoelje");
+  const [pr, st] = await Promise.all([sb.rpc("pris_portefoelje"), sb.rpc("pris_startpris_liste")]);
   if (!pr.error && pr.data?.length) port = pr.data;
+  if (!st.error && st.data?.length) st.data.forEach(x => { START[x.turkode] = x; });
   IDAG = data[0].dato;
   indlaes(data, port);
   document.getElementById("dataDato").textContent = `Morgenkørsel ${dato(IDAG)} · ${F.length} afgange med forslag eller hold øje${PORT_FULD ? ` · ${AFG.length} afgange i alt` : ""}`;

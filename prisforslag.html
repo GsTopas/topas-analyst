@@ -131,6 +131,7 @@ input[type=checkbox]{accent-color:var(--blaa);width:15px;height:15px;cursor:poin
 .trin.pm{outline:2px dashed var(--graa);outline-offset:1px}
 .advarsel{margin-top:8px;padding:6px 8px;border-radius:6px;background:var(--roed-lys);color:var(--roed);font-size:12px;display:none}
 .advarsel.vis{display:block}
+.note.bloed{display:none;margin-top:8px;color:var(--orange,#E1652A)}.note.bloed.vis{display:block}
 .beslut{display:flex;gap:6px;margin-bottom:8px}
 .beslut .knap{flex:1}
 .beslut .knap[aria-pressed=true]{background:var(--blaa);color:#fff;border-color:var(--blaa)}
@@ -475,8 +476,10 @@ function tegnBulk() {
 }
 
 // ---------- detalje ----------
+// Loft fra maskinrummet (DB-beregningen 22-10): højst +10 %, Grønland +6 %. Under +5 % har ikke givet ekstra DB.
+const loftPct = r => r.groenland ? 6 : 10, LAV_PCT = 5;
 function prisTrin(r) {
-  const op = [], p0 = r.pris_nu, loft = p0 * 1.10;
+  const op = [], p0 = r.pris_nu, loft = p0 * (1 + Math.max(loftPct(r) + 2, 10) / 100);
   let p = Math.floor(p0 / 500) * 500 - 30; // …470 / …970
   while (p <= p0) p += 500;
   for (; p <= loft + 1; p += 500) op.push(p);
@@ -492,7 +495,7 @@ function argumenter(r) {
   if (r.forslag !== "hold øje") {
     if (s.pointmodel_pris && s.pointmodel_pris < r.pris_nu) imod.push(`Pointmodellen (Power BI) siger ${kr(s.pointmodel_pris)}, altså lavere end prisen i dag`);
     if (r.forslag === "hæv" && r.p.status === "bagud" && !s.advarsel_under_kurve) imod.push(`Salget er bagud på købskurven. Stigninger på afgange bagud på kurven har kostet ca. 11 % af salget de næste 4 uger`);
-    if (r.forslag === "hæv" && r.forslag_pris_til && r.forslag_pris_til / r.pris_nu - 1 > 0.06) imod.push("Den øverste ende af spændet er over +6 %. Stigninger over 6 % har kostet ca. 30 % af salget de næste 4 uger");
+    if (r.forslag === "hæv" && r.forslag_pris_til && 100 * (r.forslag_pris_til / r.pris_nu - 1) > loftPct(r) + 0.0001) imod.push(`Den øverste ende af spændet er over loftet på +${loftPct(r)} %${r.groenland ? " for Grønland" : ""}`);
     if (s.sig_web && s.sess_14d && s.sess_14d_betalt / s.sess_14d > 0.4) imod.push(`${tal(s.sess_14d_betalt)} af ${tal(s.sess_14d)} besøg på tursiden er betalt trafik, så en del af interessen er købt`);
     if (s.sig_tempo && s.sidste_aars_tur && s.ly_solgt_nu != null && s.ly_solgt_nu <= 3) imod.push(`Små tal: sidste års afgang havde kun ${s.ly_solgt_nu} solgt på samme tidspunkt`);
     if (r.forslag === "kampagne" && r.p.status === "foran") imod.push("Salget er foran købskurven, så en kampagne kan være for tidlig");
@@ -555,9 +558,10 @@ function tegnDetalje(el, turkode, efterHent) {
   let stige = "";
   if (r.forslag === "hæv") {
     const op = prisTrin(r), valgt = b.pris ?? r.forslag_pris_fra;
-    stige = `<div class="afsnit"><h3>Vælg pris <span style="text-transform:none;letter-spacing:0">· …470/…970, forslag højst +6 %</span></h3>${s.advarsel_under_kurve ? `<div class="advarsel vis" style="margin:0 0 8px">${esc(ar.adv[0] || "Advarsel: afgangen er bagud på seriens købskurve. Overvej en mindre stigning.")}</div>` : ""}<div class="stige">${op.map(p => { const d = 100 * (p / r.pris_nu - 1); return `<button class="trin${p >= r.forslag_pris_fra && p <= r.forslag_pris_til ? " foreslaaet" : ""}${d > 6.0001 ? " over" : ""}${s.pointmodel_pris === p ? " pm" : ""}" data-p="${p}" aria-pressed="${p === valgt}"><b class="tal">${tal(p)}</b><span>${pct(d, 1)}${p >= r.forslag_pris_fra && p <= r.forslag_pris_til ? " · forslag" : ""}</span></button>`; }).join("")}</div>
-      <div class="advarsel" id="adv">Over +6 %: stigninger i den størrelse har kostet ca. 30 % af salget de næste 4 uger (effektanalysen 2024–26).</div>
-      <div class="note">Skraveret = over +6 %. Blå kant = maskinrummets forslag.${s.pointmodel_pris ? ` Pointmodellen: ${kr(s.pointmodel_pris)}${s.pointmodel_pris < r.pris_nu ? " (under prisen i dag)" : ""}.` : ""}</div></div>`;
+    stige = `<div class="afsnit"><h3>Vælg pris <span style="text-transform:none;letter-spacing:0">· …470/…970, loft +${loftPct(r)} %${r.groenland ? " (Grønland)" : ""}</span></h3>${s.advarsel_under_kurve ? `<div class="advarsel vis" style="margin:0 0 8px">${esc(ar.adv[0] || "Advarsel: afgangen er bagud på seriens købskurve. Overvej en mindre stigning.")}</div>` : ""}<div class="stige">${op.map(p => { const d = 100 * (p / r.pris_nu - 1); return `<button class="trin${p >= r.forslag_pris_fra && p <= r.forslag_pris_til ? " foreslaaet" : ""}${d > loftPct(r) + 0.0001 ? " over" : ""}${s.pointmodel_pris === p ? " pm" : ""}" data-p="${p}" aria-pressed="${p === valgt}"><b class="tal">${tal(p)}</b><span>${pct(d, 1)}${p >= r.forslag_pris_fra && p <= r.forslag_pris_til ? " · forslag" : ""}</span></button>`; }).join("")}</div>
+      <div class="advarsel" id="adv">Over loftet på +${loftPct(r)} %${r.groenland ? " for Grønland" : ""}. Store stigninger har kostet salg, og DB-beregningen sætter loftet her.</div>
+      <div class="note bloed" id="lav">Under +${LAV_PCT} %: små stigninger har ikke givet ekstra DB.</div>
+      <div class="note">Skraveret = over loftet (+${loftPct(r)} %). Blå kant = maskinrummets forslag.${s.pointmodel_pris ? ` Pointmodellen: ${kr(s.pointmodel_pris)}${s.pointmodel_pris < r.pris_nu ? " (under prisen i dag)" : ""}.` : ""}</div></div>`;
   } else if (r.forslag === "kampagne") {
     const op = kampagneTrin(r), valgt = b.pris ?? op[0];
     stige = `<div class="afsnit"><h3>Kampagnepris og pladser</h3><div class="stige">${op.map(p => `<button class="trin foreslaaet" data-p="${p}" aria-pressed="${p === valgt}"><b class="tal">${tal(p)}</b><span>${pct(100 * (p / r.pris_nu - 1), 1)}</span></button>`).join("")}</div>
@@ -624,7 +628,11 @@ function tegnDetalje(el, turkode, efterHent) {
   opdGem();
   if (efterHent) el.scrollTop = top;
 }
-function visAdv(el, r, p) { const a = el.querySelector("#adv"); if (a) a.classList.toggle("vis", p / r.pris_nu - 1 > 0.06001); }
+function visAdv(el, r, p) {
+  const d = 100 * (p / r.pris_nu - 1), a = el.querySelector("#adv"), l = el.querySelector("#lav");
+  if (a) a.classList.toggle("vis", d > loftPct(r) + 0.0001);
+  if (l) l.classList.toggle("vis", d > 0 && d < LAV_PCT);
+}
 function vaelgBeslutning(el, r, v) {
   const t = r.lokal; t.beslutning = v; t.gemt = false;
   el.querySelectorAll(".beslut .knap").forEach(x => x.setAttribute("aria-pressed", x.dataset.v === v));

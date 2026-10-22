@@ -50,23 +50,23 @@ main{padding:14px 20px 40px}
 .knap:disabled{opacity:.45;cursor:default}
 .check{display:inline-flex;gap:6px;align-items:center;cursor:pointer;color:var(--tekst)}
 /* layout */
-.arbejde{display:grid;grid-template-columns:minmax(0,1fr) 480px;gap:14px;align-items:start}
+.arbejde{display:grid;grid-template-columns:minmax(0,1fr) 450px;gap:14px;align-items:start}
 .ark{background:var(--plade);border:1px solid var(--linje);border-radius:8px;overflow:auto;height:calc(100vh - 232px);min-height:420px}
 table{border-collapse:separate;border-spacing:0;width:100%}
-th{position:sticky;top:0;background:#fff;z-index:2;text-align:left;font-weight:600;font-size:12px;color:var(--graa);padding:8px 8px;border-bottom:1px solid var(--linje);white-space:nowrap;cursor:pointer;user-select:none}
+th{position:sticky;top:0;background:#fff;z-index:2;text-align:left;font-weight:600;font-size:12px;color:var(--graa);padding:6px 6px;height:46px;vertical-align:bottom;line-height:1.25;border-bottom:1px solid var(--linje);white-space:nowrap;cursor:pointer;user-select:none}
 th.h,td.h{text-align:right}
 th:hover{color:var(--blaa)}
 th .pil{font-size:10px;margin-left:3px}
-td{padding:6px 8px;border-bottom:1px solid #F0F0F0;vertical-align:middle;white-space:nowrap}
+td{padding:6px 6px;border-bottom:1px solid #F0F0F0;vertical-align:middle;white-space:nowrap}
 tr.r{cursor:pointer}
 tr.r:hover td{background:#FAFBFC}
 tr.r.valgt td{background:var(--blaa-lys)}
 tr.r.valgt td:first-child{box-shadow:inset 3px 0 0 var(--blaa)}
 tr.r.besl td{color:var(--graa)}
-tr.gruppe td{background:var(--bg);font-weight:700;font-size:12px;padding:6px 8px;color:var(--tekst);cursor:pointer;position:sticky;top:33px;z-index:1}
+tr.gruppe td{background:var(--bg);font-weight:700;font-size:12px;padding:6px 8px;color:var(--tekst);cursor:pointer;position:sticky;top:46px;z-index:1}
 tr.gruppe .n{color:var(--graa);font-weight:400;margin-left:6px}
 td.kode b{font-size:13px}
-td.kode .navn{display:block;color:var(--graa);font-size:11px;max-width:210px;overflow:hidden;text-overflow:ellipsis}
+td.kode .navn{display:block;color:var(--graa);font-size:11px;max-width:170px;overflow:hidden;text-overflow:ellipsis}
 .chip{display:inline-block;border-radius:10px;padding:1px 8px;font-size:11px;font-weight:600;line-height:18px}
 .chip.haev{background:var(--blaa-lys);color:var(--blaa)}
 .chip.kampagne{background:var(--orange-lys);color:var(--orange)}
@@ -367,9 +367,11 @@ const KOL = [
   { k: "forslag", t: "Forslag", s: r => ({ "hæv": 0, "kampagne": 1, "hold øje": 2 }[r.forslag]) },
   { k: "bel", t: "Solgt", s: r => r.solgt / (r.max_pax || 1), h: true },
   { k: "prog", t: "Tempo", s: r => r.p.grad ?? -1, h: true, tip: "Salgstempo mod seriens købskurve: foran, på kurs eller bagud" },
-  { k: "ly", t: "Sidste år", s: r => (r.s.ly_solgt_nu ?? -99) - 0, h: true, tip: "Solgt på sidste års afgang samme antal dage før afrejse" },
+  { k: "ly", t: "Sidste<br>år", s: r => (r.s.ly_solgt_nu ?? -99) - 0, h: true, tip: "Solgt på sidste års afgang samme antal dage før afrejse" },
+  { k: "koeb", t: "Køber<br>typisk", s: r => r.s.median_koebsdag ?? -1, h: true, tip: "Hvor mange dage før afrejse halvdelen af slutsalget typisk er solgt (seriens eller segmentets købskurve)" },
+  { k: "web", t: () => { const a = F.find(x => x.s.web_vaekst_alle_pct != null)?.s.web_vaekst_alle_pct; return `Trafik<br><span class="lille">${a != null ? `alle ${pct(a)}` : "tursiden"}</span>`; }, s: r => r.s.web_vaekst_pct ?? -999, h: true, tip: "Besøg på tursiden de sidste 14 dage mod samme 14 dage sidste år. Tursiden er fælles for hele serien, så tallet er ens på alle afgange i serien" },
   { k: "kurve", t: "Salgskurve", s: null },
-  { k: "pris", t: "Pris i dag", s: r => r.pris_nu, h: true },
+  { k: "pris", t: "Pris<br>i dag", s: r => r.pris_nu, h: true },
   { k: "fp", t: "Forslag", s: r => r.forslag_pris_fra ?? r.kampagne_pris_til ?? 0, h: true },
   { k: "besl", t: "", s: r => beslutning(r) || "" },
 ];
@@ -386,7 +388,7 @@ function synlige() {
     return true;
   });
   if (T.sort) { const k = KOL.find(c => c.k === T.sort); L.sort((a, b) => { const x = k.s(a), y = k.s(b); return (x > y ? 1 : x < y ? -1 : 0) * T.retning; }); }
-  else L.sort((a, b) => ({ "hæv": 0, "kampagne": 1, "hold øje": 2 }[a.forslag] - { "hæv": 0, "kampagne": 1, "hold øje": 2 }[b.forslag]) || (b.nyt - a.nyt) || (a.dage - b.dage));
+  else L.sort((a, b) => ({ "hæv": 0, "kampagne": 1, "hold øje": 2 }[a.forslag] - { "hæv": 0, "kampagne": 1, "hold øje": 2 }[b.forslag]) || (a.forslag === "kampagne" ? udsolgtSort(a) - udsolgtSort(b) : 0) || (b.nyt - a.nyt) || (a.dage - b.dage));
   return L;
 }
 // Salgskurven i år: punkter fra i dag og bagud plus dagens salg
@@ -395,7 +397,7 @@ function kurveIAar(r) {
   if (!c.length || c[c.length - 1][0] !== r.dage) c.push([r.dage, r.solgt]);
   return c;
 }
-function sparkline(r, w = 92, h = 24) {
+function sparkline(r, w = 72, h = 24) {
   const max = Math.max(r.max_pax || 1, 1);
   const X = d => w - (Math.min(d, 365) / 365) * w, Y = v => h - 2 - (Math.min(v, max) / max) * (h - 4);
   const cur = kurveIAar(r);
@@ -420,10 +422,22 @@ function forslagPris(r) {
   }
   return '<span class="lille">–</span>';
 }
+const serieAf = r => r.rute || r.turkode.slice(0, 4);
+function koebTxt(r) {
+  const m = r.s.median_koebsdag;
+  if (m == null) return '<span class="lille">–</span>';
+  return `<span title="Halvdelen af slutsalget er typisk solgt ${m} dage før afrejse. Afgangen er ${r.dage} dage fra afrejse."><b class="tal">${m}</b><span class="lille"> d</span><div class="lille">før afrejse</div></span>`;
+}
+function webTxt(r) {
+  const w = r.s.web_vaekst_pct, a = r.s.web_vaekst_alle_pct, ser = serieAf(r);
+  if (w == null) return `<span class="lille" title="Ingen besøg på tursiden samme 14 dage sidste år">–</span><div class="lille">${ser}</div>`;
+  const kl = a == null ? "" : w > a ? "op" : w < a ? "ned" : "";
+  return `<span title="Tursiden for serien ${ser}: ${pct(w)} mod sidste år${a != null ? ` (alle tursider ${pct(a)})` : ""}. Ens på alle afgange i serien."><b class="tal ${kl}">${pct(w)}</b><div class="lille">serie ${ser}</div></span>`;
+}
 function tegnTabel() {
   const L = synlige();
   const th = KOL.map(c => c.k === "vaelg" ? `<th style="width:28px;cursor:default">${c.t}</th>` :
-    `<th class="${c.h ? "h" : ""}" data-s="${c.s ? c.k : ""}" title="${c.tip || ""}">${c.t}${T.sort === c.k ? `<span class="pil">${T.retning > 0 ? "▲" : "▼"}</span>` : ""}</th>`).join("");
+    `<th class="${c.h ? "h" : ""}" data-s="${c.s ? c.k : ""}" title="${c.tip || ""}">${typeof c.t === "function" ? c.t() : c.t}${T.sort === c.k ? `<span class="pil">${T.retning > 0 ? "▲" : "▼"}</span>` : ""}</th>`).join("");
   document.getElementById("thead").innerHTML = th;
   const grupper = T.sort ? [["", L]] : [["hæv", L.filter(r => r.forslag === "hæv")], ["kampagne", L.filter(r => r.forslag === "kampagne")], ["hold øje", L.filter(r => r.forslag === "hold øje")]].filter(g => g[1].length);
   const navn = { "hæv": "Hæv prisen", "kampagne": "Kampagnekandidater", "hold øje": "Hold øje" };
@@ -442,6 +456,8 @@ function tegnTabel() {
         <td class="h"><div class="bel"><span class="tal"><b>${r.solgt}</b><span class="lille">/${r.max_pax}</span></span><span class="bar"><i style="width:${Math.min(100, 100 * r.solgt / (r.max_pax || 1))}%"></i></span></div><div class="lille">${r.s.pladser_tilbage} ledige</div></td>
         <td class="h">${chipProg(r.p)}${r.s.advarsel_under_kurve ? '<div class="lille ned" title="Bagud på købskurven: overvej en mindre stigning">⚠ advarsel</div>' : ""}</td>
         <td class="h">${lyTxt}</td>
+        <td class="h">${koebTxt(r)}</td>
+        <td class="h">${webTxt(r)}</td>
         <td>${sparkline(r)}</td>
         <td class="h tal">${tal(r.pris_nu)}</td>
         <td class="h">${forslagPris(r)}</td>
@@ -478,6 +494,13 @@ function tegnBulk() {
 // ---------- detalje ----------
 // Loft fra maskinrummet (DB-beregningen 22-10): højst +10 %, Grønland +6 %. Under +5 % har ikke givet ekstra DB.
 const loftPct = r => r.groenland ? 6 : 10, LAV_PCT = 5;
+// ML-trådens udsolgt-prognose: rangerer kampagnekandidater (lav chance først), vises kun i grove trin.
+const udsolgtSort = r => r.s?.p_udsolgt ?? 9;
+function udsolgtTekst(s) {
+  if (s.p_udsolgt == null) return "";
+  const t = s.p_udsolgt < 0.35 ? "lav" : s.p_udsolgt <= 0.55 ? "middel" : "høj";
+  return `Udsolgt-modellen: ${t} chance for at blive udsolgt (usikker, bruges kun til at rangere kampagner).`;
+}
 function prisTrin(r) {
   const op = [], p0 = r.pris_nu, loft = p0 * (1 + Math.max(loftPct(r) + 2, 10) / 100);
   let p = Math.floor(p0 / 500) * 500 - 30; // …470 / …970
@@ -576,6 +599,7 @@ function tegnDetalje(el, turkode, efterHent) {
   const pr = PRISER[r.turkode] || [];
   const forloeb = pr.length ? pr.map(p => `<span class="pt tal">${tal(p[1])}${p[0] != null ? ` <span class="lille">(${p[0]} d)</span>` : ""}</span>`).join(" → ") : DETALJE[r.turkode] === "ok" ? '<span class="tom">Ingen pristrin i Tur Booking</span>' : DETALJE[r.turkode] === "henter" ? '<span class="tom">Henter …</span>' : `<span class="tom">${s.seneste_stigning ? "Seneste stigning " + dato(s.seneste_stigning) + ". " : ""}Hele prisforløbet kommer med maskinrummets detaljekald.</span>`;
   const web = s.sess_14d != null ? `Tursiden: ${tal(s.sess_14d)} besøg på 14 dage mod ${tal(s.sess_14d_sidste_aar)} sidste år${s.sess_14d_betalt ? ` (heraf betalt ${tal(s.sess_14d_betalt)})` : ""}. Alle tursider: ${pct(100 * (s.web_vaekst_alle - 1))}.` : "";
+  const uds = udsolgtTekst(s);
   el.innerHTML = `
     <div class="hoved">
       <div style="display:flex;justify-content:space-between;gap:8px;align-items:start">
@@ -596,7 +620,7 @@ function tegnDetalje(el, turkode, efterHent) {
     <div class="afsnit"><h3>Hvorfor</h3><div class="argumenter">
       <div class="for"><h4>Taler for</h4><ul>${ar.for.length ? ar.for.map(x => `<li>${esc(x)}</li>`).join("") : '<li class="tom">Ingen signaler</li>'}</ul></div>
       <div class="imod"><h4>Taler imod</h4><ul>${ar.imod.length ? ar.imod.map(x => `<li>${esc(x)}</li>`).join("") : '<li class="tom">Intet modsignal i data</li>'}</ul></div>
-    </div>${web ? `<div class="note">${web}</div>` : ""}</div>
+    </div>${web ? `<div class="note">${web}</div>` : ""}${uds ? `<div class="note" title="ML-modellens chance for udsolgt (AUC 0,63–0,71). Kun til at rangere kampagnekandidater, ikke et facit.">${uds}</div>` : ""}</div>
     ${stige}
     <div class="afsnit"><h3>Din beslutning</h3>
       <div class="beslut">
@@ -792,8 +816,8 @@ document.getElementById("bulkSenere").onclick = () => bulk("senere");
 document.getElementById("bulkAfvis").onclick = () => bulk("afvis");
 document.getElementById("excel").onclick = () => {
   const L = synlige();
-  const kol = ["Turkode", "Rejse", "Afrejse", "Dage", "Forslag", "Solgt", "Max pax", "Tempo mod købskurve", "Sidste års tur", "Solgt sidste år samme dag", "Pris i dag", "Forslag fra", "Forslag til", "Kampagne fra", "Kampagne til", "Pointmodel", "Beslutning", "Begrundelser"];
-  const rk = L.map(r => [r.turkode, r.navn, r.afrejse, r.dage, r.forslag, r.solgt, r.max_pax, r.p.tekst, r.s.sidste_aars_tur || "", r.s.ly_solgt_nu ?? "", r.pris_nu, r.forslag_pris_fra ?? "", r.forslag_pris_til ?? "", r.kampagne_pris_fra ?? "", r.kampagne_pris_til ?? "", r.s.pointmodel_pris ?? "", beslutning(r) || "", (r.begrundelser || []).join(" | ")]);
+  const kol = ["Turkode", "Rejse", "Afrejse", "Dage", "Forslag", "Solgt", "Max pax", "Tempo mod købskurve", "Sidste års tur", "Solgt sidste år samme dag", "Køber typisk (dage før)", "Trafik tursiden mod sidste år (%)", "Pris i dag", "Forslag fra", "Forslag til", "Kampagne fra", "Kampagne til", "Pointmodel", "Beslutning", "Begrundelser"];
+  const rk = L.map(r => [r.turkode, r.navn, r.afrejse, r.dage, r.forslag, r.solgt, r.max_pax, r.p.tekst, r.s.sidste_aars_tur || "", r.s.ly_solgt_nu ?? "", r.s.median_koebsdag ?? "", r.s.web_vaekst_pct ?? "", r.pris_nu, r.forslag_pris_fra ?? "", r.forslag_pris_til ?? "", r.kampagne_pris_fra ?? "", r.kampagne_pris_til ?? "", r.s.pointmodel_pris ?? "", beslutning(r) || "", (r.begrundelser || []).join(" | ")]);
   const csv = "﻿" + [kol, ...rk].map(x => x.map(v => `"${String(v).replace(/"/g, '""')}"`).join(";")).join("\r\n");
   const a = document.createElement("a"); a.href = URL.createObjectURL(new Blob([csv], { type: "text/csv" })); a.download = "prisforslag-" + IDAG + ".csv"; a.click();
 };

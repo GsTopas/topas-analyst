@@ -131,6 +131,13 @@ input[type=checkbox]{accent-color:var(--blaa);width:15px;height:15px;cursor:poin
 .trin.pm{outline:2px dashed var(--graa);outline-offset:1px}
 .advarsel{margin-top:8px;padding:6px 8px;border-radius:6px;background:var(--roed-lys);color:var(--roed);font-size:12px;display:none}
 .advarsel.vis{display:block}
+.note.uds{position:relative}
+details.info{display:inline}
+details.info summary{display:inline-block;vertical-align:middle;list-style:none;cursor:pointer;width:15px;height:15px;border-radius:50%;border:1px solid var(--blaa);color:var(--blaa);font:600 10px/13px Georgia,serif;font-style:italic;text-align:center;user-select:none}
+details.info summary::-webkit-details-marker{display:none}
+details.info[open] summary{background:var(--blaa);color:#fff}
+details.info .pop{display:block;margin-top:8px;background:#fff;border:1px solid var(--linje);border-left:3px solid var(--blaa);border-radius:6px;padding:10px 12px;color:var(--tekst);font-size:12px;line-height:1.45;z-index:20}
+details.info .pop p{margin:6px 0 0}
 .note.bloed{display:none;margin-top:8px;color:var(--orange,#E1652A)}.note.bloed.vis{display:block}
 .beslut{display:flex;gap:6px;margin-bottom:8px}
 .beslut .knap{flex:1}
@@ -501,6 +508,15 @@ function udsolgtTekst(s) {
   const t = s.p_udsolgt < 0.35 ? "lav" : s.p_udsolgt <= 0.55 ? "middel" : "høj";
   return `Udsolgt-modellen: ${t} chance for at blive udsolgt (usikker, bruges kun til at rangere kampagner).`;
 }
+function infoUdsolgt(s) {
+  const b = s.udsolgt_prognose_beregnet ? dato(String(s.udsolgt_prognose_beregnet).slice(0, 10)) : "";
+  return `<details class="info"><summary aria-label="Sådan beregnes udsolgt-chancen">i</summary><div class="pop">
+    <b>Chance for udsolgt</b>
+    <p>En machine learning-model (gradient boosting), trænet på afrejste afgange fra 2025 og frem. Den ser på dage til afrejse, belægning, ledige pladser, salgstempo de sidste 28 dage, om serien var udsolgt sidste år, indeks mod samme turkode sidste år, Grønland og sæson.</p>
+    <p><b>Hvor præcis?</b> Testet på 2024–26: af de 20 afgange med højest chance blev 60–72 % udsolgt (mod 32–44 % af alle). Ca. hver tredje på toplisten bliver altså ikke udsolgt. Den er mest præcis tæt på afrejse og siger i snit ca. 5 procentpoint for højt.</p>
+    <p><b>Forbehold:</b> Afgange uden salg bygger næsten kun på sidste år. Udsolgt er målt mod max pax i NAV, som kan være sat ned. Brug den som pejling, ikke som facit. Siden viser den derfor kun som lav, middel eller høj.</p>
+    ${b ? `<p class="lille">Beregnet ${b}.</p>` : ""}</div></details>`;
+}
 function prisTrin(r) {
   const op = [], p0 = r.pris_nu, loft = p0 * (1 + Math.max(loftPct(r) + 2, 10) / 100);
   let p = Math.floor(p0 / 500) * 500 - 30; // …470 / …970
@@ -620,7 +636,7 @@ function tegnDetalje(el, turkode, efterHent) {
     <div class="afsnit"><h3>Hvorfor</h3><div class="argumenter">
       <div class="for"><h4>Taler for</h4><ul>${ar.for.length ? ar.for.map(x => `<li>${esc(x)}</li>`).join("") : '<li class="tom">Ingen signaler</li>'}</ul></div>
       <div class="imod"><h4>Taler imod</h4><ul>${ar.imod.length ? ar.imod.map(x => `<li>${esc(x)}</li>`).join("") : '<li class="tom">Intet modsignal i data</li>'}</ul></div>
-    </div>${web ? `<div class="note">${web}</div>` : ""}${uds ? `<div class="note" title="ML-modellens chance for udsolgt (AUC 0,63–0,71). Kun til at rangere kampagnekandidater, ikke et facit.">${uds}</div>` : ""}</div>
+    </div>${web ? `<div class="note">${web}</div>` : ""}${uds ? `<div class="note uds">${uds} ${infoUdsolgt(s)}</div>` : ""}</div>
     ${stige}
     <div class="afsnit"><h3>Din beslutning</h3>
       <div class="beslut">

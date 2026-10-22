@@ -85,6 +85,7 @@
   .aside-top .logo small { font-size: 12.5px; }
   .ny { padding: 12px 14px 8px; }
   .ny .knap { margin: 0; min-height: 42px; background: var(--plade); color: var(--blaa); border: 1px solid #D5DEE2; justify-content: flex-start; padding-left: 14px; }
+  .ny a.knap { margin-top: 8px; text-decoration: none; }
   .ny .knap:hover { background: var(--blaa-svag); border-color: var(--blaa); }
   .soeg { padding: 0 14px 8px; position: relative; }
   .soeg svg { position: absolute; left: 25px; top: 11px; width: 16px; height: 16px; color: var(--graa-svag); pointer-events: none; }
@@ -561,7 +562,8 @@
         <h1>Topas BI Agent<small>Salg, belægning og resultat</small></h1>
       </div>
     </div>
-    <div class="ny"><button class="knap" id="ny-samtale"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>Ny samtale</button></div>
+    <div class="ny"><button class="knap" id="ny-samtale"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>Ny samtale</button>
+      <a class="knap skjult" id="til-prisstyring" href="./prisforslag.html"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 19h16M7 15l4-4 3 3 5-6"/></svg>Dynamiske priser</a></div>
     <div class="soeg">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
       <input id="soeg" type="search" placeholder="Søg i samtaler" aria-label="Søg i samtaler" autocomplete="off">
@@ -1492,6 +1494,7 @@ async function hentProfil() {
   const { data } = await sb.from("bi_brugere").select("navn, rolle").eq("email", session.user.email.toLowerCase()).maybeSingle();
   mitNavn = (data?.navn || "").trim();
   minRolle = data?.rolle || null;
+  $("til-prisstyring")?.classList.toggle("skjult", !minRolle || minRolle === "begraenset");
   saetKonto();
   if (!visning) $("hilsen")?.replaceChildren(document.createTextNode(hilsen()));
 }

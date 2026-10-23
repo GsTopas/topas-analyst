@@ -157,6 +157,7 @@ textarea{width:100%;min-height:54px;border:1px solid var(--linje);border-radius:
 .sml{width:100%;font-size:12px}
 .sml td,.sml th{padding:4px 6px;border-bottom:1px solid #F2F2F2;position:static;cursor:default}
 .sml th{color:var(--graa);font-weight:600}
+.tabkort td,.tabkort th{padding:4px 3px}
 .sml td.h,.sml th.h{text-align:right}
 /* portefølje */
 .port{background:var(--plade);border:1px solid var(--linje);border-radius:8px;overflow:auto;height:calc(100vh - 262px);min-height:420px}
@@ -443,42 +444,25 @@ async function hentSerie(k, el) {
   await Promise.all(job);
   if (el && el.dataset.t === "S:" + k) tegnSerie(el, k);
 }
-const STATUS_FARVE = { foran: "#2E7D32", paa: "#A6A6A6", bagud: "#C30031", udsolgt: "#0D5879", tidligt: "#BDBDBD" };
-function serieSalgGraf(k, afg) {
-  const W = 448, H = 210, m = { l: 34, r: 60, t: 14, b: 30 }, iw = W - m.l - m.r, ih = H - m.t - m.b;
-  const X = d => m.l + (1 - Math.min(d, 365) / 365) * iw, Y = v => m.t + ih - Math.min(v, 1.05) / 1.05 * ih;
-  let s = `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Salgskurver for serien ${k}">`;
-  for (const d of [365, 300, 240, 180, 120, 60, 0]) s += `<line x1="${X(d)}" x2="${X(d)}" y1="${m.t}" y2="${m.t + ih}" stroke="#F2F2F2"/><text x="${X(d)}" y="${m.t + ih + 13}" font-size="10" fill="#8C8C8C" text-anchor="middle">${d}</text>`;
-  s += `<text x="${m.l + iw / 2}" y="${H - 3}" font-size="10" fill="#8C8C8C" text-anchor="middle">dage før afrejse</text>`;
-  for (const v of [0, 0.5, 1]) s += `<text x="${m.l - 6}" y="${Y(v) + 3}" font-size="10" fill="#8C8C8C" text-anchor="end">${v * 100} %</text>`;
-  s += `<line x1="${m.l}" x2="${m.l + iw}" y1="${Y(1)}" y2="${Y(1)}" stroke="#8C8C8C" stroke-dasharray="3 3"/>`;
-  const kv = afg.map(a => KURVE[a.turkode]).find(Boolean);
-  if (kv) { const p = []; for (let d = 365; d >= 0; d -= 5) p.push([d, Math.min(1, andel(kv, d))]); s += `<polyline fill="none" stroke="#0D5879" stroke-width="2" stroke-dasharray="4 3" stroke-opacity=".55" points="${p.map(x => X(x[0]) + "," + Y(x[1])).join(" ")}"/>`; }
-  for (const a of afg) {
-    const pts = (SALG[a.turkode] || []).filter(p => p[0] <= 365 && p[0] >= a.dage);
-    const mx = a.max_pax || 1, c = STATUS_FARVE[a.p.status] || "#8C8C8C";
-    const ser = [[Math.min(365, pts[0]?.[0] ?? a.dage), 0], ...pts.map(p => [p[0], p[1] / mx]), [a.dage, a.solgt / mx]];
-    s += `<polyline fill="none" stroke="${c}" stroke-width="${T.valgt3 === a.turkode ? 3 : 1.4}" stroke-opacity="${T.valgt3 && T.valgt3 !== a.turkode ? .35 : .9}" points="${ser.map(p => X(p[0]) + "," + Y(p[1])).join(" ")}"><title>${a.turkode}: ${a.solgt}/${a.max_pax} solgt ${a.dage} dage før</title></polyline>`;
-    s += `<circle cx="${X(a.dage)}" cy="${Y(a.solgt / mx)}" r="2.6" fill="${c}"><title>${a.turkode}: ${a.solgt}/${a.max_pax}</title></circle>`;
-  }
-  return s + `<text x="${m.l + iw + 5}" y="${Y(1) + 3}" font-size="10" fill="#8C8C8C">fyldt</text></svg>`;
-}
 // Samlet salg for seriens afgange (14–365 dage før afrejse) i kalendertid, mod de samme turkoder sidste år forskudt 364 dage.
 function serieSamletGraf(k, afg) {
   const W = 448, H = 210, m = { l: 34, r: 84, t: 14, b: 30 }, iw = W - m.l - m.r, ih = H - m.t - m.b;
   const idag = new Date(); idag.setHours(0, 0, 0, 0);
   const dag = 864e5, D0 = new Date(idag - 365 * dag);
   const tilDag = (afrejse, d) => Math.round((new Date(afrejse + "T00:00:00") - d * dag - D0) / dag); // indeks 0..365 (i dag = 365)
-  const iAar = new Array(366).fill(0), ly = new Array(366).fill(0);
-  let nLy = 0, mx = 0, sub = 0;
+  const iAar = new Array(366).fill(0), ly = new Array(366).fill(0), iSub = new Array(366).fill(0);
+  let nLy = 0, mx = 0, mxSub = 0;
+  const nye = [];
   for (const a of afg) {
     mx += a.max_pax || 0;
     const add = (arr, pts, afr, forskyd) => { let forrige = 0; for (const [d, n] of pts) { const i = tilDag(afr, d) + forskyd; const delta = n - forrige; forrige = n; if (i <= 0) arr[0] += delta; else if (i <= 365) arr[i] += delta; } };
     add(iAar, (SALG[a.turkode] || []).filter(p => p[0] >= a.dage), a.afrejse, 0);
     const lyT = a.ly_tur, lyA = LY_AFREJSE[a.turkode];
-    if (lyT && lyA && SALG[lyT]) { nLy++; add(ly, SALG[lyT], lyA, 364); sub += (SALG[a.turkode] || []).filter(p => p[0] >= a.dage).at(-1)?.[1] || 0; }
+    if (lyT && lyA && SALG[lyT]) { nLy++; mxSub += a.max_pax || 0; add(ly, SALG[lyT], lyA, 364); add(iSub, (SALG[a.turkode] || []).filter(p => p[0] >= a.dage), a.afrejse, 0); }
+    else nye.push(a);
   }
-  for (let i = 1; i <= 365; i++) { iAar[i] += iAar[i - 1]; ly[i] += ly[i - 1]; }
+  for (let i = 1; i <= 365; i++) { iAar[i] += iAar[i - 1]; ly[i] += ly[i - 1]; iSub[i] += iSub[i - 1]; }
+  const sub = iSub[365];
   // salgskurven for i år slutter med solgt nu; ret sidste punkt, hvis S3 ikke er helt opdateret
   const solgtNu = afg.reduce((x, a) => x + a.solgt, 0);
   const lyNu = ly[365], lyIalt = afg.reduce((x, a) => x + (a.ly_tur && LY_AFREJSE[a.turkode] && SALG[a.ly_tur] ? (SALG[a.ly_tur].at(-1)?.[1] || 0) : 0), 0);
@@ -490,19 +474,27 @@ function serieSamletGraf(k, afg) {
   for (const v of [0, Math.round(mx / 2), mx]) s += `<text x="${m.l - 6}" y="${Y(v) + 3}" font-size="10" fill="#8C8C8C" text-anchor="end">${tal(v)}</text>`;
   s += `<line x1="${m.l}" x2="${m.l + iw}" y1="${Y(mx)}" y2="${Y(mx)}" stroke="#8C8C8C" stroke-dasharray="3 3"/>`;
   const etk = [{ y: Y(mx), t: "pladser " + tal(mx), c: "#8C8C8C" }];
-  const linje = (arr, c, w) => `<polyline fill="none" stroke="${c}" stroke-width="${w}" points="${arr.map((v, i) => i % 3 === 0 || i === 365 ? X(i) + "," + Y(v) : "").filter(Boolean).join(" ")}"/>`;
+  const linje = (arr, c, w, streg) => `<polyline fill="none" stroke="${c}" stroke-width="${w}"${streg ? ' stroke-dasharray="5 3"' : ""} points="${arr.map((v, i) => i % 3 === 0 || i === 365 ? X(i) + "," + Y(v) : "").filter(Boolean).join(" ")}"/>`;
   if (nLy) { s += linje(ly, "#BDBDBD", 2); etk.push({ y: Y(lyNu), t: tal(lyNu) + " sidste år", c: "#8C8C8C" }); }
+  if (nLy && nLy < afg.length) { s += linje(iSub, "#0D5879", 2, true); etk.push({ y: Y(sub), t: tal(sub) + " i år (de " + nLy + ")", c: "#0D5879" }); }
   s += linje(iAar, "#0D5879", 2.4); etk.push({ y: Y(iAar[365]), t: tal(iAar[365]) + " i år", c: "#0D5879" });
   s += `<circle cx="${X(365)}" cy="${Y(iAar[365])}" r="3.5" fill="#0D5879"/>`;
   etk.sort((a, b) => a.y - b.y); for (let i = 1; i < etk.length; i++) if (etk[i].y - etk[i - 1].y < 12) etk[i].y = etk[i - 1].y + 12;
   etk.forEach(e => { s += `<text x="${m.l + iw + 5}" y="${e.y + 3}" font-size="10" fill="${e.c}">${e.t}</text>`; });
   s += "</svg>";
   // Sammenligningen regnes kun på afgange, der har samme turkode sidste år, så tallene er sammenlignelige.
-  const sml = !nLy ? `I dag ${tal(iAar[365])} solgt.` : nLy === afg.length
-    ? `I dag ${tal(iAar[365])} solgt mod ${tal(lyNu)} på samme dato sidste år${lyNu > 0 ? ` (${pct(100 * (iAar[365] / lyNu - 1))})` : ""}. Sidste års afgange endte med ${tal(lyIalt)} solgt.`
-    : `I dag ${tal(iAar[365])} solgt på alle ${afg.length} afgange. De ${nLy} afgange med samme turkode sidste år har ${tal(sub)} solgt mod ${tal(lyNu)} på samme dato sidste år${lyNu > 0 ? ` (${pct(100 * (sub / lyNu - 1))})` : ""} og endte sidste år med ${tal(lyIalt)}.`;
-  return s + `<div class="note">${sml} Med er afgangene 14–365 dage før afrejse${nLy < afg.length ? `. Den grå kurve dækker kun de ${nLy} afgange med samme turkode sidste år` : ""}.</div>
-    <div class="forklar"><span><i style="border-color:#0D5879"></i>i år</span><span><i style="border-color:#BDBDBD"></i>samme afgange sidste år, samme dato</span></div>`;
+  const solgtNye = nye.reduce((x, a) => x + a.solgt, 0), mxNye = nye.reduce((x, a) => x + (a.max_pax || 0), 0);
+  const diff = sub - lyNu, diffTxt = `${diff > 0 ? "+" : diff < 0 ? "−" : "±"}${tal(Math.abs(diff))}${lyNu > 0 ? ` (${pct(100 * (sub / lyNu - 1))})` : ""}`,
+    diffKort = `${diff > 0 ? "+" : diff < 0 ? "−" : "±"}${tal(Math.abs(diff))}`;
+  const konkl = !nLy ? `Ingen af seriens afgange har samme turkode sidste år, så der er intet at sammenligne med.`
+    : `De ${nLy} afgange, der også kørte sidste år, har solgt <b>${tal(sub)}</b> pladser. På samme dato sidste år havde de solgt <b>${tal(lyNu)}</b>. Det er <b class="${diff > 0 ? "op" : diff < 0 ? "ned" : ""}">${diffTxt}</b>. Sidste år endte de med ${tal(lyIalt)} solgt.`;
+  const tabel = `<table class="sml tabkort" style="margin-top:8px;font-size:12px;width:100%"><tr><th></th><th class="h">Afg.</th><th class="h">Plad-<br>ser</th><th class="h">Solgt<br>i dag</th><th class="h">Samme dato<br>sidste år</th><th class="h">Forskel</th><th class="h">Endte<br>sidste år</th></tr>
+    ${nLy ? `<tr><td>Kørte også<br>sidste år</td><td class="h tal">${nLy}</td><td class="h tal">${tal(mxSub)}</td><td class="h tal">${tal(sub)}</td><td class="h tal">${tal(lyNu)}</td><td class="h tal ${diff > 0 ? "op" : diff < 0 ? "ned" : ""}">${diffKort}</td><td class="h tal">${tal(lyIalt)}</td></tr>` : ""}
+    ${nye.length ? `<tr><td title="${nye.map(a => a.turkode).join(", ")}">Nye i år</td><td class="h tal">${nye.length}</td><td class="h tal">${tal(mxNye)}</td><td class="h tal">${tal(solgtNye)}</td><td class="h">–</td><td class="h">–</td><td class="h">–</td></tr>` : ""}
+    <tr><td><b>Hele serien</b></td><td class="h tal"><b>${afg.length}</b></td><td class="h tal"><b>${tal(mx)}</b></td><td class="h tal"><b>${tal(iAar[365])}</b></td><td></td><td></td><td></td></tr></table>`;
+  return s + `<div class="kortsagt" style="margin-top:6px">${konkl}</div>${tabel}
+    <div class="forklar"><span><i style="border-color:#0D5879"></i>hele serien i år</span>${nLy && nLy < afg.length ? `<span><i style="border-color:#0D5879;border-top-style:dashed"></i>de ${nLy}, der også kørte sidste år</span>` : ""}${nLy ? `<span><i style="border-color:#BDBDBD"></i>de samme ${nLy} sidste år, flyttet ét år frem</span>` : ""}</div>
+    <div class="note">Sammenlign den stiplede blå med den grå kurve. Begge viser de samme afgange, så forskellen er reel. ${nye.length ? `Nye afgange (${nye.map(a => a.turkode).join(", ")}) har ingen afgang sidste år og tæller kun med i "hele serien". ` : ""}Afgange, der rejser inden for 14 dage eller allerede er rejst, er ikke med.</div>`;
 }
 function serieTrafikGraf(k, w) {
   // Hele uger (7 dage til og med i går) i kalendertid: seneste 52 uger mod de 52 uger før.
@@ -534,23 +526,19 @@ function tegnSerie(el, k) {
   const n = st => afg.filter(a => a.p.status === st).length;
   const forslag = afg.filter(a => a.f && a.f.forslag !== "hold øje").length;
   const henter = afg.some(a => DETALJE[a.turkode] === "henter");
-  const g = T.graf === "trafik" ? "trafik" : T.graf === "salg" ? "salg" : "samlet";
-  const valg = `<span class="seg grafvalg" style="float:right;margin-top:-4px"><button data-g="samlet" aria-pressed="${g === "samlet"}">Samlet</button><button data-g="salg" aria-pressed="${g === "salg"}">Pr. afgang</button><button data-g="trafik" aria-pressed="${g === "trafik"}">Trafik</button></span>`;
+  const g = T.graf === "trafik" ? "trafik" : "samlet";
+  const valg = `<span class="seg grafvalg" style="float:right;margin-top:-4px"><button data-g="samlet" aria-pressed="${g === "samlet"}">Samlet</button><button data-g="trafik" aria-pressed="${g === "trafik"}">Trafik</button></span>`;
   let graf;
   if (g === "samlet") graf = `<h3>Salg, hele serien${valg}</h3>${!KALD_DETALJE ? '<div class="tom">Salgskurverne kommer med maskinrummets detaljekald.</div>' : serieSamletGraf(k, afg) + (henter ? '<div class="note">Henter salgskurver …</div>' : "")}`;
-  else if (g === "salg") graf = `<h3>Salgskurver, alle afgange${valg}</h3>${!KALD_DETALJE ? '<div class="tom">Salgskurverne kommer med maskinrummets detaljekald.</div>' : serieSalgGraf(k, afg) + (henter ? '<div class="note">Henter salgskurver …</div>' : "")}
-    <div class="forklar"><span><i style="border-color:#2E7D32"></i>foran</span><span><i style="border-color:#A6A6A6"></i>på kurs</span><span><i style="border-color:#C30031"></i>bagud</span><span><i style="border-color:#BDBDBD"></i>for tidligt</span><span><i style="border-color:#0D5879;border-top-style:dashed;opacity:.6"></i>købskurven</span><span>y = andel af pladserne solgt</span></div>`;
   else { const w = WEB_SERIE[k]; graf = `<h3>Trafik på tursiden${valg}</h3>${!KALD_WEB_SERIE && (!w || w === "mangler") ? '<div class="tom">Seriens trafikkald findes ikke endnu.</div>' : !w || w === "henter" ? '<div class="tom">Henter trafik …</div>' : w === "mangler" ? '<div class="tom">Ingen trafikdata for serien.</div>' : serieTrafikGraf(k, w)}`; }
   el.innerHTML = `<div class="hoved"><h2>${esc(k)} <span class="lille" style="font-weight:400">hele serien</span></h2><div class="navn">${esc(NAVN_SERIE[k] || "")}</div><div class="lille">${afg.length} afgange · ${afg[0].region} · ${dato(afg[0].afrejse)} til ${dato(afg.at(-1).afrejse)}</div>
       <div class="noegle"><div><b class="tal">${tal(sol)}/${tal(mx)}</b><span>solgt (${mx ? pctU(100 * sol / mx) : "–"})</span></div><div><b class="tal"><span class="op">${n("foran") + n("udsolgt")}</span> · ${n("paa")} · <span class="ned">${n("bagud")}</span></b><span>foran · på kurs · bagud</span></div><div><b class="tal">${n("tidligt")}</b><span>for tidligt at læse</span></div><div><b class="tal">${forslag}</b><span>forslag i dag</span></div></div></div>
     <div class="afsnit graf">${graf}</div>
     <div class="afsnit"><h3>Afgange</h3><table class="sml"><tr><th>Afgang</th><th>Afrejse</th><th class="h">Solgt</th><th>Tempo</th><th class="h">Pris</th><th>Forslag</th></tr>
       ${afg.map(a => `<tr class="afg" data-t="${a.turkode}"><td><b>${a.turkode}</b></td><td class="tal" title="${a.dage} dage før afrejse">${kortDato(a.afrejse)}</td><td class="h tal">${a.solgt}/${a.max_pax}</td><td>${chipProg(a.p)}</td><td class="h tal">${tal(a.pris_nu)}</td><td>${a.f && a.f.forslag !== "hold øje" ? chipForslag(a.f.forslag) : '<span class="lille">–</span>'}</td></tr>`).join("")}</table>
-      <div class="note">Klik på en afgang for at se den. Hold musen over en linje i grafen for at se afgangen.</div></div>`;
+      <div class="note">Klik på en afgang for at se den.</div></div>`;
   el.querySelectorAll("tr.afg").forEach(tr => {
     tr.onclick = () => { T.valgt2 = tr.dataset.t; tegnPort(); };
-    tr.onmouseenter = () => { T.valgt3 = tr.dataset.t; const g = el.querySelector(".graf svg"); if (g && T.graf === "salg") g.outerHTML = serieSalgGraf(k, afg); };
-    tr.onmouseleave = () => { T.valgt3 = null; const g = el.querySelector(".graf svg"); if (g && T.graf === "salg") g.outerHTML = serieSalgGraf(k, afg); };
   });
 }
 

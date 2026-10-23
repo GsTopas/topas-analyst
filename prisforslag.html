@@ -401,7 +401,7 @@ function trafikGraf(r, w) {
   etk.forEach(e => { s += `<text x="${m.l + iw + 5}" y="${e.y + 3}" font-size="10" fill="${e.c}">${e.t}</text>`; });
   s += "</svg>";
   const nu = cur.at(-1)?.[1] ?? 0, lyNu = ly.find(p => p[0] === r.dage)?.[1];
-  const sml = lyNu != null ? `Til dato ${tal(nu)} besøg mod ${tal(lyNu)} sidste år samme antal dage før${lyNu > 0 ? ` (${pct(100 * (nu / lyNu - 1))})` : ""}.` : `Til dato ${tal(nu)} besøg.`;
+  const sml = lyNu != null ? `Til dato ${tal(nu)} besøg mod ${tal(lyNu)} ${w.ly_tur ? "sidste år" : "et år før"} samme antal dage før${lyNu > 0 ? ` (${pct(100 * (nu / lyNu - 1))})` : ""}.` : `Til dato ${tal(nu)} besøg.`;
   return s + `<div class="note">${sml} Tursiden er fælles for hele serien ${w.serie || r.turkode.slice(0, 4)}, så kurven er ens for seriens afgange (forskudt efter afrejsedato).${start < 365 ? ` Webdata findes fra ${dato(fra)}, så begge kurver tælles fra ${start} dage før.` : ""}</div>`;
 }
 function grafSektion(el, r, lyTur, salgHtml, forklar) {
@@ -412,7 +412,7 @@ function grafSektion(el, r, lyTur, salgHtml, forklar) {
   const ind = !KALD_WEB && (!w || w === "mangler") ? '<div class="tom">Trafikkurven kommer, når maskinrummets trafikkald er klar.</div>'
     : !w || w === "henter" ? '<div class="tom">Henter trafik …</div>'
     : w === "mangler" ? '<div class="tom">Ingen trafikdata for serien.</div>'
-    : trafikGraf(r, w) + `<div class="forklar"><span><i style="border-color:#0D5879"></i>i år, besøg på tursiden akkumuleret</span>${w.ly_tur ? `<span><i style="border-color:#BDBDBD"></i>sidste år (${w.ly_tur})</span>` : ""}</div>`;
+    : trafikGraf(r, w) + `<div class="forklar"><span><i style="border-color:#0D5879"></i>i år, besøg på tursiden akkumuleret</span>${w.ly_afrejse ? `<span><i style="border-color:#BDBDBD"></i>${w.ly_tur ? `sidste år (${w.ly_tur})` : `seriens trafik et år før (ingen ${r.turkode.slice(0, 4)} med samme kode sidste år)`}</span>` : ""}</div>`;
   return `<div class="afsnit graf"><h3>Trafik på tursiden${valg}</h3>${ind}</div>`;
 }
 document.addEventListener("click", e => {

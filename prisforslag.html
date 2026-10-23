@@ -299,12 +299,14 @@ function andel(k, d) {
   for (let i = 1; i < D_.length; i++) if (d >= D_[i]) { const t = (D_[i - 1] - d) / (D_[i - 1] - D_[i]); return a[i - 1] + t * (a[i] - a[i - 1]); }
   return 1;
 }
-const kurveNavn = n => { if (!n) return "købskurven"; if (/^[A-Z]{4}$/.test(n)) return `seriens købskurve (${n})`; const m = /^([A-Z]{4})\s+(.+)$/.exec(n); return m ? `seriens købskurve (${m[1]}, ${m[2].toLowerCase()})` : `købskurven for ${n.toLowerCase()}`; };
+const kurveNavn = n => { if (!n) return "købskurven"; if (/^[A-Z]{4}$/.test(n)) return `seriens købskurve (${n})`; const m = /^(\S+)\s+(.+)$/.exec(n); if (!m) return `købskurven for ${n.toLowerCase()}`; return /^[A-Z]{4}$/.test(m[1]) ? `seriens købskurve (${m[1]}, ${m[2].toLowerCase()})` : `segmentets købskurve (${m[1]}, ${m[2].toLowerCase()})`; };
 const STATUS_TEKST = { udsolgt: "Udsolgt", tidligt: "For tidligt", foran: "Foran", paa: "På kurs", bagud: "Bagud" };
 // Prognosen kommer fra maskinrummet (signaler.prognose_*): solgt ÷ andel af slutsalget, der normalt er solgt på dette tidspunkt.
 function prognose(x) {
   const st = x.prognose_status || (x.max_pax && x.solgt >= x.max_pax ? "udsolgt" : "tidligt");
-  return { status: st, tekst: STATUS_TEKST[st] || st, forventet: x.prognose_solgt ?? null, grad: x.prognose_grad ?? null, andel: x.kurve_andel ?? null, kurve: { navn: kurveNavn(x.kurve_navn), noegle: x.kurve_navn } };
+  // 23-10: status kan være afgjort af samme turkode sidste år (signaler.prognose_kilde). Porteføljen har ikke feltet og genkendes på indeks og grad.
+  const kilde = x.prognose_kilde || (x.sammenlignelig && x.indeks != null && x.prognose_grad != null && st === "paa" && ((x.indeks >= 100 && x.prognose_grad < 0.8) || (x.indeks < 100 && x.prognose_grad >= 1)) ? "sidste_aar" : "kurve");
+  return { status: st, tekst: STATUS_TEKST[st] || st, kilde, indeks: x.indeks ?? null, lyTur: x.sidste_aars_tur || null, forventet: x.prognose_solgt ?? null, grad: x.prognose_grad ?? null, andel: x.kurve_andel ?? null, kurve: { navn: kurveNavn(x.kurve_navn), noegle: x.kurve_navn } };
 }
 
 let AFG = [], AFGK = {}, F = [], FK = {}, NAVN_SERIE = {}, PORT_FULD = false, START = {};
@@ -432,7 +434,7 @@ function sparkline(r, w = 72, h = 24) {
 }
 function chipForslag(f) { return `<span class="chip ${f === "hæv" ? "haev" : f === "kampagne" ? "kampagne" : "holdoeje"}">${f === "hæv" ? "Hæv" : f === "kampagne" ? "Kampagne" : "Hold øje"}</span>`; }
 // Tempo vises som status, ikke som et tal: en slutsalgsprognose rammer ikke bedre end et fast gennemsnit (ML-tråden 21-10).
-function chipProg(p) { return `<span class="chip ${p.status === "udsolgt" ? "foran" : p.status}" title="${p.andel != null ? "Normalt er ca. " + pctU(p.andel * 100) + " af slutsalget solgt på dette tidspunkt (" + p.kurve.navn + ")" : ""}">${p.tekst}</span>`; }
+function chipProg(p) { const ly = p.kilde === "sidste_aar"; return `<span class="chip ${p.status === "udsolgt" ? "foran" : p.status}" title="${ly ? "Status følger samme afgang sidste år" + (p.lyTur ? " (" + p.lyTur + ")" : "") + ". " : ""}${p.andel != null ? "Normalt er ca. " + pctU(p.andel * 100) + " af slutsalget solgt på dette tidspunkt (" + p.kurve.navn + ")" : ""}">${p.tekst}${ly ? "*" : ""}</span>`; }
 function forslagPris(r) {
   if (r.forslag === "hæv" && r.forslag_pris_fra) {
     const a = 100 * (r.forslag_pris_fra / r.pris_nu - 1), b = 100 * (r.forslag_pris_til / r.pris_nu - 1);
@@ -478,7 +480,7 @@ function tegnTabel() {
         <td class="h tal">${kortDato(r.afrejse)} ${r.afrejse.slice(2, 4)}<div class="lille">${r.dage} dage</div></td>
         <td>${chipForslag(r.forslag)}</td>
         <td class="h"><div class="bel"><span class="tal"><b>${r.solgt}</b><span class="lille">/${r.max_pax}</span></span><span class="bar"><i style="width:${Math.min(100, 100 * r.solgt / (r.max_pax || 1))}%"></i></span></div><div class="lille">${r.s.pladser_tilbage} ledige${navPax(r)}</div></td>
-        <td class="h">${chipProg(r.p)}${r.s.advarsel_under_kurve ? '<div class="lille ned" title="Bagud på købskurven: overvej en mindre stigning">⚠ advarsel</div>' : ""}</td>
+        <td class="h">${chipProg(r.p)}${r.p.kilde === "sidste_aar" ? '<div class="lille">mod sidste år</div>' : ""}${r.s.advarsel_under_kurve ? '<div class="lille ned" title="Bagud på købskurven: overvej en mindre stigning">⚠ advarsel</div>' : ""}</td>
         <td class="h">${lyTxt}</td>
         <td class="h">${koebTxt(r)}</td>
         <td class="h">${webTxt(r)}</td>
@@ -569,6 +571,7 @@ function argumenter(r) {
 }
 function kortSagt(r) {
   const p = r.p;
+  if (p.kilde === "sidste_aar" && p.status === "paa") return `Med ${r.solgt} af ${r.max_pax} solgt ${r.dage} dage før afrejse følger status samme afgang sidste år${p.lyTur ? ` (${p.lyTur}${p.indeks != null ? `, indeks ${tal(p.indeks)}` : ""})` : ""}, så den står som på kurs. Mod ${p.kurve.navn} alene er salget ${p.grad != null && p.grad < 1 ? "bagud" : "foran"}${p.andel != null ? `, hvor normalt ca. ${pctU(p.andel * 100)} af slutsalget er solgt på dette tidspunkt` : ""}.`;
   const progTxt = ["foran", "paa", "bagud"].includes(p.status) ? `Med ${r.solgt} af ${r.max_pax} solgt ${r.dage} dage før afrejse er salget ${{ foran: "foran", paa: "på kurs med", bagud: "bagud på" }[p.status]} ${p.kurve.navn}${p.andel != null ? `, hvor normalt ca. ${pctU(p.andel * 100)} af slutsalget er solgt på dette tidspunkt` : ""}.` : p.status === "udsolgt" ? "Afgangen er udsolgt." : (p.andel != null ? `Det er for tidligt at læse kurven: normalt er kun ${pctU(p.andel * 100)} af pladserne solgt ${r.dage} dage før afrejse.` : "Det er for tidligt at læse kurven.");
   return progTxt;
 }
@@ -907,14 +910,17 @@ async function start() {
   if (error) { besked(`<h2>Kunne ikke hente forslagene</h2><p>${esc(error.message)}</p><p><a href="./">Log ind igen i Topas BI Agent</a></p>`); return; }
   if (!data?.length) { besked(`<h2>Ingen forslag</h2><p>Enten har morgenkørslen ikke kørt endnu, eller din bruger har ikke adgang til prisforslag.</p>`); return; }
   let port = null;
-  const [pr, st] = await Promise.all([sb.rpc("pris_portefoelje"), sb.rpc("pris_startpris_liste")]);
+  const [pr, st, ko] = await Promise.all([sb.rpc("pris_portefoelje"), sb.rpc("pris_startpris_liste"), sb.rpc("pris_seneste_koersel")]);
   if (!pr.error && pr.data?.length) port = pr.data;
   if (!st.error && st.data?.length) st.data.forEach(x => { START[x.turkode] = x; });
   IDAG = data[0].dato;
   indlaes(data, port);
   udsolgtTertiler();
   fyldFiltre();
-  document.getElementById("dataDato").textContent = `Morgenkørsel ${dato(IDAG)} · ${F.length} afgange med forslag eller hold øje${PORT_FULD ? ` · ${AFG.length} afgange i alt` : ""}`;
+  // 23-10: forslagene regnes igen efter hver NAV-sync, så vis seneste kørsel (pris_seneste_koersel), ellers forslagsdatoen.
+  const koert = !ko.error && typeof ko.data === "string" ? new Date(ko.data) : null;
+  const opd = koert && !isNaN(koert) ? `Opdateret ${dato(IDAG)} kl. ${koert.toLocaleTimeString("da-DK", { hour: "2-digit", minute: "2-digit", timeZone: "Europe/Copenhagen" })}` : `Morgenkørsel ${dato(IDAG)}`;
+  document.getElementById("dataDato").textContent = `${opd} · ${F.length} afgange med forslag eller hold øje${PORT_FULD ? ` · ${AFG.length} afgange i alt` : ""}`;
   tegnKpi();
   tegnTabel();
 }

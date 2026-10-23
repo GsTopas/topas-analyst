@@ -221,6 +221,7 @@ textarea{width:100%;min-height:54px;border:1px solid var(--linje);border-radius:
         <button data-r="Oversøisk" aria-pressed="false">Oversøisk</button>
       </div>
       <select id="maaned" title="Afrejsemåned"><option value="">Alle måneder</option></select>
+      <select id="land" title="Land"><option value="">Alle lande</option></select>
       <label class="check"><input type="checkbox" id="kunNy"> Kun nye siden i går</label>
       <input type="search" id="soeg" placeholder="Søg turkode eller rejse  ( / )">
       <span style="margin-left:auto"></span>
@@ -252,6 +253,7 @@ textarea{width:100%;min-height:54px;border:1px solid var(--linje);border-radius:
         <button data-c="prognose" aria-pressed="true">Tempo mod købskurve</button>
         <button data-c="ly" aria-pressed="false">Mod sidste år</button>
       </div>
+      <select id="portLand" title="Land"><option value="">Alle lande</option></select>
       <label class="check"><input type="checkbox" id="portKunForslag"> Kun serier med forslag i dag</label>
     </div>
     <div class="legende" id="legende"></div>
@@ -297,7 +299,7 @@ function andel(k, d) {
   for (let i = 1; i < D_.length; i++) if (d >= D_[i]) { const t = (D_[i - 1] - d) / (D_[i - 1] - D_[i]); return a[i - 1] + t * (a[i] - a[i - 1]); }
   return 1;
 }
-const kurveNavn = n => !n ? "købskurven" : /^[A-Z]{4}$/.test(n) ? `seriens købskurve (${n})` : `købskurven for ${n.toLowerCase()}`;
+const kurveNavn = n => { if (!n) return "købskurven"; if (/^[A-Z]{4}$/.test(n)) return `seriens købskurve (${n})`; const m = /^([A-Z]{4})\s+(.+)$/.exec(n); return m ? `seriens købskurve (${m[1]}, ${m[2].toLowerCase()})` : `købskurven for ${n.toLowerCase()}`; };
 const STATUS_TEKST = { udsolgt: "Udsolgt", tidligt: "For tidligt", foran: "Foran", paa: "På kurs", bagud: "Bagud" };
 // Prognosen kommer fra maskinrummet (signaler.prognose_*): solgt ÷ andel af slutsalget, der normalt er solgt på dette tidspunkt.
 function prognose(x) {
@@ -354,7 +356,7 @@ async function hentDetalje(turkode, el) {
 }
 
 // ---------- tilstand ----------
-const T = { fane: "idag", koe: "beslut", region: "", maaned: "", kunNy: false, soeg: "", sort: null, retning: 1, valgt: null, markeret: new Set(), lukket: new Set(), farve: "prognose", portKun: false, valgt2: null };
+const T = { fane: "idag", koe: "beslut", region: "", maaned: "", land: "", portLand: "", kunNy: false, soeg: "", sort: null, retning: 1, valgt: null, markeret: new Set(), lukket: new Set(), farve: "prognose", portKun: false, valgt2: null };
 // Kun gemte beslutninger styrer køen. En afgang, der blev udsat på en tidligere dag, holdes ude, til tidspunktet er nået (udsat fra pris_forslag_liste).
 const beslutning = r => r.beslutning || (r.udsat ? "senere" : null);
 
@@ -402,6 +404,7 @@ function synlige() {
     if (T.koe === "besluttet" && !b) return false;
     if (T.region && r.region !== T.region) return false;
     if (T.maaned && r.afrejse.slice(0, 7) !== T.maaned) return false;
+    if (T.land && r.turkode.slice(0, 2) !== T.land) return false;
     if (T.kunNy && !r.nyt) return false;
     if (T.soeg) { const q = T.soeg.toLowerCase(); if (!(r.turkode.toLowerCase().includes(q) || r.navn.toLowerCase().includes(q))) return false; }
     return true;
@@ -750,6 +753,7 @@ function tegnPort() {
   const serier = {};
   AFG.forEach(a => { const k = a.turkode.slice(0, 4); (serier[k] ||= { k, region: a.region, afg: [] }).afg.push(a); });
   let liste = Object.values(serier);
+  if (T.portLand) liste = liste.filter(s => s.k.slice(0, 2) === T.portLand);
   if (T.portKun) liste = liste.filter(s => s.afg.some(a => a.f && a.f.forslag !== "hold øje"));
   const farve = a => {
     if (T.farve === "ly") {
@@ -784,6 +788,8 @@ function tegnPort() {
     f.onmouseleave = () => skjulTip();
     f.onclick = () => { T.valgt2 = f.dataset.t; tegnPort(); };
   });
+  const synligeAfg = liste.flatMap(x => x.afg);
+  if (T.valgt2 && synligeAfg.length && !synligeAfg.some(a => a.turkode === T.valgt2)) T.valgt2 = (synligeAfg.find(a => a.f && a.f.forslag !== "hold øje") || synligeAfg[0]).turkode;
   if (!T.valgt2) T.valgt2 = (AFG.find(a => a.f && a.f.forslag === "hæv") || AFG[0]).turkode;
   tegnDetalje(document.getElementById("detalje2"), T.valgt2);
 }
@@ -825,8 +831,21 @@ document.querySelectorAll("#region button").forEach(b => b.onclick = () => { T.r
 document.querySelectorAll("#farve button").forEach(b => b.onclick = () => { T.farve = b.dataset.c; document.querySelectorAll("#farve button").forEach(x => x.setAttribute("aria-pressed", x === b)); tegnPort(); });
 document.getElementById("portKunForslag").onchange = e => { T.portKun = e.target.checked; tegnPort(); };
 const mSel = document.getElementById("maaned");
-[...new Set(F.map(r => r.afrejse.slice(0, 7)))].sort().forEach(m => mSel.insertAdjacentHTML("beforeend", `<option value="${m}">${MD[+m.slice(5) - 1]} ${m.slice(0, 4)}</option>`));
 mSel.onchange = () => { T.maaned = mSel.value; tegnTabel(); };
+document.getElementById("land").onchange = e => { T.land = e.target.value; tegnTabel(); };
+document.getElementById("portLand").onchange = e => { T.portLand = e.target.value; tegnPort(); };
+// Landet er de to første bogstaver i turkoden. Navnet tages fra rejsens navn ("Spanien – ..."), ellers koden.
+function landNavn(k) {
+  const n = Object.entries(NAVN_SERIE).find(([sk, v]) => sk.startsWith(k) && v)?.[1] || "";
+  const m = n.split(/\s+[–-]\s+/)[0].trim();
+  return m && m.length <= 30 ? m : k;
+}
+function fyldFiltre() {
+  [...new Set(F.map(r => r.afrejse.slice(0, 7)))].sort().forEach(m => mSel.insertAdjacentHTML("beforeend", `<option value="${m}">${MD[+m.slice(5) - 1]} ${m.slice(0, 4)}</option>`));
+  const opt = koder => koder.map(k => [k, landNavn(k)]).sort((a, b) => a[1].localeCompare(b[1], "da")).map(([k, n]) => `<option value="${k}">${esc(n)}</option>`).join("");
+  document.getElementById("land").insertAdjacentHTML("beforeend", opt([...new Set(F.map(r => r.turkode.slice(0, 2)))]));
+  document.getElementById("portLand").insertAdjacentHTML("beforeend", opt([...new Set(AFG.map(a => a.turkode.slice(0, 2)))]));
+}
 document.getElementById("kunNy").onchange = e => { T.kunNy = e.target.checked; tegnTabel(); };
 document.getElementById("soeg").oninput = e => { T.soeg = e.target.value.trim(); tegnTabel(); };
 document.getElementById("thead").onclick = e => { const th = e.target.closest("th"); if (!th || !th.dataset.s) return; if (T.sort === th.dataset.s) { if (T.retning === -1) { T.sort = null; T.retning = 1; } else T.retning = -1; } else { T.sort = th.dataset.s; T.retning = 1; } tegnTabel(); };
@@ -894,6 +913,7 @@ async function start() {
   IDAG = data[0].dato;
   indlaes(data, port);
   udsolgtTertiler();
+  fyldFiltre();
   document.getElementById("dataDato").textContent = `Morgenkørsel ${dato(IDAG)} · ${F.length} afgange med forslag eller hold øje${PORT_FULD ? ` · ${AFG.length} afgange i alt` : ""}`;
   tegnKpi();
   tegnTabel();

@@ -357,8 +357,71 @@ async function hentDetalje(turkode, el) {
   if (el && el.dataset.t === turkode) tegnDetalje(el, turkode, true);
 }
 
+// Trafik på tursiden (pris_web_trafik): serieniveau pr. dag, i år og samme turkode sidste år. Hentes først, når man vælger "Trafik".
+const WEB = {}; let KALD_WEB = true;
+const WEB_DATA_FRA = "2024-10-16";
+async function hentWeb(turkode, el) {
+  if (!KALD_WEB || WEB[turkode]) return;
+  WEB[turkode] = "henter";
+  const { data, error } = await sb.rpc("pris_web_trafik", { p_turkode: turkode });
+  if (error) { WEB[turkode] = "mangler"; if (error.code === "PGRST202" || /Could not find the function/i.test(error.message)) KALD_WEB = false; }
+  else WEB[turkode] = (Array.isArray(data) ? data[0] : data) || "mangler";
+  if (el && el.dataset.t === turkode) tegnDetalje(el, turkode, true);
+}
+const dageMellem = (a, b) => Math.round((new Date(a + "T00:00:00") - new Date(b + "T00:00:00")) / 864e5);
+// Akkumuleret fra start (365 dage før, eller fra første dag med webdata) til dag d.
+function akk(punkter, start) {
+  const pr = new Map(); (punkter || []).forEach(([d, n]) => { if (d <= start) pr.set(d, (pr.get(d) || 0) + Number(n)); });
+  const ud = []; let sum = 0;
+  for (let d = start; d >= 0; d--) { sum += pr.get(d) || 0; ud.push([d, sum]); }
+  return ud;
+}
+function trafikGraf(r, w) {
+  const W = 448, H = 210, m = { l: 34, r: 84, t: 14, b: 30 }, iw = W - m.l - m.r, ih = H - m.t - m.b;
+  const fra = String(w.data_fra || WEB_DATA_FRA).slice(0, 10);
+  const lyStart = w.ly_afrejse ? Math.min(365, dageMellem(String(w.ly_afrejse).slice(0, 10), fra)) : 365;
+  const start = Math.max(0, Math.min(365, lyStart));
+  const cur = akk(w.trafik, start).filter(p => p[0] >= r.dage);
+  const ly = w.ly_afrejse ? akk(w.ly_trafik, start) : [];
+  const maxY = Math.max(1, ...cur.map(p => p[1]), ...ly.map(p => p[1])) * 1.08;
+  const X = d => m.l + (1 - Math.min(d, 365) / 365) * iw, Y = v => m.t + ih - (Math.min(v, maxY) / maxY) * ih;
+  let s = `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Trafik på tursiden for ${w.serie || r.turkode.slice(0, 4)}">`;
+  for (const d of [365, 300, 240, 180, 120, 60, 0]) s += `<line x1="${X(d)}" x2="${X(d)}" y1="${m.t}" y2="${m.t + ih}" stroke="#F2F2F2"/><text x="${X(d)}" y="${m.t + ih + 13}" font-size="10" fill="#8C8C8C" text-anchor="middle">${d}</text>`;
+  s += `<text x="${m.l + iw / 2}" y="${H - 3}" font-size="10" fill="#8C8C8C" text-anchor="middle">dage før afrejse</text>`;
+  const top = maxY / 1.08;
+  for (const v of [0, Math.round(top / 2), Math.round(top)]) s += `<text x="${m.l - 6}" y="${Y(v) + 3}" font-size="10" fill="#8C8C8C" text-anchor="end">${tal(v)}</text>`;
+  if (start < 365) s += `<rect x="${X(365)}" y="${m.t}" width="${X(start) - X(365)}" height="${ih}" fill="#F7F7F7"/><text x="${(X(365) + X(start)) / 2}" y="${m.t + 12}" font-size="9" fill="#8C8C8C" text-anchor="middle">ingen data</text>`;
+  const etk = [];
+  if (ly.length > 1) { s += `<polyline fill="none" stroke="#BDBDBD" stroke-width="2" points="${ly.map(p => X(p[0]) + "," + Y(p[1])).join(" ")}"/>`; etk.push({ y: Y(ly.at(-1)[1]), t: tal(ly.at(-1)[1]) + " sidste år", c: "#8C8C8C" }); }
+  if (cur.length > 1) { s += `<polyline fill="none" stroke="#0D5879" stroke-width="2.4" points="${cur.map(p => X(p[0]) + "," + Y(p[1])).join(" ")}"/>`; etk.push({ y: Y(cur.at(-1)[1]), t: tal(cur.at(-1)[1]) + " i år", c: "#0D5879" }); }
+  s += `<line x1="${X(r.dage)}" x2="${X(r.dage)}" y1="${m.t}" y2="${m.t + ih}" stroke="#333" stroke-dasharray="2 2"/><text x="${X(r.dage)}" y="${m.t - 3}" font-size="10" fill="#333" text-anchor="middle">i dag</text>`;
+  if (cur.length) s += `<circle cx="${X(r.dage)}" cy="${Y(cur.at(-1)[1])}" r="3.5" fill="#0D5879"/>`;
+  etk.sort((a, b) => a.y - b.y);
+  for (let i = 1; i < etk.length; i++) if (etk[i].y - etk[i - 1].y < 12) etk[i].y = etk[i - 1].y + 12;
+  etk.forEach(e => { s += `<text x="${m.l + iw + 5}" y="${e.y + 3}" font-size="10" fill="${e.c}">${e.t}</text>`; });
+  s += "</svg>";
+  const nu = cur.at(-1)?.[1] ?? 0, lyNu = ly.find(p => p[0] === r.dage)?.[1];
+  const sml = lyNu != null ? `Til dato ${tal(nu)} besøg mod ${tal(lyNu)} sidste år samme antal dage før${lyNu > 0 ? ` (${pct(100 * (nu / lyNu - 1))})` : ""}.` : `Til dato ${tal(nu)} besøg.`;
+  return s + `<div class="note">${sml} Tursiden er fælles for hele serien ${w.serie || r.turkode.slice(0, 4)}, så kurven er ens for seriens afgange (forskudt efter afrejsedato).${start < 365 ? ` Webdata findes fra ${dato(fra)}, så begge kurver tælles fra ${start} dage før.` : ""}</div>`;
+}
+function grafSektion(el, r, lyTur, salgHtml, forklar) {
+  const valg = `<span class="seg grafvalg" style="float:right;margin-top:-4px"><button data-g="salg" aria-pressed="${T.graf === "salg"}">Salg</button><button data-g="trafik" aria-pressed="${T.graf === "trafik"}">Trafik</button></span>`;
+  if (T.graf === "salg") return `<div class="afsnit graf"><h3>Salgskurve${valg}</h3>${salgHtml}${forklar}</div>`;
+  const w = WEB[r.turkode];
+  if (!w) hentWeb(r.turkode, el);
+  const ind = !KALD_WEB && (!w || w === "mangler") ? '<div class="tom">Trafikkurven kommer, når maskinrummets trafikkald er klar.</div>'
+    : !w || w === "henter" ? '<div class="tom">Henter trafik …</div>'
+    : w === "mangler" ? '<div class="tom">Ingen trafikdata for serien.</div>'
+    : trafikGraf(r, w) + `<div class="forklar"><span><i style="border-color:#0D5879"></i>i år, besøg på tursiden akkumuleret</span>${w.ly_tur ? `<span><i style="border-color:#BDBDBD"></i>sidste år (${w.ly_tur})</span>` : ""}</div>`;
+  return `<div class="afsnit graf"><h3>Trafik på tursiden${valg}</h3>${ind}</div>`;
+}
+document.addEventListener("click", e => {
+  const b = e.target.closest(".grafvalg button"); if (!b) return;
+  T.graf = b.dataset.g; const el = b.closest(".detalje"); if (el) tegnDetalje(el, el.dataset.t, true);
+});
+
 // ---------- tilstand ----------
-const T = { fane: "idag", koe: "beslut", region: "", maaned: "", land: "", portLand: "", kunNy: false, soeg: "", sort: null, retning: 1, valgt: null, markeret: new Set(), lukket: new Set(), farve: "prognose", portKun: false, valgt2: null };
+const T = { graf: "salg", fane: "idag", koe: "beslut", region: "", maaned: "", land: "", portLand: "", kunNy: false, soeg: "", sort: null, retning: 1, valgt: null, markeret: new Set(), lukket: new Set(), farve: "prognose", portKun: false, valgt2: null };
 // Kun gemte beslutninger styrer køen. En afgang, der blev udsat på en tidligere dag, holdes ude, til tidspunktet er nået (udsat fra pris_forslag_liste).
 const beslutning = r => r.beslutning || (r.udsat ? "senere" : null);
 
@@ -657,8 +720,8 @@ function tegnDetalje(el, turkode, efterHent) {
         <div><b class="tal">${tal(s.solgt_14d)}</b><span>solgt 14 dage</span></div>
       </div>
     </div>
-    <div class="afsnit graf"><h3>Salgskurve</h3>${graf(r, lyTur)}
-      <div class="forklar"><span><i style="border-color:#0D5879"></i>i år</span>${KURVE[r.turkode] ? `<span><i style="border-color:#0D5879;border-top-style:dashed;opacity:.6"></i>${r.p.kurve.navn} ved fuld afgang</span>` : ""}${lyTur ? `<span><i style="border-color:#BDBDBD"></i>sidste år (${lyTur})</span>` : ""}<span>▲ prisstigning</span></div></div>
+    ${grafSektion(el, r, lyTur, graf(r, lyTur), `
+      <div class="forklar"><span><i style="border-color:#0D5879"></i>i år</span>${KURVE[r.turkode] ? `<span><i style="border-color:#0D5879;border-top-style:dashed;opacity:.6"></i>${r.p.kurve.navn} ved fuld afgang</span>` : ""}${lyTur ? `<span><i style="border-color:#BDBDBD"></i>sidste år (${lyTur})</span>` : ""}<span>▲ prisstigning</span></div>`)}
     <div class="afsnit"><h3>Hvorfor</h3><div class="argumenter">
       <div class="for"><h4>Taler for</h4><ul>${ar.for.length ? ar.for.map(x => `<li>${esc(x)}</li>`).join("") : '<li class="tom">Ingen signaler</li>'}</ul></div>
       <div class="imod"><h4>Taler imod</h4><ul>${ar.imod.length ? ar.imod.map(x => `<li>${esc(x)}</li>`).join("") : '<li class="tom">Intet modsignal i data</li>'}</ul></div>
@@ -746,7 +809,7 @@ function tegnAfgangUdenForslag(el, a) {
       <div style="margin-top:10px" class="anbef holdoeje"><span class="stor">Intet forslag i dag</span></div>
       <div class="kortsagt">${kortSagt(r)}</div>
       <div class="noegle"><div><b class="tal">${a.solgt}/${a.max_pax}</b><span>solgt</span></div><div><b>${chipProg(a.p)}</b><span>tempo mod købskurven</span></div><div><b class="tal">${a.ly_tur ? tal(a.ly_solgt) : "–"}</b><span>sidste år samme dag</span></div><div><b class="tal">${tal(a.pris_nu)}</b><span>pris i dag</span>${startCelle(a.turkode)}</div></div></div>
-    <div class="afsnit graf"><h3>Salgskurve</h3>${SALG[a.turkode] || (a.ly_tur && SALG[a.ly_tur]) ? graf(r, a.ly_tur) : '<div class="tom">Salgskurven kommer med maskinrummets detaljekald.</div>'}</div>
+    ${grafSektion(el, r, a.ly_tur, SALG[a.turkode] || (a.ly_tur && SALG[a.ly_tur]) ? graf(r, a.ly_tur) : '<div class="tom">Salgskurven kommer med maskinrummets detaljekald.</div>', "")}
     <div class="afsnit"><div class="note">Maskinrummet har ikke givet et forslag på afgangen i dag. I den færdige version kan man herfra bede om en ny vurdering eller sætte en påmindelse.</div></div>`;
 }
 

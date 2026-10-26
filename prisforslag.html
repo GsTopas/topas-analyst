@@ -51,7 +51,7 @@ main{padding:14px 20px 40px}
 .knap:disabled{opacity:.45;cursor:default}
 .check{display:inline-flex;gap:6px;align-items:center;cursor:pointer;color:var(--tekst)}
 /* layout */
-.arbejde{display:grid;grid-template-columns:minmax(0,1fr) 450px;gap:14px;align-items:start}
+.arbejde{display:grid;grid-template-columns:minmax(0,1fr) 430px;gap:14px;align-items:start}
 .ark{background:var(--plade);border:1px solid var(--linje);border-radius:8px;overflow:auto;height:calc(100vh - 232px);min-height:420px}
 table{border-collapse:separate;border-spacing:0;width:100%}
 th{position:sticky;top:0;background:#fff;z-index:2;text-align:left;font-weight:600;font-size:12px;color:var(--graa);padding:6px 6px;height:46px;vertical-align:bottom;line-height:1.25;border-bottom:1px solid var(--linje);white-space:nowrap;cursor:pointer;user-select:none}
@@ -67,7 +67,7 @@ tr.r.besl td{color:var(--graa)}
 tr.gruppe td{background:var(--bg);font-weight:700;font-size:12px;padding:6px 8px;color:var(--tekst);cursor:pointer;position:sticky;top:46px;z-index:1}
 tr.gruppe .n{color:var(--graa);font-weight:400;margin-left:6px}
 td.kode b{font-size:13px}
-td.kode .navn{display:block;color:var(--graa);font-size:11px;max-width:158px;overflow:hidden;text-overflow:ellipsis}
+td.kode .navn{display:block;color:var(--graa);font-size:11px;max-width:132px;overflow:hidden;text-overflow:ellipsis}
 .chip{display:inline-block;border-radius:10px;padding:1px 8px;font-size:11px;font-weight:600;line-height:18px}
 .chip.haev{background:var(--blaa-lys);color:var(--blaa)}
 .chip.kampagne{background:var(--orange-lys);color:var(--orange)}
@@ -77,6 +77,11 @@ td.kode .navn{display:block;color:var(--graa);font-size:11px;max-width:158px;ove
 .chip.foran{background:var(--groen-lys);color:var(--groen)}
 .chip.paa{background:#F0F0F0;color:var(--tekst)}
 .chip.bagud{background:var(--roed-lys);color:var(--roed)}
+.donut{display:inline-block;vertical-align:middle;cursor:help;flex:none}
+.donut text{font:700 10px/1 Inter,system-ui,sans-serif;fill:var(--tekst)}
+.signal-dele{margin-top:6px;display:grid;grid-template-columns:190px 1fr 40px;gap:3px 8px;align-items:center;font-size:12px}
+.signal-dele .bar{height:6px;background:#EEE;border-radius:3px;overflow:hidden;display:block}
+.signal-dele .bar i{display:block;height:100%}
 .chip.tidligt{background:#fff;color:var(--graa);border:1px dashed var(--linje)}
 .bel{display:flex;align-items:center;gap:6px;justify-content:flex-end}
 .bar{width:54px;height:6px;border-radius:3px;background:#EDEDED;overflow:hidden}
@@ -573,6 +578,7 @@ const KOL = [
   { k: "turkode", t: "Afgang", s: r => r.turkode },
   { k: "afrejse", t: "Afrejse", s: r => r.afrejse, h: true },
   { k: "forslag", t: "Forslag", s: r => ({ "hæv": 0, "kampagne": 1, "hold øje": 2 }[r.forslag]) },
+  { k: "signal", t: "Sig-<br>nal", s: r => r.s.signal_score ?? -1, h: true, tip: "Signal-score 0–100: hvor stærke signalerne bag forslaget er. Hæv og kampagne har hver sin skala. Hold musen over donutten for at se pointene" },
   { k: "bel", t: "Solgt", s: r => r.solgt / (r.max_pax || 1), h: true },
   { k: "prog", t: "Tempo", s: r => r.p.grad ?? -1, h: true, tip: "Salgstempo mod seriens købskurve: foran, på kurs eller bagud" },
   { k: "ly", t: "Sidste<br>år", s: r => (r.s.ly_solgt_nu ?? -99) - 0, h: true, tip: "Solgt på sidste års afgang samme antal dage før afrejse" },
@@ -597,7 +603,7 @@ function synlige() {
     return true;
   });
   if (T.sort) { const k = KOL.find(c => c.k === T.sort); L.sort((a, b) => { const x = k.s(a), y = k.s(b); return (x > y ? 1 : x < y ? -1 : 0) * T.retning; }); }
-  else L.sort((a, b) => ({ "hæv": 0, "kampagne": 1, "hold øje": 2 }[a.forslag] - { "hæv": 0, "kampagne": 1, "hold øje": 2 }[b.forslag]) || (a.forslag === "kampagne" ? udsolgtSort(a) - udsolgtSort(b) : 0) || (b.nyt - a.nyt) || (a.dage - b.dage));
+  else L.sort((a, b) => ({ "hæv": 0, "kampagne": 1, "hold øje": 2 }[a.forslag] - { "hæv": 0, "kampagne": 1, "hold øje": 2 }[b.forslag]) || ((b.s.signal_score ?? -1) - (a.s.signal_score ?? -1)) || (a.forslag === "kampagne" ? udsolgtSort(a) - udsolgtSort(b) : 0) || (b.nyt - a.nyt) || (a.dage - b.dage));
   return L;
 }
 // Salgskurven i år: punkter fra i dag og bagud plus dagens salg
@@ -606,7 +612,7 @@ function kurveIAar(r) {
   if (!c.length || c[c.length - 1][0] !== r.dage) c.push([r.dage, r.solgt]);
   return c;
 }
-function sparkline(r, w = 72, h = 24) {
+function sparkline(r, w = 58, h = 24) {
   const max = Math.max(r.max_pax || 1, 1);
   const X = d => w - (Math.min(d, 365) / 365) * w, Y = v => h - 2 - (Math.min(v, max) / max) * (h - 4);
   const cur = kurveIAar(r);
@@ -616,6 +622,35 @@ function sparkline(r, w = 72, h = 24) {
   if (cur.length > 1) s += `<polyline fill="none" stroke="#0D5879" stroke-width="1.8" points="${cur.map(p => X(p[0]) + "," + Y(p[1])).join(" ")}"/>`;
   s += `<circle cx="${X(r.dage)}" cy="${Y(r.solgt)}" r="2.2" fill="#0D5879"/></svg>`;
   return s;
+}
+const SIGNAL_DELE = {
+  tempo: ["Tempo mod købskurven", 35], salg_siden_stigning: ["Salg siden seneste stigning", 20], salg_14_dage: ["Salg seneste 14 dage", 15],
+  belaegning: ["Belægning", 15], udsolgt_chance: ["Udsolgt-chance", 10], interesse: ["Interesse (web og mail)", 5],
+  bagud: ["Bagud på købskurven", 40], intet_salg: ["Intet salg (afgang og serie)", 25], taet_paa_afrejse: ["Tæt på afrejse", 20], tomme_pladser: ["Tomme pladser", 15],
+};
+function signalDele(r) { const d = r.s.signal_dele || {}; return Object.keys(d).filter(k => SIGNAL_DELE[k]).map(k => [k, ...SIGNAL_DELE[k], d[k]]); }
+function signalTip(r) {
+  const sc = r.s.signal_score; if (sc == null) return "Ingen signal-score";
+  if (r.s.signal_varme === "udsolgt") return "Udsolgt: ingen signal-score";
+  const dele = signalDele(r), sum = dele.reduce((a, x) => a + x[3], 0);
+  return `Signal-score ${sc} af 100\n` + dele.map(([, n, mx, v]) => `${n}: ${v} af ${mx}`).join("\n") + (r.forslag === "hold øje" && sum !== sc ? `\nHold øje ganges med 0,7 (${sum} → ${sc})` : "");
+}
+function donut(r, str = 30) {
+  const sc = r.s.signal_score; if (sc == null) return '<span class="lille">–</span>';
+  const uds = r.s.signal_varme === "udsolgt", rad = str / 2 - 3, o = 2 * Math.PI * rad, v = uds ? 0 : Math.max(0, Math.min(100, sc));
+  const farve = r.forslag === "hæv" ? "#0D5879" : r.forslag === "kampagne" ? "#E1652A" : "#8C8C8C";
+  return `<svg class="donut" width="${str}" height="${str}" viewBox="0 0 ${str} ${str}" role="img" aria-label="${uds ? "Udsolgt" : `Signal-score ${sc} af 100`}"><title>${esc(signalTip(r))}</title>
+    <circle cx="${str / 2}" cy="${str / 2}" r="${rad}" fill="none" stroke="#EEEEEE" stroke-width="4"/>
+    ${v ? `<circle cx="${str / 2}" cy="${str / 2}" r="${rad}" fill="none" stroke="${farve}" stroke-width="4" stroke-dasharray="${(o * v / 100).toFixed(1)} ${o.toFixed(1)}" transform="rotate(-90 ${str / 2} ${str / 2})"/>` : ""}
+    <text x="50%" y="50%" text-anchor="middle" dominant-baseline="central"${uds ? ' style="font-size:8px;fill:#8C8C8C"' : str > 30 ? ' style="font-size:13px"' : ""}>${uds ? "uds." : sc}</text></svg>`;
+}
+function signalAfsnit(r) {
+  const sc = r.s.signal_score; if (sc == null) return "";
+  if (r.s.signal_varme === "udsolgt") return `<div class="afsnit"><h3>Signal-score</h3><div class="tom">Afgangen er udsolgt, så der er ingen score.</div></div>`;
+  const dele = signalDele(r), sum = dele.reduce((a, x) => a + x[3], 0), farve = r.forslag === "hæv" ? "#0D5879" : r.forslag === "kampagne" ? "#E1652A" : "#8C8C8C";
+  const hvad = r.forslag === "kampagne" ? "hvor meget det haster med en kampagne" : "hvor stærk efterspørgslen er";
+  return `<div class="afsnit"><h3>Signal-score</h3><div style="display:flex;gap:12px;align-items:center">${donut(r, 52)}<div class="kortsagt" style="margin:0">${sc} af 100 point. Scoren viser ${hvad}. Hæv og kampagne har hver sin skala, så sammenlign helst inden for samme forslag.${r.forslag === "hold øje" && sum !== sc ? ` Hold øje ganges med 0,7 (${sum} → ${sc}).` : ""}</div></div>
+    <div class="signal-dele">${dele.map(([, n, mx, v]) => `<span>${n}</span><span class="bar"><i style="width:${100 * v / mx}%;background:${farve}"></i></span><span class="tal">${v}/${mx}</span>`).join("")}</div></div>`;
 }
 function chipForslag(f) { return `<span class="chip ${f === "hæv" ? "haev" : f === "kampagne" ? "kampagne" : "holdoeje"}">${f === "hæv" ? "Hæv" : f === "kampagne" ? "Kampagne" : "Hold øje"}</span>`; }
 // Tempo vises som status, ikke som et tal: en slutsalgsprognose rammer ikke bedre end et fast gennemsnit (ML-tråden 21-10).
@@ -664,6 +699,7 @@ function tegnTabel() {
         <td class="kode"><b>${r.turkode}</b>${r.nyt ? '<span class="chip ny">Ny</span>' : ""}${r.groenland ? '<span class="chip gl">GL</span>' : ""}<span class="navn">${esc(r.navn)}</span></td>
         <td class="h tal">${kortDato(r.afrejse)} ${r.afrejse.slice(2, 4)}<div class="lille">${r.dage} dage</div></td>
         <td>${chipForslag(r.forslag)}</td>
+        <td class="h">${donut(r)}</td>
         <td class="h"><div class="bel"><span class="tal"><b>${r.solgt}</b><span class="lille">/${r.max_pax}</span></span><span class="bar"><i style="width:${Math.min(100, 100 * r.solgt / (r.max_pax || 1))}%"></i></span></div><div class="lille">${r.s.pladser_tilbage} ledige${navPax(r)}</div></td>
         <td class="h">${chipProg(r.p)}${r.p.kilde === "sidste_aar" ? '<div class="lille">mod sidste år</div>' : ""}${r.s.advarsel_under_kurve ? '<div class="lille ned" title="Bagud på købskurven: overvej en mindre stigning">⚠ advarsel</div>' : ""}</td>
         <td class="h">${lyTxt}</td>
@@ -843,6 +879,7 @@ function tegnDetalje(el, turkode, efterHent) {
         <div><b class="tal">${tal(s.solgt_14d)}</b><span>solgt 14 dage</span></div>
       </div>
     </div>
+    ${signalAfsnit(r)}
     ${grafSektion(el, r, lyTur, graf(r, lyTur), `
       <div class="forklar"><span><i style="border-color:#0D5879"></i>i år</span>${KURVE[r.turkode] ? `<span><i style="border-color:#0D5879;border-top-style:dashed;opacity:.6"></i>${r.p.kurve.navn} ved fuld afgang</span>` : ""}${lyTur ? `<span><i style="border-color:#BDBDBD"></i>sidste år (${lyTur})</span>` : ""}<span>▲ prisstigning</span></div>`)}
     <div class="afsnit"><h3>Hvorfor</h3><div class="argumenter">
@@ -1038,7 +1075,7 @@ function fyldFiltre() {
 }
 document.getElementById("kunNy").onchange = e => { T.kunNy = e.target.checked; tegnTabel(); };
 document.getElementById("soeg").oninput = e => { T.soeg = e.target.value.trim(); tegnTabel(); };
-document.getElementById("thead").onclick = e => { const th = e.target.closest("th"); if (!th || !th.dataset.s) return; if (T.sort === th.dataset.s) { if (T.retning === -1) { T.sort = null; T.retning = 1; } else T.retning = -1; } else { T.sort = th.dataset.s; T.retning = 1; } tegnTabel(); };
+document.getElementById("thead").onclick = e => { const th = e.target.closest("th"); if (!th || !th.dataset.s) return; const start = th.dataset.s === "signal" ? -1 : 1; if (T.sort === th.dataset.s) { if (T.retning === -start) { T.sort = null; T.retning = 1; } else T.retning = -start; } else { T.sort = th.dataset.s; T.retning = start; } tegnTabel(); };
 document.getElementById("linjer").onclick = e => {
   const g = e.target.closest("tr.gruppe"); if (g) { const k = g.dataset.g; T.lukket.has(k) ? T.lukket.delete(k) : T.lukket.add(k); tegnTabel(); return; }
   const tr = e.target.closest("tr.r"); if (!tr) return;
@@ -1061,8 +1098,8 @@ document.getElementById("bulkSenere").onclick = () => bulk("senere");
 document.getElementById("bulkAfvis").onclick = () => bulk("afvis");
 document.getElementById("excel").onclick = () => {
   const L = synlige();
-  const kol = ["Turkode", "Rejse", "Afrejse", "Dage", "Forslag", "Solgt", "Max pax", "Tempo mod købskurve", "Sidste års tur", "Solgt sidste år samme dag", "Køber typisk (dage før)", "Trafik tursiden mod sidste år (%)", "Pris i dag", "Startpris", "Ændring siden start (%)", "Stigninger", "Planens startpris", "Forslag fra", "Forslag til", "Kampagne fra", "Kampagne til", "Pointmodel", "Beslutning", "Begrundelser"];
-  const rk = L.map(r => [r.turkode, r.navn, r.afrejse, r.dage, r.forslag, r.solgt, r.max_pax, r.p.tekst, r.s.sidste_aars_tur || "", r.s.ly_solgt_nu ?? "", r.s.median_koebsdag ?? "", r.s.web_vaekst_pct ?? "", r.pris_nu, START[r.turkode]?.startpris ?? "", START[r.turkode]?.stigning_pct ?? "", START[r.turkode]?.stigninger ?? "", START[r.turkode]?.plan_startpris ?? "", r.forslag_pris_fra ?? "", r.forslag_pris_til ?? "", r.kampagne_pris_fra ?? "", r.kampagne_pris_til ?? "", r.s.pointmodel_pris ?? "", beslutning(r) || "", (r.begrundelser || []).join(" | ")]);
+  const kol = ["Turkode", "Rejse", "Afrejse", "Dage", "Forslag", "Signal-score", "Solgt", "Max pax", "Tempo mod købskurve", "Sidste års tur", "Solgt sidste år samme dag", "Køber typisk (dage før)", "Trafik tursiden mod sidste år (%)", "Pris i dag", "Startpris", "Ændring siden start (%)", "Stigninger", "Planens startpris", "Forslag fra", "Forslag til", "Kampagne fra", "Kampagne til", "Pointmodel", "Beslutning", "Begrundelser"];
+  const rk = L.map(r => [r.turkode, r.navn, r.afrejse, r.dage, r.forslag, r.s.signal_score ?? "", r.solgt, r.max_pax, r.p.tekst, r.s.sidste_aars_tur || "", r.s.ly_solgt_nu ?? "", r.s.median_koebsdag ?? "", r.s.web_vaekst_pct ?? "", r.pris_nu, START[r.turkode]?.startpris ?? "", START[r.turkode]?.stigning_pct ?? "", START[r.turkode]?.stigninger ?? "", START[r.turkode]?.plan_startpris ?? "", r.forslag_pris_fra ?? "", r.forslag_pris_til ?? "", r.kampagne_pris_fra ?? "", r.kampagne_pris_til ?? "", r.s.pointmodel_pris ?? "", beslutning(r) || "", (r.begrundelser || []).join(" | ")]);
   const csv = "﻿" + [kol, ...rk].map(x => x.map(v => `"${String(v).replace(/"/g, '""')}"`).join(";")).join("\r\n");
   const a = document.createElement("a"); a.href = URL.createObjectURL(new Blob([csv], { type: "text/csv" })); a.download = "prisforslag-" + IDAG + ".csv"; a.click();
 };

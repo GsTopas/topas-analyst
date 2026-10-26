@@ -199,6 +199,8 @@ textarea{width:100%;min-height:54px;border:1px solid var(--linje);border-radius:
 .ae-tabel td.kode .navn{max-width:none;white-space:nowrap}
 .ae-tabel select,.ae-tabel input{font:inherit;font-size:12px;padding:3px 4px;border:1px solid var(--linje);border-radius:5px;max-width:170px}
 .ae-tabel input{width:150px}
+.knap.tilbage{text-decoration:none;color:var(--blaa);border-color:var(--blaa);font-weight:600;padding:5px 12px}
+.knap.tilbage:hover{background:var(--blaa);color:#fff}
 .toast{position:fixed;bottom:18px;left:50%;transform:translateX(-50%);background:var(--tekst);color:#fff;padding:9px 14px;border-radius:7px;display:none;z-index:60}
 .skjult{display:none!important}
 .note{color:var(--graa);font-size:11px;margin-top:6px}
@@ -206,7 +208,7 @@ textarea{width:100%;min-height:54px;border:1px solid var(--linje);border-radius:
 </head>
 <body>
 <header>
-  <div class="logo">T</div>
+  <a class="logo" href="./" title="Til Topas BI Agent" style="text-decoration:none">T</a>
   <div>
     <h1>Prisstyring · gruppeture</h1>
     <div class="sub" id="dataDato"></div>
@@ -216,7 +218,7 @@ textarea{width:100%;min-height:54px;border:1px solid var(--linje);border-radius:
     <button role="tab" data-fane="port" aria-selected="false">Portefølje <kbd>2</kbd></button>
     <button role="tab" data-fane="udfald" aria-selected="false">Udfald <kbd>3</kbd></button>
   </nav>
-  <div class="hoejre"><span id="bruger"></span><a href="./" style="color:var(--blaa)">Topas BI Agent</a></div>
+  <div class="hoejre"><span id="bruger"></span><a class="knap tilbage" id="tilbage" href="./" title="Tilbage til chatten i Topas BI Agent">← Tilbage til BI Agent</a></div>
 </header>
 <main>
   <section class="kpi" id="kpi"></section>

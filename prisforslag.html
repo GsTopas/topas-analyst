@@ -194,6 +194,11 @@ textarea{width:100%;min-height:54px;border:1px solid var(--linje);border-radius:
 /* udfald */
 .kort{background:var(--plade);border:1px solid var(--linje);border-radius:8px;padding:16px;margin-bottom:12px}
 .kort h2{font-size:15px;margin:0 0 6px}
+.chip.foerdrift{background:var(--creme-lys);color:var(--tekst);border:1px solid #F2D9B8;margin-top:3px}
+.ae-tabel td{vertical-align:top}
+.ae-tabel td.kode .navn{max-width:none;white-space:nowrap}
+.ae-tabel select,.ae-tabel input{font:inherit;font-size:12px;padding:3px 4px;border:1px solid var(--linje);border-radius:5px;max-width:170px}
+.ae-tabel input{width:150px}
 .toast{position:fixed;bottom:18px;left:50%;transform:translateX(-50%);background:var(--tekst);color:#fff;padding:9px 14px;border-radius:7px;display:none;z-index:60}
 .skjult{display:none!important}
 .note{color:var(--graa);font-size:11px;margin-top:6px}
@@ -1026,22 +1031,86 @@ function flytTip(e) { tip.style.left = Math.min(e.clientX + 14, innerWidth - 300
 function skjulTip() { tip.style.display = "none"; }
 
 // ---------- udfald ----------
+// Prisændringer lavet i NAV uden om systemet (pris_aendring_liste) mod algoritmens råd.
+const SAMML = {
+  som_algoritmen: ["Som algoritmen", "foran"], hoejere_end_algoritmen: ["Højere end algoritmen", "kampagne"], lavere_end_algoritmen: ["Lavere end algoritmen", "kampagne"],
+  algoritmen_sagde_hold_oeje: ["Algoritmen sagde hold øje", "bagud"], algoritmen_sagde_kampagne: ["Algoritmen sagde kampagne", "bagud"],
+  intet_forslag: ["Intet forslag", "holdoeje"], via_systemet: ["Via systemet", "haev"],
+};
+const AENDR_TYPE = { dynamisk_fulgt: "Fulgte værktøjets råd", dynamisk_eget: "Eget skøn ud fra værktøjet", manuel_vurdering: "Manuel vurdering", startpris_2027: "Startpris 2027", kampagne: "Kampagne", fejlrettelse: "Fejlrettelse", andet: "Andet" };
+let AENDR = null, AENDR_FEJL = "";
+async function hentAendringer() {
+  const { data, error } = await sb.rpc("pris_aendring_liste");
+  if (error) { AENDR = []; AENDR_FEJL = /Could not find the function|PGRST202/i.test(error.message + error.code) ? "Listen over prisændringer er ikke klar endnu." : "Prisændringerne kunne ikke hentes: " + error.message; }
+  else AENDR = data || [];
+  if (T.fane === "udfald") tegnUdfald();
+}
+function chipSamml(x) { const s = SAMML[x] || [x || "–", "holdoeje"]; return `<span class="chip ${s[1]}">${s[0]}</span>`; }
+function raadTekst(a) {
+  if (!a.algoritme_forslag) return '<span class="lille">intet forslag den dag</span>';
+  const p = a.algoritme_pris_fra != null ? (a.algoritme_pris_fra === a.algoritme_pris_til || a.algoritme_pris_til == null ? tal(a.algoritme_pris_fra) : `${tal(a.algoritme_pris_fra)}–${tal(a.algoritme_pris_til)}`) : "";
+  return `${chipForslag(a.algoritme_forslag)}${p ? ` <span class="tal">${p}</span>` : ""}`;
+}
+function udfaldOversigt(L) {
+  const grp = Object.keys(SAMML).map(k => [k, L.filter(a => a.sammenligning === k)]).filter(g => g[1].length);
+  const rk = ([k, g]) => {
+    const n = g.length, gns = g.reduce((s, a) => s + (a.aendring_pct || 0), 0) / n;
+    const foer = g.reduce((s, a) => s + a.solgt_14d_foer, 0), siden = g.reduce((s, a) => s + a.solgt_siden, 0), dage = g.reduce((s, a) => s + a.dage_siden, 0);
+    const ugeFoer = foer / (2 * n), ugeEfter = dage ? siden / (dage / 7) : null, faerdig = g.filter(a => a.udfald_faerdigt).length;
+    return `<tr><td>${chipSamml(k)}</td><td class="h tal">${n}</td><td class="h tal">${pct(gns, 1)}</td><td class="h tal">${tal(foer)}</td><td class="h tal">${tal(siden)}</td><td class="h tal">${(ugeFoer).toLocaleString("da-DK", { maximumFractionDigits: 1 })}</td><td class="h tal">${ugeEfter == null ? "–" : ugeEfter.toLocaleString("da-DK", { maximumFractionDigits: 1 })}</td><td class="h tal">${Math.round(dage / n)}</td><td class="h tal">${faerdig}/${n}</td></tr>`;
+  };
+  return `<table class="sml" style="max-width:980px"><tr><th>Mod algoritmens råd</th><th class="h">Ændringer</th><th class="h">Gns. ændring</th><th class="h">Solgt 14 dage før</th><th class="h">Solgt siden</th><th class="h">Pr. afgang pr. uge før</th><th class="h">Pr. afgang pr. uge efter</th><th class="h">Dage siden (gns.)</th><th class="h">Udfald færdigt</th></tr>${grp.map(rk).join("")}</table>`;
+}
 function tegnUdfald() {
-  document.getElementById("fane-udfald").innerHTML = `
-    <div class="kort"><h2>Hvad skete der efter beslutningerne?</h2>
-      <p style="margin:0 0 8px">Her samles alle forslag med beslutning, og hvad der skete bagefter, så vi kan se, om forslagene rammer. Siden fyldes, når der er truffet beslutninger og gået 30 dage.</p>
-      <table class="sml" style="max-width:900px"><tr><th>Afgang</th><th>Forslag</th><th>Beslutning</th><th class="h">Pris før</th><th class="h">Pris efter</th><th class="h">Solgt 30 dage før</th><th class="h">Solgt 30 dage efter</th><th class="h">Sammenlignelige afgange</th></tr>
-      <tr><td colspan="8" class="tom" style="padding:16px">Ingen beslutninger med 30 dages udfald endnu (første morgenkørsel var 21-10-2026).</td></tr></table>
+  const el = document.getElementById("fane-udfald");
+  if (AENDR === null) { el.innerHTML = '<div class="kort"><h2>Prisændringer i NAV</h2><div class="tom">Henter …</div></div>'; hentAendringer(); return; }
+  const filt = T.udfaldFilter || "";
+  const L = AENDR.filter(a => !filt || a.sammenligning === filt);
+  const foerDrift = AENDR.some(a => a.foer_drift), alleFoer = AENDR.length && AENDR.every(a => a.foer_drift);
+  const knapper = [["", "Alle", AENDR.length], ...Object.keys(SAMML).map(k => [k, SAMML[k][0], AENDR.filter(a => a.sammenligning === k).length]).filter(x => x[2])]
+    .map(([k, n, c]) => `<button data-uf="${k}" aria-pressed="${filt === k}">${n} <span class="n">${c}</span></button>`).join("");
+  const kanRette = true; // adgang styres i pris_aendring_gem; begrænsede brugere får ingen forslag og når ikke hertil
+  const rk = a => `<tr data-id="${a.id}">
+      <td class="tal">${kortDato(a.dato)}<div class="lille">${a.dage_siden === 0 ? "i dag" : a.dage_siden + " dage siden"}</div></td>
+      <td class="kode"><b>${a.turkode}</b><span class="navn">afrejse ${kortDato(a.afrejse)} ${String(a.afrejse).slice(2, 4)} · ${a.dage_til_afrejse} dage før</span></td>
+      <td class="h tal">${tal(a.fra_pris)} → <b>${tal(a.til_pris)}</b><div class="lille ${a.aendring_pct > 0 ? "op" : "ned"}">${pct(a.aendring_pct, 1)}</div></td>
+      <td>${raadTekst(a)}</td>
+      <td>${chipSamml(a.sammenligning)}${a.foer_drift ? '<div><span class="chip foerdrift" title="Ændringen er lavet, før værktøjet blev taget i drift">Før drift – følger ikke maskinens råd</span></div>' : ""}</td>
+      <td class="h tal">${a.solgt_ved_aendring ?? "–"}/${a.kapacitet ?? "–"}<div class="lille">nu ${tal(a.solgt_nu)}</div></td>
+      <td class="h tal">${tal(a.solgt_14d_foer)}</td>
+      <td class="h tal"><b>${tal(a.solgt_siden)}</b><div class="lille">${a.udfald_faerdigt ? "færdigt" : a.dage_siden < 14 ? "for tidligt" : "i gang"}</div></td>
+      <td>${kanRette ? `<select class="ae-type" aria-label="Type"><option value="">${a.type_gaet ? "Gæt: " + esc(AENDR_TYPE[a.type_gaet] || a.type_gaet) : "Vælg type"}</option>${Object.entries(AENDR_TYPE).map(([k, n]) => `<option value="${k}" ${a.type === k ? "selected" : ""}>${n}</option>`).join("")}</select>` : esc(AENDR_TYPE[a.type] || "–")}</td>
+      <td>${kanRette ? `<select class="ae-aarsag" aria-label="Årsag"><option value="">Årsag (valgfri)</option>${Object.entries(AARSAG_KODE).map(([n, k]) => `<option value="${k}" ${a.aarsag === k ? "selected" : ""}>${n}</option>`).join("")}</select>` : esc(Object.keys(AARSAG_KODE).find(n => AARSAG_KODE[n] === a.aarsag) || "")}</td>
+      <td>${kanRette ? `<input class="ae-note" maxlength="500" placeholder="Note" value="${esc(a.note || "")}">` : esc(a.note || "")}</td>
+      <td>${kanRette ? `<button class="knap ae-gem" disabled>Gem</button>` : ""}<div class="lille ae-init">${a.initialer ? esc(a.initialer) : ""}</div></td>
+    </tr>`;
+  el.innerHTML = `
+    <div class="kort"><h2>Prisændringer i NAV uden om systemet</h2>
+      <p style="margin:0 0 8px">Hver enkelt prisændring på en afgang, som er lavet i NAV, holdt op mod det, algoritmen rådede til samme dag, og hvad der er solgt bagefter. Seriejusteringer (3 eller flere afgange i samme serie samme dag) er ikke med. Listen opdateres hvert 10. minut.</p>
+      ${alleFoer ? '<div class="advarsel" style="display:block;background:var(--creme-lys);color:var(--tekst)"><b>Før drift – følger ikke maskinens råd.</b> Værktøjet er ikke taget i drift endnu, så alle ændringer her er lavet uden om det. De er grundlaget for at sammenligne, når det tages i brug.</div>' : ""}
+      ${AENDR_FEJL ? `<div class="tom">${esc(AENDR_FEJL)}</div>` : !AENDR.length ? '<div class="tom">Ingen prisændringer registreret endnu.</div>' : `
+      <h3 style="margin:12px 0 4px">Ændring og udfald mod algoritmens råd</h3>
+      ${udfaldOversigt(AENDR)}
+      <div class="note">Salg pr. afgang pr. uge før er de 14 dage op til ændringen. Efter er alt solgt siden ændringen delt med dagene siden. Udfaldet er først færdigt efter 30 dage, så tidlige tal svinger meget.</div>
+      <div class="seg ae-filter" style="margin:14px 0 8px">${knapper}</div>
+      <table class="sml ae-tabel"><tr><th>Ændret</th><th>Afgang</th><th class="h">Pris</th><th>Algoritmens råd</th><th>Sammenligning</th><th class="h">Solgt ved ændring</th><th class="h">Solgt 14 d før</th><th class="h">Solgt siden</th><th>Type</th><th>Årsag</th><th>Note</th><th></th></tr>
+      ${L.map(rk).join("") || '<tr><td colspan="12" class="tom" style="padding:12px">Ingen ændringer med dette filter.</td></tr>'}</table>`}
     </div>
-    <div class="kort"><h2>Nøgletal, når der er data</h2>
-      <ul style="margin:0;padding-left:18px">
-        <li>Hvor mange forslag der blev fulgt, afvist og udsat, og de hyppigste årsager til afvisning</li>
-        <li>Salg de næste 30 dage på fulgte forslag mod sammenlignelige afgange (samme metode som effektanalysen)</li>
-        <li>Merindtægt: prisforskel gange solgte pladser efter stigningen</li>
-        <li>Forslag, hvor prisen blev ændret i NAV uden en beslutning her, og beslutninger, der ikke er ført ind i NAV</li>
-      </ul>
-      <div class="note">Kilde i den færdige version: public.pris_forslag_udfald.</div>
+    <div class="kort"><h2>Beslutninger truffet i værktøjet</h2>
+      <p style="margin:0">Når værktøjet er i drift, samles forslag med beslutning og udfaldet efter 30 dage her (kilde: public.pris_forslag_udfald). Der er ingen endnu.</p>
     </div>`;
+  el.querySelectorAll(".ae-filter button").forEach(b => b.onclick = () => { T.udfaldFilter = b.dataset.uf; tegnUdfald(); });
+  el.querySelectorAll(".ae-tabel tr[data-id]").forEach(tr => {
+    const gem = tr.querySelector(".ae-gem"); if (!gem) return;
+    tr.querySelectorAll("select,input").forEach(i => i.oninput = () => { gem.disabled = !tr.querySelector(".ae-type").value; });
+    gem.onclick = async () => {
+      const a = AENDR.find(x => x.id === +tr.dataset.id), type = tr.querySelector(".ae-type").value, aarsag = tr.querySelector(".ae-aarsag").value || null, note = tr.querySelector(".ae-note").value.trim() || null;
+      gem.disabled = true;
+      const { error } = await sb.rpc("pris_aendring_gem", { p_id: a.id, p_type: type, p_aarsag: aarsag, p_note: note });
+      if (error) { toast("Kunne ikke gemme: " + error.message); gem.disabled = false; return; }
+      Object.assign(a, { type, aarsag, note, initialer: INITIALER }); tr.querySelector(".ae-init").textContent = "Gemt · " + INITIALER; toast("Gemt");
+    };
+  });
 }
 
 // ---------- faner, filtre, tastatur ----------

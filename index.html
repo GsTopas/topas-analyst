@@ -302,6 +302,14 @@
   .hurtigsvar { display: flex; gap: 8px; flex-wrap: wrap; margin: -6px 0 18px; }
   .hurtigsvar button { border: 1px solid #CADBE2; background: var(--plade); color: var(--blaa-moerk); border-radius: 999px; padding: 7px 16px; font-size: 14px; font-weight: 500; min-height: 38px; }
   .hurtigsvar button:hover { border-color: var(--blaa); background: var(--blaa-lys); }
+  /* Afklarende spørgsmål med valg (værktøjet afklar): store knapper med en kort forklaring */
+  .hurtigsvar.valg { flex-direction: column; align-items: stretch; max-width: 560px; }
+  .hurtigsvar.valg button { border-radius: 12px; text-align: left; padding: 10px 14px; display: flex; flex-direction: column; gap: 2px; }
+  .hurtigsvar.valg button b { font-size: 14.5px; font-weight: 600; }
+  .hurtigsvar.valg button span { color: var(--graa-tekst); font-size: 13px; font-weight: 400; }
+  .valg-liste { margin: 4px 0 0; padding-left: 20px; color: var(--graa-tekst); }
+  .valg-liste b { color: var(--tekst); font-weight: 600; }
+  .valg-liste.kun-print { display: none; }
 
   /* ---------- Velkomst ---------- */
   .velkomst { padding: 6vh 4px 24px; max-width: 900px; margin: 0 auto; }
@@ -392,6 +400,7 @@
     main { display: block; }
     #beskeder { overflow: visible; padding: 0; }
     .indre { max-width: none; }
+    .valg-liste.kun-print { display: block; }
     .print-hoved { display: flex !important; align-items: center; gap: 10px; border-bottom: 2px solid var(--blaa); padding-bottom: 8px; margin-bottom: 14px; font-size: 12px; color: var(--graa-tekst); }
     .print-hoved b { color: var(--tekst); font-size: 15px; }
     .print-hoved .maerke { width: 26px; height: 26px; border-radius: 7px; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
@@ -1327,6 +1336,7 @@ function render(md, { grafer = null, streamer = false } = {}) {
   const tmp = el("div", "markdown", html);
   tmp.querySelectorAll("a[href]").forEach((a) => { a.setAttribute("target", "_blank"); a.setAttribute("rel", "noopener noreferrer"); });
   tmp.querySelectorAll("table").forEach(formTabel);
+  tmp.querySelectorAll("pre > code.language-valg").forEach((code) => code.parentElement.remove());
   tmp.querySelectorAll("pre > code.language-graf").forEach((code) => {
     const pre = code.parentElement;
     if (!grafer) { pre.replaceWith(el("div", "graf-vent", `<span class="spinner"></span>${streamer ? "Grafen tegnes, når svaret er færdigt…" : "Grafen kunne ikke tegnes."}`)); return; }
@@ -1856,12 +1866,20 @@ function afslutSvar(node, { tekst, vaerktoejer, ms, beskedId, feedback, sidste, 
   const tomt = !t.trim() || INTET_SVAR.test(t.trim());
   const fejlI = t.indexOf(FEJL_MARKOER);
   const ren = fejlI >= 0 ? t.slice(0, fejlI).trim() : t;
+  const valg = fejlI < 0 ? hentValg(ren) : [];
+  const renTekst = valg.length ? ren.replace(VALG_BLOK, "").trim() : ren;
   node.querySelector(".arbejder")?.remove();
   if (tomt) {
     node.classList.add("svar-tomt");
     node.querySelector(".indhold").replaceWith(Object.assign(fejlboks("Jeg nåede ikke frem til et svar. Prøv at stille spørgsmålet mere afgrænset, fx én afdeling eller én periode ad gangen.", spoergsmaal ? "Prøv igen" : null, () => sendIgen(node, spoergsmaal), true, "", levende), { className: "fejlboks info-boks indhold" }));
   } else {
-    saetIndhold(node, ren, { faerdig: true });
+    saetIndhold(node, renTekst, { faerdig: true });
+    // Valgene står også i svaret som liste: altid på ældre svar, kun på udskrift ved det sidste (dér er de knapper)
+    if (valg.length) {
+      const liste = el("ul", "valg-liste" + (sidste ? " kun-print" : ""));
+      for (const x of valg) liste.append(el("li", null, `<b>${esc(x.tekst)}</b>${x.forklaring ? ` – ${esc(x.forklaring)}` : ""}`));
+      node.querySelector(".indhold").append(liste);
+    }
     if (fejlI >= 0) {
       node.classList.add("svar-fejl");
       const besked = t.slice(fejlI + FEJL_MARKOER.length).replace(/\)\*\s*$/, "").trim();
@@ -1875,7 +1893,7 @@ function afslutSvar(node, { tekst, vaerktoejer, ms, beskedId, feedback, sidste, 
   node.querySelector(".feedback-panel")?.remove();
   node.querySelector(".opslag-liste")?.remove();
   const fod = el("div", "svar-fod");
-  const v = Array.isArray(vaerktoejer) ? vaerktoejer : [];
+  const v = (Array.isArray(vaerktoejer) ? vaerktoejer : []).filter((x) => x?.navn !== "afklar");
   if (v.length || ms) {
     const knap = el("button", "ikon-knap opslag-knap", `${IKON.opslag}${v.length} ${v.length === 1 ? "opslag" : "opslag"}${ms ? ` · ${sek(ms)}` : ""}`);
     knap.type = "button";
@@ -1896,7 +1914,7 @@ function afslutSvar(node, { tekst, vaerktoejer, ms, beskedId, feedback, sidste, 
   if (!tomt && ren.trim()) {
     const kopi = el("button", "ikon-knap", `${IKON.kopier}Kopiér`);
     kopi.type = "button"; kopi.title = "Kopiér svaret (tekst og tabeller)";
-    kopi.onclick = () => kopierSvar(node, ren);
+    kopi.onclick = () => kopierSvar(node, renTekst);
     const pdf = el("button", "ikon-knap pdf-knap", `${IKON.udskriv}Gem som PDF`);
     pdf.type = "button"; pdf.title = "Gem dette svar som PDF eller udskriv det";
     pdf.onclick = () => udskriv(node);
@@ -1906,7 +1924,18 @@ function afslutSvar(node, { tekst, vaerktoejer, ms, beskedId, feedback, sidste, 
   // Hurtigt svar på agentens afsluttende spørgsmål (kun i den samtale, der vises)
   if (!node.isConnected) return;
   node.parentElement.querySelectorAll(".hurtigsvar").forEach((h) => h.remove());
-  if (sidste && !tomt && fejlI < 0) {
+  if (sidste && !tomt && fejlI < 0 && valg.length) {
+    const h = el("div", "hurtigsvar valg");
+    h.setAttribute("role", "group");
+    h.setAttribute("aria-label", "Vælg et svar");
+    for (const x of valg) {
+      const b = el("button", null, `<b>${esc(x.tekst)}</b>${x.forklaring ? `<span>${esc(x.forklaring)}</span>` : ""}`);
+      b.type = "button";
+      b.onclick = () => { if (streamFor(samtaleId)?.aktiv) return; h.remove(); send(x.tekst); };
+      h.append(b);
+    }
+    node.after(h);
+  } else if (sidste && !tomt && fejlI < 0) {
     const sidsteAfsnit = [...node.querySelectorAll(".indhold > p")].pop()?.textContent.trim() ?? "";
     if (/\?$/.test(sidsteAfsnit) && /^(vil|skal|ønsker) du\b/i.test(sidsteAfsnit)) {
       const h = el("div", "hurtigsvar");
@@ -1920,6 +1949,17 @@ function afslutSvar(node, { tekst, vaerktoejer, ms, beskedId, feedback, sidste, 
   }
 }
 
+// Valg fra værktøjet afklar: en ```valg-blok sidst i svaret med ét valg pr. linje, "tekst | forklaring"
+const VALG_BLOK = /```valg\n([\s\S]*?)\n```\s*$/;
+function hentValg(tekst) {
+  const m = VALG_BLOK.exec(tekst);
+  if (!m) return [];
+  return m[1].split("\n").map((l) => {
+    const i = l.indexOf("|");
+    return { tekst: (i < 0 ? l : l.slice(0, i)).trim(), forklaring: i < 0 ? "" : l.slice(i + 1).trim() };
+  }).filter((x) => x.tekst).slice(0, 4);
+}
+
 function fejlboks(tekst, knapTekst, handling, info = false, detalje = "", levende = false) {
   const b = el("div", "fejlboks" + (info ? " info-boks" : ""), `${IKON.fejl}<div><div>${esc(tekst)}</div>${detalje ? `<div class="fejl-detalje">${esc(detalje)}</div>` : ""}</div>`);
   if (levende) b.setAttribute("role", "alert");
@@ -1930,7 +1970,7 @@ function fejlboks(tekst, knapTekst, handling, info = false, detalje = "", levend
 const NAVNE = {
   datakatalog: "Datakatalog (begreber og kolonner)", sql: "Egen forespørgsel i BI-laget", resultat_maaned: "Resultat pr. måned",
   omsaetning_maaned: "Realiseret omsætning pr. måned", salgsomsaetning: "Salgsomsætning", salg_uge: "Ugens salg", saeson_salg: "Salg til sæsonen",
-  belaegning: "Belægning på kommende ture", tur_opslag: "Opslag på én tur", ansvarlig_oversigt: "Tal pr. ansvarlig", db_gruppeture: "DB pr. gruppetur",
+  belaegning: "Belægning på kommende ture", afklar: "Afklarende spørgsmål", tur_opslag: "Opslag på én tur", ansvarlig_oversigt: "Tal pr. ansvarlig", db_gruppeture: "DB pr. gruppetur",
 };
 const navnPaa = (n) => NAVNE[n] || String(n).replace(/_/g, " ");
 const MDR = ["jan", "feb", "mar", "apr", "maj", "jun", "jul", "aug", "sep", "okt", "nov", "dec"];
@@ -2112,6 +2152,7 @@ async function send(tekstArg) {
   visning = noegle;
   if (fraFelt) { input.value = ""; autoHoejde(); }
   $("beskeder-indre").querySelectorAll(".hurtigsvar").forEach((h) => h.remove());
+  $("beskeder-indre").querySelectorAll(".valg-liste.kun-print").forEach((l) => l.classList.remove("kun-print"));
   tilfoejSpoergsmaal(tekst);
   // Knappen, man trykkede på (forslag, "Ja tak", "Prøv igen"), forsvinder; fokus tilbage i skrivefeltet
   if (!kunTouch.matches && (!document.activeElement || document.activeElement === document.body)) input.focus({ preventScroll: true });

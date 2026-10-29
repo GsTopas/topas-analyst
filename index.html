@@ -641,7 +641,7 @@
         </div>
         <div class="plade">
           <h3>Brugere</h3>
-          <p class="forklar">Ændringer gælder fra brugerens næste spørgsmål. Deaktivering fjerner adgangen til Topas BI og tilbagekalder brugerens MCP-nøgler. Et login, som Topas BI har oprettet, spærres også (det er fælles med Teg Plan); andre logins bevares. Kodeord kan kun nulstilles her for logins, som Topas BI har oprettet.</p>
+          <p class="forklar">Ændringer gælder fra brugerens næste spørgsmål. Deaktivering fjerner adgangen til Topas BI og tilbagekalder brugerens MCP-nøgler. Et login, som Topas BI har oprettet, spærres også (det er fælles med Teg Plan); andre logins bevares. Logins, som Topas BI har oprettet, kan få et nyt midlertidigt kodeord. Andre logins (fx fra Teg Plan) kan få et nulstillingslink på mail, så brugeren selv vælger et nyt kodeord.</p>
           <div class="tabel-ramme"><table class="admin" id="bruger-tabel"></table></div>
         </div>
         <div class="plade">
@@ -694,6 +694,10 @@ Chart.register(...registerables);
 window.__topasKlar = true;
 
 const KONFIG = window.__TOPAS_BI__;
+// Nulstillingslink fra adminsiden (Supabase-mailen "nulstil kodeord"). Læses, før Supabase-klienten fjerner det fra adressen.
+const linkParam = new URLSearchParams(location.hash.slice(1) + "&" + location.search.slice(1));
+let nulstilLink = linkParam.get("type") === "recovery";
+const linkFejl = linkParam.get("error_code") || linkParam.get("error") || "";
 const sb = createClient(KONFIG.url, KONFIG.anonKey);
 const CHAT_URL = `${KONFIG.url}/functions/v1/bi-chat`;
 const ADMIN_URL = `${KONFIG.url}/functions/v1/bi-admin`;
@@ -1441,7 +1445,9 @@ $("kode-form").onsubmit = async (e) => {
 function visSkift(frivillig) {
   $("skift-intro").textContent = frivillig
     ? "Vælg et nyt kodeord."
-    : "Du er logget ind med et midlertidigt kodeord. Vælg dit eget, før du fortsætter.";
+    : nulstilLink
+      ? "Vælg et nyt kodeord. Det gælder også i Teg Plan."
+      : "Du er logget ind med et midlertidigt kodeord. Vælg dit eget, før du fortsætter.";
   $("skift-fortryd-boks").classList.toggle("skjult", !frivillig);
   $("nyt1").value = ""; $("nyt2").value = ""; $("skift-fejl").textContent = "";
   $("app").classList.add("skjult");
@@ -1469,6 +1475,7 @@ $("skift-form").onsubmit = async (e) => {
     return;
   }
   if (data?.user && session) session.user = data.user;
+  nulstilLink = false;
   if (appVist) { skjulSkift(); toast("Kodeordet er gemt"); } else visApp();
 };
 
@@ -1485,7 +1492,8 @@ sb.auth.onAuthStateChange((event, s) => {
   session = s;
   if (!s) { if (event === "SIGNED_OUT") location.reload(); return; }
   if (event === "TOKEN_REFRESHED" || event === "USER_UPDATED") return;
-  if (s.user?.user_metadata?.must_change === true) visSkift(false);
+  if (event === "PASSWORD_RECOVERY") nulstilLink = true;
+  if (nulstilLink || s.user?.user_metadata?.must_change === true) visSkift(false);
   else visApp();
 });
 
@@ -2313,6 +2321,12 @@ $("ny-samtale-mobil").onclick = () => { visVelkomst(); lukMenu(); };
 
 // ---------- Start ----------
 // INITIAL_SESSION fra onAuthStateChange viser appen, hvis brugeren allerede er logget ind.
+if (linkFejl) {
+  $("login-fejl").textContent = linkFejl === "otp_expired"
+    ? "Linket er udløbet eller allerede brugt. Log ind med kode på mail, eller bed om et nyt link."
+    : "Linket virkede ikke. Log ind med kode på mail, eller bed om et nyt link.";
+  history.replaceState(null, "", APP_URL);
+}
 
 // ---------- Adgangsniveau og adminside ----------
 // Niveauet står i bi_brugere.rolle (admin / fuld / begraenset). Adminsiden kalder bi-admin, som selv tjekker, at brugeren er aktiv admin.
@@ -2413,6 +2427,16 @@ async function hentAdmin() {
         hentAdmin();
       };
       tdH.append(nk);
+    } else if (b.har_login && b.aktiv && !mig) {
+      // Login fra før Topas BI (fx Teg Plan): Supabase sender linket direkte til brugeren, så adminen ser intet kodeord.
+      const nl = el("button", "lille-knap", "Send nulstillingslink"); nl.setAttribute("aria-label", `Send nulstillingslink til ${b.email}`);
+      nl.onclick = async () => {
+        if (!confirm(`Send et link til ${b.email}, så personen selv kan vælge et nyt kodeord?\n\nLoginnet er fælles med Teg Plan, så det nye kodeord gælder også dér.`)) return;
+        nl.disabled = true; nl.textContent = "Sender…";
+        try { const r = await adminKald("send_nulstillingslink", { email: b.email }); visResultat(`Et nulstillingslink er sendt til <b>${esc(r.email)}</b>.<div class="dim" style="margin-top:6px">Linket åbner Topas BI, hvor personen vælger et nyt kodeord. Det kan kun bruges én gang og udløber efter kort tid. Kommer mailen ikke inden for et par minutter, så bed personen kigge i uønsket post.</div>`); } catch (e) { adminFejl(e); }
+        hentAdmin();
+      };
+      tdH.append(nl);
     }
     if (b.aktiv) {
       const mk = el("button", "lille-knap", "Ny MCP-nøgle"); mk.setAttribute("aria-label", `Ny MCP-nøgle til ${b.email}`);

@@ -1017,15 +1017,22 @@ async function kopier(tekst, html) {
 // ---------- Grafer ----------
 // Farve efter seriens rolle (bi-visualisering-best-practices.md): i år blå, sidste år grå, budget orange stiplet.
 // Rød og grøn bruges kun til afvigelser.
+// Årstal i serienavnet: det nyeste år er blåt, året før gråt og ældre år lyseblå/mellemblå, så tre eller flere år aldrig får samme farve (1.14.0).
 const EKSTRA = ["#FFD5A7", "#6B9BB0", "#B6CDD7", "#0A4660"];
+const AELDRE = ["#B6CDD7", "#6B9BB0", "#0A4660"];
 function farveFor(serier) {
   const aar = serier.map((s) => +((String(s.navn || "").match(/\b(20\d\d)\b/) || [])[1] || 0));
-  const nyeste = Math.max(...aar);
+  const aarNyesteFoerst = [...new Set(aar.filter(Boolean))].sort((a, b) => b - a);
+  const nyeste = aarNyesteFoerst[0] || 0;
   let blaaBrugt = false, ekstra = 0;
   return serier.map((s, i) => {
     const navn = String(s.navn || "");
     if (/budget|mål/i.test(navn)) return { farve: "#E1652A", budget: true };
-    if (/sidste år|samme tid|forrige|fjor/i.test(navn) || (aar[i] && aar[i] < nyeste)) return { farve: "#8C8C8C" };
+    if (aar[i] && aar[i] < nyeste) {
+      const rang = aarNyesteFoerst.indexOf(aar[i]);
+      return { farve: rang === 1 ? "#8C8C8C" : AELDRE[(rang - 2) % AELDRE.length] };
+    }
+    if (/sidste år|samme tid|forrige|fjor/i.test(navn)) return { farve: "#8C8C8C" };
     if (!blaaBrugt) { blaaBrugt = true; return { farve: "#0D5879" }; }
     return { farve: EKSTRA[ekstra++ % EKSTRA.length] };
   });

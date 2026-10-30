@@ -817,8 +817,11 @@ function graf(r, ly) {
   let s = `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Salgskurve for ${r.turkode}">`;
   for (const d of [365, 300, 240, 180, 120, 60, 0]) s += `<line x1="${X(d)}" x2="${X(d)}" y1="${m.t}" y2="${m.t + ih}" stroke="#F2F2F2"/><text x="${X(d)}" y="${m.t + ih + 13}" font-size="10" fill="#8C8C8C" text-anchor="middle">${d}</text>`;
   s += `<text x="${m.l + iw / 2}" y="${H - 3}" font-size="10" fill="#8C8C8C" text-anchor="middle">dage før afrejse</text>`;
-  const yt = [0, Math.round(r.max_pax / 2), r.max_pax];
-  for (const v of yt) s += `<text x="${m.l - 6}" y="${Y(v) + 3}" font-size="10" fill="#8C8C8C" text-anchor="end">${v}</text>`;
+  // Akse-mærker med fast trin (2, 5 eller 10), så små tal kan aflæses. Skalaen går stadig til max pax.
+  const trin = r.max_pax <= 20 ? 2 : r.max_pax <= 50 ? 5 : 10, yt = [];
+  for (let v = 0; v < r.max_pax - trin / 2; v += trin) yt.push(v);
+  yt.push(r.max_pax);
+  for (const v of yt) s += `${v && v !== r.max_pax ? `<line x1="${m.l}" x2="${m.l + iw}" y1="${Y(v)}" y2="${Y(v)}" stroke="#F5F5F5"/>` : ""}<text x="${m.l - 6}" y="${Y(v) + 3}" font-size="10" fill="#8C8C8C" text-anchor="end">${v}</text>`;
   s += `<line x1="${m.l}" x2="${m.l + iw}" y1="${Y(r.max_pax)}" y2="${Y(r.max_pax)}" stroke="#8C8C8C" stroke-dasharray="3 3"/>`;
   const etk = [{ y: Y(r.max_pax), t: "max " + r.max_pax, c: "#8C8C8C" }];
   // prisændringer
@@ -826,8 +829,18 @@ function graf(r, ly) {
   pr.forEach((p, i) => { if (i === 0 && !(PRISER[r.turkode][0][0] < 365)) return; s += `<line x1="${X(p[0])}" x2="${X(p[0])}" y1="${m.t}" y2="${m.t + ih}" stroke="#0D5879" stroke-opacity=".18"/><path d="M${X(p[0]) - 4},${m.t + ih} l4,-6 l4,6z" fill="#0D5879"><title>${p[0]} dage før: ${kr(p[1])}</title></path>`; });
   if (lyP.length > 1) s += `<polyline fill="none" stroke="#BDBDBD" stroke-width="2" points="${lyP.map(p => X(p[0]) + "," + Y(p[1])).join(" ")}"/>`; if (lyP.length > 1) etk.push({ y: Y(lyP[lyP.length - 1][1]), t: lyP[lyP.length - 1][1] + " sidste år", c: "#8C8C8C" });
   if (fv.length > 1) { const sl = fv[fv.length - 1][1]; s += `<polyline fill="none" stroke="#0D5879" stroke-width="2" stroke-dasharray="4 3" stroke-opacity=".55" points="${fv.map(p => X(p[0]) + "," + Y(p[1])).join(" ")}"/>`; }
-  if (cur.length > 1) s += `<polyline fill="none" stroke="#0D5879" stroke-width="2.4" points="${cur.map(p => X(p[0]) + "," + Y(p[1])).join(" ")}"/>`;
+  // Salg mere end 365 dage før afrejse samles i grafens startpunkt, så linjen ikke får et lodret spring ved 365
+  const foer = (SALG[r.turkode] || []).filter(p => p[0] > 365), foerN = foer.length ? foer[foer.length - 1][1] : 0;
+  const curG = foer.length ? [[365, foerN], ...cur.filter(p => p[0] <= 365)] : cur;
+  if (curG.length > 1) s += `<polyline fill="none" stroke="#0D5879" stroke-width="2.4" points="${curG.map(p => X(p[0]) + "," + Y(p[1])).join(" ")}"/>`;
   s += `<line x1="${X(r.dage)}" x2="${X(r.dage)}" y1="${m.t}" y2="${m.t + ih}" stroke="#333" stroke-dasharray="2 2"/><text x="${X(r.dage)}" y="${m.t - 3}" font-size="10" fill="#333" text-anchor="middle">i dag</text><circle cx="${X(r.dage)}" cy="${Y(r.solgt)}" r="3.5" fill="#0D5879"/>`;
+  // Tallet ved i dag, og en note når der er solgt før grafens start (mere end 365 dage før afrejse)
+  const fv0 = fv.length ? fv.find(p => p[0] <= r.dage)?.[1] : null, under = fv0 != null && fv0 - r.solgt < 2 && fv0 >= r.solgt;
+  s += `<text class="idag-solgt" x="${X(r.dage) - 6}" y="${Y(r.solgt) + (under ? 14 : -7)}" font-size="11" font-weight="700" fill="#0D5879" text-anchor="end" paint-order="stroke" stroke="#fff" stroke-width="3">${r.solgt} solgt</text>`;
+  if (foerN > 0) {
+    const forste = foer.find(p => p[1] > 0), fd = forste ? new Date(new Date(r.afrejse + "T00:00:00") - forste[0] * 864e5).toISOString().slice(0, 10) : null;
+    s += `<text class="foer-start" x="${m.l + 4}" y="${m.t + 26}" font-size="10" fill="#0D5879" paint-order="stroke" stroke="#fff" stroke-width="3">${foerN} solgt før grafens start${fd ? ` (${dato(fd)})` : ""}</text>`;
+  }
   etk.sort((a, b) => a.y - b.y);
   for (let i = 1; i < etk.length; i++) if (etk[i].y - etk[i - 1].y < 12) etk[i].y = etk[i - 1].y + 12;
   etk.forEach(e => { s += `<text x="${m.l + iw + 5}" y="${e.y + 3}" font-size="10" fill="${e.c}">${e.t}</text>`; });

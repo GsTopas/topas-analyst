@@ -1041,6 +1041,8 @@ function farveFor(serier) {
     return { farve: EKSTRA[ekstra++ % EKSTRA.length] };
   });
 }
+// Foreløbigt år med * (fx "2027*" eller "GBT 2027*"): tegnes lyst som til dato-måneder (1.16.1)
+const AAR_TIL_DATO = /(^|\s)20\d\d\s?\*$/;
 const MAANED_TIL_DATO = /^(jan|feb|mar|apr|maj|jun|jul|aug|sep|okt|nov|dec)[a-zæøå]*\.?(\s?'?\d{2,4})?\s?\*$/i;
 // Akse: én enhed for hele aksen (fx "mio. kr.") i stedet for på hver tick
 function akseEnhed(maks, enhed) {
@@ -1156,9 +1158,10 @@ function tegnGraf(pre, spec, grafer) {
   const n = labels.length || 1;
   const hoejde = vandret ? Math.min(760, Math.max(200, n * (serier.length > 1 ? 30 : 24) + 80)) : (erMobil() ? 250 : 300);
   ramme.style.height = hoejde + "px";
-  const tilDato = labels.map((l) => MAANED_TIL_DATO.test(l.trim()));
+  const tilDato = labels.map((l) => MAANED_TIL_DATO.test(l.trim()) || AAR_TIL_DATO.test(l.trim()));
+  const aarTilDato = labels.some((l) => AAR_TIL_DATO.test(l.trim()));
   const fod = el("div", "graf-fod");
-  fod.append(el("span", "note", tilDato.some(Boolean) ? "Lyse søjler (*) er til dato og kan kun sammenlignes med samme dato sidste år." : ""));
+  fod.append(el("span", "note", tilDato.some(Boolean) ? (aarTilDato ? "Lyse søjler (*) er foreløbige: salget til dato, ikke hele året." : "Lyse søjler (*) er til dato og kan kun sammenlignes med samme dato sidste år.") : ""));
   const hent = el("button", "ikon-knap", `${IKON.hent}Gem som billede`);
   hent.type = "button";
   hent.onclick = () => hentGraf(canvas, titel, undertitel, fod.querySelector(".note").textContent);

@@ -1125,6 +1125,17 @@ const referenceLinjer = {
 };
 Chart.register(vaerdiEtiketter, referenceLinjer);
 
+// Tekst til skærmlæsere: titlen og tallene pr. serie (højst 24 punkter pr. serie), så grafen kan "læses" uden at se den (1.16.0)
+function grafBeskrivelse(titel, labels, serier, enhed) {
+  const e = enhed ? " " + String(enhed) : "";
+  const dele = serier.map((s) => {
+    const pkt = labels.slice(0, 24).map((l, i) => `${l} ${s.data[i] == null ? "–" : talDK.format(s.data[i]) + e}`);
+    return `${s.navn || "Serie"}: ${pkt.join(", ")}${labels.length > 24 ? " …" : ""}`;
+  });
+  return `Graf: ${titel || "uden titel"}. ${dele.join(". ")}. De præcise tal står også i teksten.`;
+}
+// Linjer adskilles også med punktform, ikke kun farve (farveblinde): nyeste år cirkel, derefter firkant, trekant, rombe (1.16.0)
+const PUNKTFORMER = ["circle", "rect", "triangle", "rectRot"];
 function tegnGraf(pre, spec, grafer) {
   const labels = Array.isArray(spec.labels) ? spec.labels.map(String) : [];
   const serier = (Array.isArray(spec.serier) ? spec.serier : []).slice(0, 6).map((s) => ({ ...s, data: (s.data || []).map((v) => (v == null || v === "" ? null : Number(v))) }));
@@ -1138,7 +1149,7 @@ function tegnGraf(pre, spec, grafer) {
   const ramme = el("div", "graf");
   const canvas = el("canvas");
   canvas.setAttribute("role", "img");
-  canvas.setAttribute("aria-label", `Graf: ${helTitel || "uden titel"}. De præcise tal står i teksten.`);
+  canvas.setAttribute("aria-label", grafBeskrivelse(helTitel, labels, serier, spec.enhed));
   ramme.append(canvas);
   boks.append(ramme);
   const vandret = !!spec.vandret;
@@ -1171,6 +1182,7 @@ function tegnGraf(pre, spec, grafer) {
   const antalSoejler = serier.filter((s) => (s.type || grundtype) === "bar").length * n;
   const visTal = antalSoejler > 0 && (vandret ? antalSoejler <= 24 : antalSoejler <= 14 && !erMobil());
   const fmtAkse = (v) => talDK.format(v / akse.d);
+  const linjeSerier = serier.filter((s) => (s.type || grundtype) === "line" && !/budget|mål/i.test(s.navn || "")).length;
   const graf = new Chart(canvas, {
     type: grundtype,
     data: {
@@ -1183,8 +1195,8 @@ function tegnGraf(pre, spec, grafer) {
         return {
           label: sr.navn, data: sr.data, type, backgroundColor: bg, borderColor: (erIndeks || erAfv) && type === "bar" ? bg : type === "line" ? farve : labels.map((_, j) => tilDato[j] ? farve : farve),
           borderWidth: type === "line" ? 2.25 : labels.map((_, j) => tilDato[j] ? 1.5 : 0), borderDash: sr.stiplet || (budget && type === "line") ? [6, 4] : undefined,
-          pointRadius: budget && type === "line" ? (erMobil() ? 9 : 14) : type === "line" ? (labels.length > 24 ? 0 : 2.5) : 0,
-          pointHoverRadius: budget && type === "line" ? (erMobil() ? 9 : 14) : 4, pointStyle: budget && type === "line" ? "line" : type === "line" ? "circle" : "rect",
+          pointRadius: budget && type === "line" ? (erMobil() ? 9 : 14) : type === "line" ? (labels.length > 24 ? 0 : linjeSerier > 1 ? 3.5 : 2.5) : 0,
+          pointHoverRadius: budget && type === "line" ? (erMobil() ? 9 : 14) : 4, pointStyle: budget && type === "line" ? "line" : type === "line" ? PUNKTFORMER[i % PUNKTFORMER.length] : "rect",
           pointBorderWidth: budget && type === "line" ? 3 : 1, tension: 0.25, spanGaps: false,
           borderRadius: 3, borderSkipped: "start", maxBarThickness: vandret ? 18 : 46, categoryPercentage: 0.78, barPercentage: 0.9, order: type === "line" ? 0 : 1,
         };
@@ -1201,7 +1213,7 @@ function tegnGraf(pre, spec, grafer) {
           backgroundColor: "#2B2B2B", padding: 10, cornerRadius: 8, titleFont: { weight: "600" }, boxPadding: 4,
           callbacks: { label: (c) => { const v = c.parsed[vandret ? "x" : "y"]; return ` ${c.dataset.label}: ${v == null ? "–" : talDK.format(v)}${enhed ? " " + enhed : ""}`; } },
         },
-        vaerdiEtiketter: { vis: visTal, fmt: (v) => etiketTal.format(v / akse.d) },
+        vaerdiEtiketter: { vis: visTal, fmt: (v) => (erAfv && v > 0 ? "+" : "") + etiketTal.format(v / akse.d) },
         referenceLinjer: { linjer: erIndeks ? [{ v: 100, farve: "#8C8C8C", bred: 1 }, { v: 90, farve: "#C30031", stiplet: true }, { v: 110, farve: "#2E7D32", stiplet: true }] : erAfv || alle.some((v) => v < 0) ? [{ v: 0, farve: "#8C8C8C", bred: 1 }] : [] },
       },
       scales: {

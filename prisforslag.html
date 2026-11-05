@@ -683,7 +683,9 @@ function koebTxt(r) {
 }
 function webTxt(r) {
   const w = r.s.web_vaekst_pct, a = r.s.web_vaekst_alle_pct, ser = serieAf(r);
-  if (w == null) return `<span class="lille" title="Ingen besøg på tursiden samme 14 dage sidste år">–</span><div class="lille">${ser}</div>`;
+  if (w == null) return r.s.sess_14d != null
+    ? `<span title="Tursiden for serien ${ser} havde ${tal(r.s.sess_14d)} besøg de sidste 14 dage. Siden fandtes ikke samme 14 dage sidste år, så der er ingen procent."><b class="tal">${tal(r.s.sess_14d)}</b><span class="lille"> bes.</span><div class="lille">ny · ${ser}</div></span>`
+    : `<span class="lille" title="Ingen besøg på tursiden samme 14 dage sidste år">–</span><div class="lille">${ser}</div>`;
   const kl = a == null ? "" : w > a ? "op" : w < a ? "ned" : "";
   return `<span title="Tursiden for serien ${ser}: ${pct(w)} mod sidste år${a != null ? ` (alle tursider ${pct(a)})` : ""}. Ens på alle afgange i serien."><b class="tal ${kl}">${pct(w)}</b><div class="lille">serie ${ser}</div></span>`;
 }

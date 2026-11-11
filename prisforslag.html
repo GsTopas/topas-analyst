@@ -326,6 +326,7 @@ function prognose(x) {
   return { status: st, tekst: STATUS_TEKST[st] || st, kilde, indeks: x.indeks ?? null, lyTur: x.sidste_aars_tur || null, forventet: x.prognose_solgt ?? null, grad: x.prognose_grad ?? null, andel: x.kurve_andel ?? null, kurve: { navn: kurveNavn(x.kurve_navn), noegle: x.kurve_navn } };
 }
 
+let BUDGET = {}, BUDGET_HENTET = false;
 let AFG = [], AFGK = {}, F = [], FK = {}, NAVN_SERIE = {}, PORT_FULD = false, START = {};
 // S9: startpris pr. afgang (pris_startpris_liste). Uden kaldet vises intet.
 function startTekst(t) {
@@ -422,9 +423,21 @@ function trafikGraf(r, w) {
   const sml = lyNu != null ? `Til dato ${tal(nu)} besøg mod ${tal(lyNu)} ${w.ly_tur ? "sidste år" : "et år før"} samme antal dage før${lyNu > 0 ? ` (${pct(100 * (nu / lyNu - 1))})` : ""}.` : `Til dato ${tal(nu)} besøg.`;
   return s + `<div class="note">${sml} Tursiden er fælles for hele serien ${w.serie || r.turkode.slice(0, 4)}, så kurven er ens for seriens afgange (forskudt efter afrejsedato).${start < 365 ? ` Webdata findes fra ${dato(fra)}, så begge kurver tælles fra ${start} dage før.` : ""}</div>`;
 }
+function budgetSektion(r) {
+  const b = BUDGET[r.turkode];
+  if (!b) return `<div class="tom">${BUDGET_HENTET ? `Intet budget for ${r.turkode} endnu. Budget pr. afgang er indlæst for ${Object.keys(BUDGET).length} afgange, og 2027-budgettet mangler. Visningen kommer automatisk, når det er indlæst.` : "Henter budget …"}</div>`;
+  const bp = +b.budget_pax, andelNu = KURVE[r.turkode] ? Math.min(1, andel(KURVE[r.turkode], r.dage)) : null, forvNu = andelNu != null ? bp * andelNu : null;
+  const pctB = bp > 0 ? Math.round(100 * r.solgt / bp) : null;
+  const tempo = forvNu != null && forvNu >= 1 ? (r.solgt >= forvNu * 1.1 ? "foran" : r.solgt <= forvNu * 0.9 ? "bagud" : "på niveau") : null;
+  const tekst = `<b>${r.solgt}</b> solgt af budget <b>${tal(bp)}</b> pax${pctB != null ? ` (${pctU(pctB)})` : ""}.${forvNu != null ? ` Ud fra ${r.p.kurve.navn} burde der være solgt ca. ${tal(forvNu)} nu for at nå budgettet${tempo ? `, så salget er <b class="${tempo === "foran" ? "op" : tempo === "bagud" ? "ned" : ""}">${tempo}</b> mod budget` : ""}.` : ""}${b.budget_kr ? ` Omsætningsbudget ${kr(b.budget_kr)}` : ""}`;
+  return `<div class="kortsagt" style="margin:0 0 6px">${tekst}</div>${graf(r, null, bp)}
+    <div class="forklar"><span><i style="border-color:#0D5879"></i>i år</span>${KURVE[r.turkode] ? `<span><i style="border-color:#E1652A;border-top-style:dashed"></i>købskurven op til budget</span>` : ""}<span><i style="border-color:#E1652A"></i>budget ${tal(bp)} pax</span><span>▲ prisstigning</span></div>`;
+}
 function grafSektion(el, r, lyTur, salgHtml, forklar) {
-  const valg = `<span class="seg grafvalg" style="float:right;margin-top:-4px"><button data-g="salg" aria-pressed="${T.graf !== "trafik"}">Salg</button><button data-g="trafik" aria-pressed="${T.graf === "trafik"}">Trafik</button></span>`;
-  if (T.graf !== "trafik") return `<div class="afsnit graf"><h3>Salgskurve${valg}</h3>${salgHtml}${forklar}</div>`;
+  const g = T.graf === "trafik" || T.graf === "budget" ? T.graf : "salg";
+  const valg = `<span class="seg grafvalg" style="float:right;margin-top:-4px"><button data-g="salg" aria-pressed="${g === "salg"}">Sidste år</button><button data-g="budget" aria-pressed="${g === "budget"}">Budget</button><button data-g="trafik" aria-pressed="${g === "trafik"}">Trafik</button></span>`;
+  if (g === "salg") return `<div class="afsnit graf"><h3>Salg mod sidste år${valg}</h3>${salgHtml}${forklar}</div>`;
+  if (g === "budget") return `<div class="afsnit graf"><h3>Salg mod budget${valg}</h3>${budgetSektion(r)}</div>`;
   const w = WEB[r.turkode];
   if (!w) hentWeb(r.turkode, el);
   const ind = !KALD_WEB && (!w || w === "mangler") ? '<div class="tom">Trafikkurven kommer, når maskinrummets trafikkald er klar.</div>'
@@ -805,7 +818,7 @@ function kortSagt(r) {
   const progTxt = ["foran", "paa", "bagud"].includes(p.status) ? `Med ${r.solgt} af ${r.max_pax} solgt ${r.dage} dage før afrejse er salget ${{ foran: "foran", paa: "på kurs med", bagud: "bagud på" }[p.status]} ${p.kurve.navn}${p.andel != null ? `, hvor normalt ca. ${pctU(p.andel * 100)} af slutsalget er solgt på dette tidspunkt` : ""}.` : p.status === "udsolgt" ? "Afgangen er udsolgt." : (p.andel != null ? `Det er for tidligt at læse kurven: normalt er kun ${pctU(p.andel * 100)} af pladserne solgt ${r.dage} dage før afrejse.` : "Det er for tidligt at læse kurven.");
   return progTxt;
 }
-function graf(r, ly) {
+function graf(r, ly, budget = null) {
   const W = 448, H = 210, m = { l: 26, r: 84, t: 14, b: 30 };
   const iw = W - m.l - m.r, ih = H - m.t - m.b;
   const cur = kurveIAar(r);
@@ -813,7 +826,8 @@ function graf(r, ly) {
   const fv = [];
   // Købskurven tegnet for en fuld afgang (andel × max pax), så man kan se, om salget ligger over eller under
   const k = KURVE[r.turkode];
-  if (k) for (let d = 365; d >= 0; d -= 5) fv.push([d, r.max_pax * Math.min(1, andel(k, d))]);
+  const maal = budget ?? r.max_pax;
+  if (k) for (let d = 365; d >= 0; d -= 5) fv.push([d, maal * Math.min(1, andel(k, d))]);
   const maxY = Math.max(r.max_pax, ...lyP.map(p => p[1]), ...fv.map(p => Math.min(p[1], r.max_pax * 1.5)), 1) * 1.08;
   const X = d => m.l + (1 - Math.min(d, 365) / 365) * iw, Y = v => m.t + ih - (Math.min(v, maxY) / maxY) * ih;
   let s = `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Salgskurve for ${r.turkode}">`;
@@ -826,11 +840,12 @@ function graf(r, ly) {
   for (const v of yt) s += `${v && v !== r.max_pax ? `<line x1="${m.l}" x2="${m.l + iw}" y1="${Y(v)}" y2="${Y(v)}" stroke="#F5F5F5"/>` : ""}<text x="${m.l - 6}" y="${Y(v) + 3}" font-size="10" fill="#8C8C8C" text-anchor="end">${v}</text>`;
   s += `<line x1="${m.l}" x2="${m.l + iw}" y1="${Y(r.max_pax)}" y2="${Y(r.max_pax)}" stroke="#8C8C8C" stroke-dasharray="3 3"/>`;
   const etk = [{ y: Y(r.max_pax), t: "max " + r.max_pax, c: "#8C8C8C" }];
+  if (budget != null) { s += `<line class="budgetlinje" x1="${m.l}" x2="${m.l + iw}" y1="${Y(budget)}" y2="${Y(budget)}" stroke="#E1652A" stroke-width="1.5"/>`; etk.push({ y: Y(budget), t: "budget " + tal(budget), c: "#E1652A" }); }
   // prisændringer
   const pr = (PRISER[r.turkode] || []).filter(p => p[0] != null && p[0] >= r.dage && p[0] <= 365);
   pr.forEach((p, i) => { if (i === 0 && !(PRISER[r.turkode][0][0] < 365)) return; s += `<line x1="${X(p[0])}" x2="${X(p[0])}" y1="${m.t}" y2="${m.t + ih}" stroke="#0D5879" stroke-opacity=".18"/><path d="M${X(p[0]) - 4},${m.t + ih} l4,-6 l4,6z" fill="#0D5879"><title>${p[0]} dage før: ${kr(p[1])}</title></path>`; });
   if (lyP.length > 1) s += `<polyline fill="none" stroke="#BDBDBD" stroke-width="2" points="${lyP.map(p => X(p[0]) + "," + Y(p[1])).join(" ")}"/>`; if (lyP.length > 1) etk.push({ y: Y(lyP[lyP.length - 1][1]), t: lyP[lyP.length - 1][1] + " sidste år", c: "#8C8C8C" });
-  if (fv.length > 1) { const sl = fv[fv.length - 1][1]; s += `<polyline fill="none" stroke="#0D5879" stroke-width="2" stroke-dasharray="4 3" stroke-opacity=".55" points="${fv.map(p => X(p[0]) + "," + Y(p[1])).join(" ")}"/>`; }
+  if (fv.length > 1) { const sl = fv[fv.length - 1][1]; s += `<polyline fill="none" stroke="${budget != null ? "#E1652A" : "#0D5879"}" stroke-width="2" stroke-dasharray="4 3" stroke-opacity="${budget != null ? ".8" : ".55"}" points="${fv.map(p => X(p[0]) + "," + Y(p[1])).join(" ")}"/>`; }
   // Salg mere end 365 dage før afrejse samles i grafens startpunkt, så linjen ikke får et lodret spring ved 365
   const foer = (SALG[r.turkode] || []).filter(p => p[0] > 365), foerN = foer.length ? foer[foer.length - 1][1] : 0;
   const curG = foer.length ? [[365, foerN], ...cur.filter(p => p[0] <= 365)] : cur;
@@ -1223,6 +1238,8 @@ async function start() {
   const [pr, st, ko] = await Promise.all([sb.rpc("pris_portefoelje"), sb.rpc("pris_startpris_liste"), sb.rpc("pris_seneste_koersel")]);
   if (!pr.error && pr.data?.length) port = pr.data;
   if (!st.error && st.data?.length) st.data.forEach(x => { START[x.turkode] = x; });
+  // 11-11: budget pr. afgang (budget_afgang) til "Salg mod budget"
+  sb.rpc("pris_budget_afgang_liste").then(({ data: bd, error: be }) => { if (!be && bd) bd.forEach(x => { BUDGET[x.turkode] = x; }); BUDGET_HENTET = true; if (T.graf === "budget") { const el = document.getElementById("detalje"); if (el?.dataset.t) tegnDetalje(el, el.dataset.t, true); } });
   IDAG = data[0].dato;
   indlaes(data, port);
   udsolgtTertiler();

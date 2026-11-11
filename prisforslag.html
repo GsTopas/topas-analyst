@@ -425,11 +425,11 @@ function trafikGraf(r, w) {
 }
 function budgetSektion(r) {
   const b = BUDGET[r.turkode];
-  if (!b) return `<div class="tom">${BUDGET_HENTET ? `Intet budget for ${r.turkode} endnu. Budget pr. afgang er indlæst for ${Object.keys(BUDGET).length} afgange, og 2027-budgettet mangler. Visningen kommer automatisk, når det er indlæst.` : "Henter budget …"}</div>`;
+  if (!b) return `<div class="tom">${BUDGET_HENTET ? `Intet budget for ${r.turkode}: feltet "Forventet antal pax" på varen i NAV er tomt eller 0. Udfyld det i NAV, så kommer visningen efter næste synkronisering.` : "Henter budget …"}</div>`;
   const bp = +b.budget_pax, andelNu = KURVE[r.turkode] ? Math.min(1, andel(KURVE[r.turkode], r.dage)) : null, forvNu = andelNu != null ? bp * andelNu : null;
   const pctB = bp > 0 ? Math.round(100 * r.solgt / bp) : null;
   const tempo = forvNu != null && forvNu >= 1 ? (r.solgt >= forvNu * 1.1 ? "foran" : r.solgt <= forvNu * 0.9 ? "bagud" : "på niveau") : null;
-  const tekst = `<b>${r.solgt}</b> solgt af budget <b>${tal(bp)}</b> pax${pctB != null ? ` (${pctU(pctB)})` : ""}.${forvNu != null ? ` Ud fra ${r.p.kurve.navn} burde der være solgt ca. ${tal(forvNu)} nu for at nå budgettet${tempo ? `, så salget er <b class="${tempo === "foran" ? "op" : tempo === "bagud" ? "ned" : ""}">${tempo}</b> mod budget` : ""}.` : ""}${b.budget_kr ? ` Omsætningsbudget ${kr(b.budget_kr)}` : ""}`;
+  const tekst = `<b>${r.solgt}</b> solgt af budget <b>${tal(bp)}</b> pax${pctB != null ? ` (${pctU(pctB)})` : ""}.${forvNu != null ? ` Ud fra ${r.p.kurve.navn} burde der være solgt ca. ${tal(forvNu)} nu for at nå budgettet${tempo ? `, så salget er <b class="${tempo === "foran" ? "op" : tempo === "bagud" ? "ned" : ""}">${tempo}</b> mod budget` : ""}.` : ""}${b.budget_kr ? ` Omsætningsbudget ${kr(b.budget_kr)}` : ""}<div class="lille">Budget pax: ${b.kilde === "nav_forventet_pax" ? '"Forventet antal pax" på varen i NAV' : "budgetfilen pr. afgang"}.</div>`;
   return `<div class="kortsagt" style="margin:0 0 6px">${tekst}</div>${graf(r, null, bp)}
     <div class="forklar"><span><i style="border-color:#0D5879"></i>i år</span>${KURVE[r.turkode] ? `<span><i style="border-color:#E1652A;border-top-style:dashed"></i>købskurven op til budget</span>` : ""}<span><i style="border-color:#E1652A"></i>budget ${tal(bp)} pax</span><span>▲ prisstigning</span></div>`;
 }
@@ -1097,9 +1097,11 @@ function tegnUdfald() {
   const el = document.getElementById("fane-udfald");
   if (AENDR === null) { el.innerHTML = '<div class="kort"><h2>Prisændringer i NAV</h2><div class="tom">Henter …</div></div>'; hentAendringer(); return; }
   const filt = T.udfaldFilter || "";
-  const L = AENDR.filter(a => !filt || a.sammenligning === filt);
+  // 11-11: nye startpriser (ny_startpris) er ikke prisstigninger og står for sig selv
+  const STP = AENDR.filter(a => a.ny_startpris), AE = AENDR.filter(a => !a.ny_startpris);
+  const L = filt === "startpris" ? STP : AE.filter(a => !filt || a.sammenligning === filt);
   const foerDrift = AENDR.some(a => a.foer_drift), alleFoer = AENDR.length && AENDR.every(a => a.foer_drift);
-  const knapper = [["", "Alle", AENDR.length], ...Object.keys(SAMML).map(k => [k, SAMML[k][0], AENDR.filter(a => a.sammenligning === k).length]).filter(x => x[2])]
+  const knapper = [["", "Alle stigninger", AE.length], ...Object.keys(SAMML).map(k => [k, SAMML[k][0], AE.filter(a => a.sammenligning === k).length]).filter(x => x[2]), ...(STP.length ? [["startpris", "Ny startpris", STP.length]] : [])]
     .map(([k, n, c]) => `<button data-uf="${k}" aria-pressed="${filt === k}">${n} <span class="n">${c}</span></button>`).join("");
   const kanRette = true; // adgang styres i pris_aendring_gem; begrænsede brugere får ingen forslag og når ikke hertil
   const rk = a => `<tr data-id="${a.id}">
@@ -1107,7 +1109,7 @@ function tegnUdfald() {
       <td class="kode"><b>${a.turkode}</b><span class="navn">afrejse ${kortDato(a.afrejse)} ${String(a.afrejse).slice(2, 4)} · ${a.dage_til_afrejse} dage før</span></td>
       <td class="h tal">${tal(a.fra_pris)} → <b>${tal(a.til_pris)}</b><div class="lille ${a.aendring_pct > 0 ? "op" : "ned"}">${pct(a.aendring_pct, 1)}</div></td>
       <td>${raadTekst(a)}</td>
-      <td>${chipSamml(a.sammenligning)}${a.foer_drift ? '<div><span class="chip foerdrift" title="Ændringen er lavet, før værktøjet blev taget i drift">Før drift – følger ikke maskinens råd</span></div>' : ""}</td>
+      <td>${a.ny_startpris ? `<span class="chip gl" title="${a.startpris_kilde === "plan" ? "Gættet ud fra seriens plan" : "Startpris på varen i NAV"}${a.startpris_nav ? ": " + tal(a.startpris_nav) : ""}">Ny startpris</span>` : chipSamml(a.sammenligning)}${a.foer_drift ? '<div><span class="chip foerdrift" title="Ændringen er lavet, før værktøjet blev taget i drift">Før drift – følger ikke maskinens råd</span></div>' : ""}</td>
       <td class="h tal">${a.solgt_ved_aendring ?? "–"}/${a.kapacitet ?? "–"}<div class="lille">nu ${tal(a.solgt_nu)}</div></td>
       <td class="h tal">${tal(a.solgt_14d_foer)}</td>
       <td class="h tal"><b>${tal(a.solgt_siden)}</b><div class="lille">${a.udfald_faerdigt ? "færdigt" : a.dage_siden < 14 ? "for tidligt" : "i gang"}</div></td>
@@ -1122,7 +1124,7 @@ function tegnUdfald() {
       ${alleFoer ? '<div class="advarsel" style="display:block;background:var(--creme-lys);color:var(--tekst)"><b>Før drift – følger ikke maskinens råd.</b> Værktøjet er ikke taget i drift endnu, så alle ændringer her er lavet uden om det. De er grundlaget for at sammenligne, når det tages i brug.</div>' : ""}
       ${AENDR_FEJL ? `<div class="tom">${esc(AENDR_FEJL)}</div>` : !AENDR.length ? '<div class="tom">Ingen prisændringer registreret endnu.</div>' : `
       <h3 style="margin:12px 0 4px">Ændring og udfald mod algoritmens råd</h3>
-      ${udfaldOversigt(AENDR)}
+      ${udfaldOversigt(AE)}${STP.length ? `<div class="note">${STP.length} ${STP.length === 1 ? "ændring er" : "ændringer er"} en ny startpris og tæller ikke med som prisstigning. Se dem under "Ny startpris".</div>` : ""}
       <div class="note">Salg pr. afgang pr. uge før er de 14 dage op til ændringen. Efter er alt solgt siden ændringen delt med dagene siden. Udfaldet er først færdigt efter 30 dage, så tidlige tal svinger meget.</div>
       <div class="seg ae-filter" style="margin:14px 0 8px">${knapper}</div>
       <table class="sml ae-tabel"><tr><th>Ændret</th><th>Afgang</th><th class="h">Pris</th><th>Algoritmens råd</th><th>Sammenligning</th><th class="h">Solgt ved ændring</th><th class="h">Solgt 14 d før</th><th class="h">Solgt siden</th><th>Type</th><th>Årsag</th><th>Note</th><th></th></tr>

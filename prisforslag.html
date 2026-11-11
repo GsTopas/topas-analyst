@@ -112,6 +112,15 @@ input[type=checkbox]{accent-color:var(--blaa);width:15px;height:15px;cursor:poin
 .noegle b{display:block;font-size:14px}
 .noegle span{font-size:11px;color:var(--graa)}
 .graf svg{display:block;width:100%;height:auto}
+.detalje .graf svg{cursor:zoom-in}
+.detalje .graf h3 .forstoer{float:right;margin:-4px 6px 0 0;border:1px solid var(--linje,#E0E0E0);background:#fff;border-radius:5px;padding:2px 7px;cursor:pointer;font-size:13px;color:#555;text-transform:none;letter-spacing:0;font-weight:400}
+#zoom{position:fixed;inset:0;background:rgba(20,30,40,.55);display:flex;align-items:center;justify-content:center;z-index:1000;padding:24px}
+#zoom .zoom-boks{background:#fff;border-radius:10px;box-shadow:0 12px 40px rgba(0,0,0,.3);width:min(900px,94vw);max-height:94vh;overflow:auto;padding:20px 26px;position:relative}
+#zoom .zoom-boks h3{font-size:15px;margin:0 40px 10px 0}
+#zoom .zoom-boks svg{cursor:default;max-height:68vh}
+#zoom .zoom-boks svg *{vector-effect:non-scaling-stroke}
+#zoom .zoom-boks .forklar,#zoom .zoom-boks .note,#zoom .zoom-boks .kortsagt{font-size:14px}
+#zoom .zoom-luk{position:absolute;top:12px;right:14px;border:0;background:none;font-size:26px;line-height:1;cursor:pointer;color:#555}
 .forklar{display:flex;gap:12px;flex-wrap:wrap;font-size:11px;color:var(--graa);margin-top:4px}
 .forklar i{display:inline-block;width:14px;height:0;border-top:2px solid;vertical-align:middle;margin-right:4px}
 .argumenter{display:grid;grid-template-columns:1fr 1fr;gap:10px}
@@ -1210,7 +1219,28 @@ document.getElementById("excel").onclick = () => {
   const csv = "﻿" + [kol, ...rk].map(x => x.map(v => `"${String(v).replace(/"/g, '""')}"`).join(";")).join("\r\n");
   const a = document.createElement("a"); a.href = URL.createObjectURL(new Blob([csv], { type: "text/csv" })); a.download = "prisforslag-" + IDAG + ".csv"; a.click();
 };
+// 11-11 (Gorm): klik på grafen (eller "Forstør") viser den stor og centreret i et vindue
+function lukZoom() { document.getElementById("zoom")?.remove(); }
+function aabnZoom(afsnit) {
+  lukZoom();
+  const k = afsnit.cloneNode(true);
+  k.querySelectorAll(".grafvalg,.forstoer").forEach(x => x.remove());
+  const z = document.createElement("div"); z.id = "zoom";
+  z.innerHTML = `<div class="zoom-boks" role="dialog" aria-modal="true"><button class="zoom-luk" aria-label="Luk" title="Luk (Esc)">×</button></div>`;
+  const boks = z.firstChild; while (k.firstChild) boks.appendChild(k.firstChild);
+  z.onclick = e => { if (e.target === z || e.target.closest(".zoom-luk")) lukZoom(); };
+  document.body.appendChild(z);
+}
+document.addEventListener("click", e => {
+  if (e.target.closest("#zoom")) return;
+  const f = e.target.closest(".detalje .graf .forstoer") || e.target.closest(".detalje .graf svg");
+  if (f) aabnZoom(f.closest(".afsnit.graf"));
+});
+new MutationObserver(() => document.querySelectorAll(".detalje .afsnit.graf h3").forEach(h => {
+  if (!h.querySelector(".forstoer") && h.parentElement.querySelector("svg")) { const b = document.createElement("button"); b.className = "forstoer"; b.title = "Vis grafen stor"; b.textContent = "⤢"; b.setAttribute("aria-label", "Forstør grafen"); h.appendChild(b); }
+})).observe(document.body, { childList: true, subtree: true });
 document.addEventListener("keydown", e => {
+  if (e.key === "Escape" && document.getElementById("zoom")) { lukZoom(); return; }
   const iFelt = ["INPUT", "TEXTAREA", "SELECT"].includes(document.activeElement.tagName);
   if (e.key === "Escape") { if (iFelt) document.activeElement.blur(); T.markeret.clear(); if (T.fane === "idag") tegnTabel(); return; }
   if (iFelt) return;

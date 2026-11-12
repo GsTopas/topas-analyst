@@ -59,6 +59,8 @@ th.h,td.h{text-align:right}
 th:hover{color:var(--blaa)}
 th .pil{font-size:10px;margin-left:3px}
 td{padding:6px 6px;border-bottom:1px solid #F0F0F0;vertical-align:middle;white-space:nowrap}
+#ark td,#ark th{padding-left:4px;padding-right:4px}
+#ark .bar{width:44px}
 tr.r{cursor:pointer}
 tr.r:hover td{background:#FAFBFC}
 tr.r.valgt td{background:var(--blaa-lys)}
@@ -67,7 +69,7 @@ tr.r.besl td{color:var(--graa)}
 tr.gruppe td{background:var(--bg);font-weight:700;font-size:12px;padding:6px 8px;color:var(--tekst);cursor:pointer;position:sticky;top:46px;z-index:1}
 tr.gruppe .n{color:var(--graa);font-weight:400;margin-left:6px}
 td.kode b{font-size:13px}
-td.kode .navn{display:block;color:var(--graa);font-size:11px;max-width:132px;overflow:hidden;text-overflow:ellipsis}
+td.kode .navn{display:block;color:var(--graa);font-size:11px;max-width:120px;overflow:hidden;text-overflow:ellipsis}
 .chip{display:inline-block;border-radius:10px;padding:1px 8px;font-size:11px;font-weight:600;line-height:18px}
 .chip.haev{background:var(--blaa-lys);color:var(--blaa)}
 .chip.kampagne{background:var(--orange-lys);color:var(--orange)}
@@ -434,6 +436,21 @@ function trafikGraf(r, w) {
 }
 function budgetPax(r) { const b = BUDGET[r.turkode]; return b && +b.budget_pax > 0 ? +b.budget_pax : null; }
 // 11-11 (Gorm): budget ligger i samme graf som sidste år, som en orange linje, og opsummeres i én tekst under grafen
+// 11-11 (Gorm): tempo mod budget = solgt mod budget pax × købskurvens andel nu (±10 %)
+function budgetTempo(r) {
+  const b = BUDGET[r.turkode], bp = b && +b.budget_pax > 0 ? +b.budget_pax : null;
+  if (bp == null) return { status: null, bp: null };
+  const k = KURVE[r.turkode], a = k ? andel(k, r.dage) : r.p?.andel, forv = a != null ? bp * Math.min(1, a) : null;
+  if (forv == null || forv < 1) return { status: "tidligt", tekst: "For tidligt", bp, forv };
+  const status = r.solgt >= forv * 1.1 ? "foran" : r.solgt <= forv * 0.9 ? "bagud" : "paa";
+  return { status, tekst: { foran: "Foran", paa: "På kurs", bagud: "Bagud" }[status], bp, forv };
+}
+function chipBudget(r) {
+  const t = budgetTempo(r);
+  if (!t.status) return `<span class="lille" title="Intet budget: &quot;Forventet antal pax&quot; er tomt eller 0 i NAV">${BUDGET_HENTET ? "–" : "…"}</span>`;
+  const tip = `${r.solgt} solgt af budget ${tal(t.bp)} pax.${t.forv != null ? ` Ud fra købskurven burde der være solgt ca. ${tal(t.forv)} nu.` : " Ingen købskurve at måle mod."}`;
+  return `<span class="chip ${t.status}" title="${tip}">${t.tekst}</span><div class="lille">af ${tal(t.bp)}</div>`;
+}
 function budgetTekst(r) {
   const b = BUDGET[r.turkode];
   if (!BUDGET_HENTET) return "";
@@ -572,8 +589,8 @@ function tegnSerie(el, k) {
   el.innerHTML = `<div class="hoved"><h2>${esc(k)} <span class="lille" style="font-weight:400">hele serien</span></h2><div class="navn">${esc(NAVN_SERIE[k] || "")}</div><div class="lille">${afg.length} afgange · ${afg[0].region} · ${dato(afg[0].afrejse)} til ${dato(afg.at(-1).afrejse)}</div>
       <div class="noegle"><div><b class="tal">${tal(sol)}/${tal(mx)}</b><span>solgt (${mx ? pctU(100 * sol / mx) : "–"})</span></div><div><b class="tal"><span class="op">${n("foran") + n("udsolgt")}</span> · ${n("paa")} · <span class="ned">${n("bagud")}</span></b><span>foran · på kurs · bagud</span></div><div><b class="tal">${n("tidligt")}</b><span>for tidligt at læse</span></div><div><b class="tal">${forslag}</b><span>forslag i dag</span></div></div></div>
     <div class="afsnit graf">${graf}</div>
-    <div class="afsnit"><h3>Afgange</h3><table class="sml"><tr><th>Afgang</th><th>Afrejse</th><th class="h">Solgt</th><th>Tempo</th><th class="h">Pris</th><th>Forslag</th></tr>
-      ${afg.map(a => `<tr class="afg" data-t="${a.turkode}"><td><b>${a.turkode}</b></td><td class="tal" title="${a.dage} dage før afrejse">${kortDato(a.afrejse)}</td><td class="h tal">${a.solgt}/${a.max_pax}</td><td>${chipProg(a.p)}</td><td class="h tal">${tal(a.pris_nu)}</td><td>${a.f && a.f.forslag !== "hold øje" ? chipForslag(a.f.forslag) : '<span class="lille">–</span>'}</td></tr>`).join("")}</table>
+    <div class="afsnit"><h3>Afgange</h3><table class="sml"><tr><th>Afgang</th><th>Afrejse</th><th class="h">Solgt</th><th>Tempo</th><th>Mod budget</th><th class="h">Pris</th><th>Forslag</th></tr>
+      ${afg.map(a => `<tr class="afg" data-t="${a.turkode}"><td><b>${a.turkode}</b></td><td class="tal" title="${a.dage} dage før afrejse">${kortDato(a.afrejse)}</td><td class="h tal">${a.solgt}/${a.max_pax}</td><td>${chipProg(a.p)}</td><td>${chipBudget(a)}</td><td class="h tal">${tal(a.pris_nu)}</td><td>${a.f && a.f.forslag !== "hold øje" ? chipForslag(a.f.forslag) : '<span class="lille">–</span>'}</td></tr>`).join("")}</table>
       <div class="note">Klik på en afgang for at se den.</div></div>`;
   el.querySelectorAll("tr.afg").forEach(tr => {
     tr.onclick = () => { T.valgt2 = tr.dataset.t; tegnPort(); };
@@ -614,6 +631,7 @@ const KOL = [
   { k: "signal", t: "Sig-<br>nal", s: r => r.s.signal_score ?? -1, h: true, tip: "Signal-score 0–100: hvor stærke signalerne bag forslaget er. Hæv og kampagne har hver sin skala. Hold musen over donutten for at se pointene" },
   { k: "bel", t: "Solgt", s: r => r.solgt / (r.max_pax || 1), h: true },
   { k: "prog", t: "Tempo", s: r => r.p.grad ?? -1, h: true, tip: "Salgstempo mod seriens købskurve: foran, på kurs eller bagud" },
+  { k: "bud", t: "Mod<br>budget", s: r => { const t = budgetTempo(r); return t.status ? (t.forv ? r.solgt / t.forv : 0) : -1; }, h: true, tip: "Salgstempo mod budget (\"Forventet antal pax\" i NAV): solgt nu mod det, købskurven siger, der burde være solgt for at nå budgettet. ±10 % er på niveau" },
   { k: "ly", t: "Sidste<br>år", s: r => (r.s.ly_solgt_nu ?? -99) - 0, h: true, tip: "Solgt på sidste års afgang samme antal dage før afrejse" },
   { k: "koeb", t: "Køber<br>typisk", s: r => r.s.median_koebsdag ?? -1, h: true, tip: "Hvor mange dage før afrejse halvdelen af slutsalget typisk er solgt (seriens eller segmentets købskurve)" },
   { k: "web", t: () => { const a = F.find(x => x.s.web_vaekst_alle_pct != null)?.s.web_vaekst_alle_pct; return `Trafik<br><span class="lille">${a != null ? `alle ${pct(a)}` : "tursiden"}</span>`; }, s: r => r.s.web_vaekst_pct ?? -999, h: true, tip: "Besøg på tursiden de sidste 14 dage mod samme 14 dage sidste år. Tursiden er fælles for hele serien, så tallet er ens på alle afgange i serien" },
@@ -737,6 +755,7 @@ function tegnTabel() {
         <td class="h">${donut(r)}</td>
         <td class="h"><div class="bel"><span class="tal"><b>${r.solgt}</b><span class="lille">/${r.max_pax}</span></span><span class="bar"><i style="width:${Math.min(100, 100 * r.solgt / (r.max_pax || 1))}%"></i></span></div><div class="lille">${r.s.pladser_tilbage} ledige${navPax(r)}</div></td>
         <td class="h">${chipProg(r.p)}${r.p.kilde === "sidste_aar" ? '<div class="lille">mod sidste år</div>' : ""}${r.s.advarsel_under_kurve ? '<div class="lille ned" title="Bagud på købskurven: overvej en mindre stigning">⚠ advarsel</div>' : ""}</td>
+        <td class="h">${chipBudget(r)}</td>
         <td class="h">${lyTxt}</td>
         <td class="h">${koebTxt(r)}</td>
         <td class="h">${webTxt(r)}</td>
@@ -1214,8 +1233,8 @@ document.getElementById("bulkSenere").onclick = () => bulk("senere");
 document.getElementById("bulkAfvis").onclick = () => bulk("afvis");
 document.getElementById("excel").onclick = () => {
   const L = synlige();
-  const kol = ["Turkode", "Rejse", "Afrejse", "Dage", "Forslag", "Signal-score", "Solgt", "Max pax", "Tempo mod købskurve", "Sidste års tur", "Solgt sidste år samme dag", "Køber typisk (dage før)", "Trafik tursiden mod sidste år (%)", "Pris i dag", "Startpris", "Ændring siden start (%)", "Stigninger", "Planens startpris", "Forslag fra", "Forslag til", "Kampagne fra", "Kampagne til", "Pointmodel", "Beslutning", "Begrundelser"];
-  const rk = L.map(r => [r.turkode, r.navn, r.afrejse, r.dage, r.forslag, r.s.signal_score ?? "", r.solgt, r.max_pax, r.p.tekst, r.s.sidste_aars_tur || "", r.s.ly_solgt_nu ?? "", r.s.median_koebsdag ?? "", r.s.web_vaekst_pct ?? "", r.pris_nu, START[r.turkode]?.startpris ?? "", START[r.turkode]?.stigning_pct ?? "", START[r.turkode]?.stigninger ?? "", START[r.turkode]?.plan_startpris ?? "", r.forslag_pris_fra ?? "", r.forslag_pris_til ?? "", r.kampagne_pris_fra ?? "", r.kampagne_pris_til ?? "", r.s.pointmodel_pris ?? "", beslutning(r) || "", (r.begrundelser || []).join(" | ")]);
+  const kol = ["Turkode", "Rejse", "Afrejse", "Dage", "Forslag", "Signal-score", "Solgt", "Max pax", "Tempo mod købskurve", "Budget pax", "Tempo mod budget", "Sidste års tur", "Solgt sidste år samme dag", "Køber typisk (dage før)", "Trafik tursiden mod sidste år (%)", "Pris i dag", "Startpris", "Ændring siden start (%)", "Stigninger", "Planens startpris", "Forslag fra", "Forslag til", "Kampagne fra", "Kampagne til", "Pointmodel", "Beslutning", "Begrundelser"];
+  const rk = L.map(r => [r.turkode, r.navn, r.afrejse, r.dage, r.forslag, r.s.signal_score ?? "", r.solgt, r.max_pax, r.p.tekst, budgetTempo(r).bp ?? "", budgetTempo(r).tekst ?? "", r.s.sidste_aars_tur || "", r.s.ly_solgt_nu ?? "", r.s.median_koebsdag ?? "", r.s.web_vaekst_pct ?? "", r.pris_nu, START[r.turkode]?.startpris ?? "", START[r.turkode]?.stigning_pct ?? "", START[r.turkode]?.stigninger ?? "", START[r.turkode]?.plan_startpris ?? "", r.forslag_pris_fra ?? "", r.forslag_pris_til ?? "", r.kampagne_pris_fra ?? "", r.kampagne_pris_til ?? "", r.s.pointmodel_pris ?? "", beslutning(r) || "", (r.begrundelser || []).join(" | ")]);
   const csv = "﻿" + [kol, ...rk].map(x => x.map(v => `"${String(v).replace(/"/g, '""')}"`).join(";")).join("\r\n");
   const a = document.createElement("a"); a.href = URL.createObjectURL(new Blob([csv], { type: "text/csv" })); a.download = "prisforslag-" + IDAG + ".csv"; a.click();
 };
@@ -1275,7 +1294,7 @@ async function start() {
   if (!pr.error && pr.data?.length) port = pr.data;
   if (!st.error && st.data?.length) st.data.forEach(x => { START[x.turkode] = x; });
   // 11-11: budget pax pr. afgang ("Forventet antal pax" i NAV, ellers budget_afgang) som linje i salgsgrafen
-  sb.rpc("pris_budget_afgang_liste").then(({ data: bd, error: be }) => { if (!be && bd) bd.forEach(x => { BUDGET[x.turkode] = x; }); BUDGET_HENTET = true; if (T.graf !== "trafik") { const el = document.getElementById("detalje"); if (el?.dataset.t) tegnDetalje(el, el.dataset.t, true); } });
+  sb.rpc("pris_budget_afgang_liste").then(({ data: bd, error: be }) => { if (!be && bd) bd.forEach(x => { BUDGET[x.turkode] = x; }); BUDGET_HENTET = true; if (T.fane === "idag") tegnTabel(); for (const id of ["detalje", "detalje2"]) { const el = document.getElementById(id); if (el?.dataset.t) tegnDetalje(el, el.dataset.t, true); } });
   IDAG = data[0].dato;
   indlaes(data, port);
   udsolgtTertiler();

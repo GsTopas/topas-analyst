@@ -207,9 +207,10 @@ textarea{width:100%;min-height:54px;border:1px solid var(--linje);border-radius:
 .kort h2{font-size:15px;margin:0 0 6px}
 .chip.foerdrift{background:var(--creme-lys);color:var(--tekst);border:1px solid #F2D9B8;margin-top:3px}
 .ae-tabel td{vertical-align:top}
-.ae-tabel td.kode .navn{max-width:none;white-space:nowrap}
+.ae-tabel td.kode .navn{max-width:210px;white-space:nowrap}
 .ae-tabel select,.ae-tabel input{font:inherit;font-size:12px;padding:3px 4px;border:1px solid var(--linje);border-radius:5px;max-width:170px}
-.ae-tabel input{width:150px}
+.ae-tabel input{width:130px}
+.ae-tabel select{max-width:140px}
 .knap.tilbage{text-decoration:none;color:var(--blaa);border-color:var(--blaa);font-weight:600;padding:5px 12px}
 .knap.tilbage:hover{background:var(--blaa);color:#fff}
 .toast{position:fixed;bottom:18px;left:50%;transform:translateX(-50%);background:var(--tekst);color:#fff;padding:9px 14px;border-radius:7px;display:none;z-index:60}
@@ -1125,12 +1126,34 @@ function udfaldOversigt(L) {
   };
   return `<table class="sml" style="max-width:980px"><tr><th>Mod algoritmens råd</th><th class="h">Ændringer</th><th class="h">Gns. ændring</th><th class="h">Solgt 14 dage før</th><th class="h">Solgt siden</th><th class="h">Pr. afgang pr. uge før</th><th class="h">Pr. afgang pr. uge efter</th><th class="h">Dage siden (gns.)</th><th class="h">Udfald færdigt</th></tr>${grp.map(rk).join("")}</table>`;
 }
+// 12-11 (Gorm): søg og kategorier i Udfald. Kategorierne udledes af turkode og rejsens navn (der er ikke et kategorifelt i NAV-data):
+// M-suffiks = aldersgruppe 30–50 år og I-suffiks = international (som i klaviyo_afgange), resten af ord i navnet.
+const UKAT = [
+  ["alder", "Aldersgruppe 30–50", a => /M$/.test(a.turkode)],
+  ["cykel", "Cykel", (a, n) => /cykel|bike/i.test(n) && !/motorcykel/i.test(n)],
+  ["hoejrute", "Højrute", (a, n) => /højrute|hytte til hytte/i.test(n)],
+  ["trek", "Trekking", (a, n) => /trek/i.test(n)],
+  ["intl", "International", a => /I$/.test(a.turkode)],
+  ["europa", "Europa", a => region(a.turkode) === "Europa"],
+  ["groenland", "Grønland", a => region(a.turkode) === "Grønland"],
+  ["oversoisk", "Oversøisk", a => region(a.turkode) === "Oversøisk"],
+];
+const udfNavn = a => NAVN_SERIE[a.turkode.slice(0, 4)] || "";
+const udfKat = a => UKAT.filter(k => k[2](a, udfNavn(a)));
+function udfMatch(a) {
+  if (T.udfaldKat && !udfKat(a).some(k => k[0] === T.udfaldKat)) return false;
+  const q = (T.udfaldSoeg || "").trim().toLowerCase();
+  if (!q) return true;
+  const tekst = (a.turkode + " " + udfNavn(a) + " " + udfKat(a).map(k => k[1]).join(" ") + (/M$/.test(a.turkode) ? " aldersgruppe" : "")).toLowerCase();
+  return q.split(/\s+/).every(o => tekst.includes(o));
+}
 function tegnUdfald() {
   const el = document.getElementById("fane-udfald");
   if (AENDR === null) { el.innerHTML = '<div class="kort"><h2>Prisændringer i NAV</h2><div class="tom">Henter …</div></div>'; hentAendringer(); return; }
   const filt = T.udfaldFilter || "";
   // 11-11: nye startpriser (ny_startpris) er ikke prisstigninger og står for sig selv
-  const STP = AENDR.filter(a => a.ny_startpris), AE = AENDR.filter(a => !a.ny_startpris);
+  const SOEG = AENDR.filter(udfMatch), aktivSoeg = !!(T.udfaldKat || (T.udfaldSoeg || "").trim());
+  const STP = SOEG.filter(a => a.ny_startpris), AE = SOEG.filter(a => !a.ny_startpris);
   const L = filt === "startpris" ? STP : AE.filter(a => !filt || a.sammenligning === filt);
   const foerDrift = AENDR.some(a => a.foer_drift), alleFoer = AENDR.length && AENDR.every(a => a.foer_drift);
   const knapper = [["", "Alle stigninger", AE.length], ...Object.keys(SAMML).map(k => [k, SAMML[k][0], AE.filter(a => a.sammenligning === k).length]).filter(x => x[2]), ...(STP.length ? [["startpris", "Ny startpris", STP.length]] : [])]
@@ -1138,7 +1161,7 @@ function tegnUdfald() {
   const kanRette = true; // adgang styres i pris_aendring_gem; begrænsede brugere får ingen forslag og når ikke hertil
   const rk = a => `<tr data-id="${a.id}">
       <td class="tal">${kortDato(a.dato)}<div class="lille">${a.dage_siden === 0 ? "i dag" : a.dage_siden + " dage siden"}</div></td>
-      <td class="kode"><b>${a.turkode}</b><span class="navn">afrejse ${kortDato(a.afrejse)} ${String(a.afrejse).slice(2, 4)} · ${a.dage_til_afrejse} dage før</span></td>
+      <td class="kode"><b>${a.turkode}</b>${udfNavn(a) ? `<span class="navn" title="${esc(udfNavn(a))}">${esc(udfNavn(a))}</span>` : ""}<span class="navn">afrejse ${kortDato(a.afrejse)} ${String(a.afrejse).slice(2, 4)} · ${a.dage_til_afrejse} dage før</span></td>
       <td class="h tal">${tal(a.fra_pris)} → <b>${tal(a.til_pris)}</b><div class="lille ${a.aendring_pct > 0 ? "op" : "ned"}">${pct(a.aendring_pct, 1)}</div></td>
       <td>${raadTekst(a)}</td>
       <td>${a.ny_startpris ? `<span class="chip gl" title="${a.startpris_kilde === "plan" ? "Gættet ud fra seriens plan" : "Startpris på varen i NAV"}${a.startpris_nav ? ": " + tal(a.startpris_nav) : ""}">Ny startpris</span>` : chipSamml(a.sammenligning)}${a.foer_drift ? '<div><span class="chip foerdrift" title="Ændringen er lavet, før værktøjet blev taget i drift">Før drift – følger ikke maskinens råd</span></div>' : ""}</td>
@@ -1155,7 +1178,12 @@ function tegnUdfald() {
       <p style="margin:0 0 8px">Hver enkelt prisændring på en afgang, som er lavet i NAV, holdt op mod det, algoritmen rådede til samme dag, og hvad der er solgt bagefter. Seriejusteringer (3 eller flere afgange i samme serie samme dag) er ikke med. Listen opdateres hvert 10. minut.</p>
       ${alleFoer ? '<div class="advarsel" style="display:block;background:var(--creme-lys);color:var(--tekst)"><b>Før drift – følger ikke maskinens råd.</b> Værktøjet er ikke taget i drift endnu, så alle ændringer her er lavet uden om det. De er grundlaget for at sammenligne, når det tages i brug.</div>' : ""}
       ${AENDR_FEJL ? `<div class="tom">${esc(AENDR_FEJL)}</div>` : !AENDR.length ? '<div class="tom">Ingen prisændringer registreret endnu.</div>' : `
-      <h3 style="margin:12px 0 4px">Ændring og udfald mod algoritmens råd</h3>
+      <div class="ae-soeg" style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin:12px 0 4px">
+        <input id="ae-soeg" type="search" placeholder="Søg turkode, rejse eller kategori (fx cykel, højrute, ESMV)" value="${esc(T.udfaldSoeg || "")}" style="width:420px;padding:6px 10px;border:1px solid var(--linje);border-radius:6px">
+        <span class="seg ae-kat">${[["", "Alle kategorier"], ...UKAT.map(k => [k[0], k[1]])].map(([k, n]) => { const c = k ? AENDR.filter(a => udfKat(a).some(x => x[0] === k)).length : AENDR.length; return c || !k ? `<button data-k="${k}" aria-pressed="${(T.udfaldKat || "") === k}">${n} <span class="n">${c}</span></button>` : ""; }).join("")}</span>
+        ${aktivSoeg ? `<span class="lille">${SOEG.length} af ${AENDR.length} ændringer · <a href="#" id="ae-nulstil">nulstil</a></span>` : ""}
+      </div>
+      <h3 style="margin:12px 0 4px">Ændring og udfald mod algoritmens råd${aktivSoeg ? ' <span class="lille" style="font-weight:400">(kun det søgte)</span>' : ""}</h3>
       ${udfaldOversigt(AE)}${STP.length ? `<div class="note">${STP.length} ${STP.length === 1 ? "ændring er" : "ændringer er"} en ny startpris og tæller ikke med som prisstigning. Se dem under "Ny startpris".</div>` : ""}
       <div class="note">Salg pr. afgang pr. uge før er de 14 dage op til ændringen. Efter er alt solgt siden ændringen delt med dagene siden. Udfaldet er først færdigt efter 30 dage, så tidlige tal svinger meget.</div>
       <div class="seg ae-filter" style="margin:14px 0 8px">${knapper}</div>
@@ -1166,6 +1194,12 @@ function tegnUdfald() {
       <p style="margin:0">Når værktøjet er i drift, samles forslag med beslutning og udfaldet efter 30 dage her (kilde: public.pris_forslag_udfald). Der er ingen endnu.</p>
     </div>`;
   el.querySelectorAll(".ae-filter button").forEach(b => b.onclick = () => { T.udfaldFilter = b.dataset.uf; tegnUdfald(); });
+  el.querySelectorAll(".ae-kat button").forEach(b => b.onclick = () => { T.udfaldKat = b.dataset.k; tegnUdfald(); });
+  const nul = el.querySelector("#ae-nulstil"); if (nul) nul.onclick = e => { e.preventDefault(); T.udfaldKat = ""; T.udfaldSoeg = ""; tegnUdfald(); };
+  const sf = el.querySelector("#ae-soeg");
+  if (sf) {
+    sf.oninput = () => { T.udfaldSoeg = sf.value; clearTimeout(T.udfaldT); T.udfaldT = setTimeout(() => { const pos = sf.selectionStart; tegnUdfald(); const ny = document.getElementById("ae-soeg"); ny.focus(); ny.setSelectionRange(pos, pos); }, 200); };
+  }
   el.querySelectorAll(".ae-tabel tr[data-id]").forEach(tr => {
     const gem = tr.querySelector(".ae-gem"); if (!gem) return;
     tr.querySelectorAll("select,input").forEach(i => i.oninput = () => { gem.disabled = !tr.querySelector(".ae-type").value; });

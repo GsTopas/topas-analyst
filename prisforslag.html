@@ -307,6 +307,8 @@ const KDAGE = [365,300,270,240,210,180,150,120,90,60,30,14];
 const MD = ["jan.","feb.","mar.","apr.","maj","jun.","jul.","aug.","sep.","okt.","nov.","dec."];
 const kr = n => n == null ? "–" : Math.round(n).toLocaleString("da-DK") + " kr.";
 const tal = n => n == null ? "–" : Math.round(n).toLocaleString("da-DK");
+// 12-11 (Gorm): prisændringer vises i kroner med fortegn i stedet for procent
+const krD = n => n == null ? "–" : (n > 0 ? "+" : n < 0 ? "−" : "±") + Math.abs(Math.round(n)).toLocaleString("da-DK") + " kr.";
 const pct = (n, d = 0) => n == null ? "–" : (n > 0 ? "+" : n < 0 ? "−" : "") + Math.abs(n).toLocaleString("da-DK", { minimumFractionDigits: d, maximumFractionDigits: d }) + " %";
 const pctU = (n, d = 0) => n == null ? "–" : n.toLocaleString("da-DK", { minimumFractionDigits: d, maximumFractionDigits: d }) + " %";
 const dato = s => { const d = new Date(s + "T00:00:00"); return d.getDate() + ". " + MD[d.getMonth()] + " " + d.getFullYear(); };
@@ -349,7 +351,7 @@ function startTekst(t) {
 function startCelle(t) {
   const x = START[t]; if (!x || x.startpris == null) return "";
   const u = x.startpris_kilde === "uaendret" || !x.stigninger;
-  return `<div class="lille" title="${startTekst(t)}${x.plan_startpris ? `. Plan: ${kr(x.plan_startpris)}` : ""}">start ${u ? "uændret" : `${tal(x.startpris)} <span class="${x.stigning_pct > 0 ? "op" : x.stigning_pct < 0 ? "ned" : ""}">${pct(x.stigning_pct, 0)}</span>`}</div>`;
+  return `<div class="lille" title="${startTekst(t)}${x.plan_startpris ? `. Plan: ${kr(x.plan_startpris)}` : ""}">start ${u ? "uændret" : `${tal(x.startpris)} <span class="${x.stigning_pct > 0 ? "op" : x.stigning_pct < 0 ? "ned" : ""}">${krD(x.stigning_kr ?? (x.startpris * x.stigning_pct / 100)).replace(" kr.", "")}</span>`}</div>`;
 }
 function indlaes(forslag, portefoelje) {
   F = forslag.map(r => {
@@ -709,8 +711,8 @@ function chipForslag(f) { return `<span class="chip ${f === "hæv" ? "haev" : f 
 function chipProg(p) { const ly = p.kilde === "sidste_aar"; return `<span class="chip ${p.status === "udsolgt" ? "foran" : p.status}" title="${ly ? "Status følger samme afgang sidste år" + (p.lyTur ? " (" + p.lyTur + ")" : "") + ". " : ""}${p.andel != null ? "Normalt er ca. " + pctU(p.andel * 100) + " af slutsalget solgt på dette tidspunkt (" + p.kurve.navn + ")" : ""}">${p.tekst}${ly ? "*" : ""}</span>`; }
 function forslagPris(r) {
   if (r.forslag === "hæv" && r.forslag_pris_fra) {
-    const a = 100 * (r.forslag_pris_fra / r.pris_nu - 1), b = 100 * (r.forslag_pris_til / r.pris_nu - 1);
-    return `<b class="tal">${tal(r.forslag_pris_fra)}${r.forslag_pris_til !== r.forslag_pris_fra ? "–" + tal(r.forslag_pris_til) : ""}</b><div class="lille">${pct(a)}${r.forslag_pris_til !== r.forslag_pris_fra ? " til " + pct(b) : ""}</div>`;
+    const a = r.forslag_pris_fra - r.pris_nu, b = r.forslag_pris_til - r.pris_nu;
+    return `<b class="tal">${tal(r.forslag_pris_fra)}${r.forslag_pris_til !== r.forslag_pris_fra ? "–" + tal(r.forslag_pris_til) : ""}</b><div class="lille">${r.forslag_pris_til !== r.forslag_pris_fra ? krD(a).replace(" kr.", "") + "–" + kr(b) : krD(a)}</div>`;
   }
   if (r.forslag === "kampagne" && r.kampagne_pris_fra) {
     const lo = Math.min(r.kampagne_pris_fra, r.kampagne_pris_til), hi = Math.max(r.kampagne_pris_fra, r.kampagne_pris_til);
@@ -795,7 +797,7 @@ function tegnBulk() {
 
 // ---------- detalje ----------
 // Loft fra maskinrummet (DB-beregningen 22-10): højst +10 %, Grønland +6 %. Under +5 % har ikke givet ekstra DB.
-const loftPct = r => r.groenland ? 6 : 10, LAV_PCT = 5;
+const loftPct = r => r.groenland ? 6 : 10, LAV_PCT = 5, loftKr = r => r.pris_nu * (1 + loftPct(r) / 100);
 // ML-trådens udsolgt-prognose: rangerer kampagnekandidater (lav chance først), vises kun i grove trin.
 const udsolgtSort = r => r.s?.p_udsolgt ?? 9;
 // Relativt efter tertiler blandt dagens forslag (22-10: basisrate ca. 15 %, højeste ca. 0,66), ikke faste grænser.
@@ -835,7 +837,7 @@ function argumenter(r) {
   if (r.forslag !== "hold øje") {
     if (s.pointmodel_pris && s.pointmodel_pris < r.pris_nu) imod.push(`Pointmodellen (Power BI) siger ${kr(s.pointmodel_pris)}, altså lavere end prisen i dag`);
     if (r.forslag === "hæv" && r.p.status === "bagud" && !s.advarsel_under_kurve) imod.push(`Salget er bagud på købskurven. Stigninger på afgange bagud på kurven har kostet ca. 11 % af salget de næste 4 uger`);
-    if (r.forslag === "hæv" && r.forslag_pris_til && 100 * (r.forslag_pris_til / r.pris_nu - 1) > loftPct(r) + 0.0001) imod.push(`Den øverste ende af spændet er over loftet på +${loftPct(r)} %${r.groenland ? " for Grønland" : ""}`);
+    if (r.forslag === "hæv" && r.forslag_pris_til && 100 * (r.forslag_pris_til / r.pris_nu - 1) > loftPct(r) + 0.0001) imod.push(`Den øverste ende af spændet er over loftet på ${kr(loftKr(r))} (+${loftPct(r)} %${r.groenland ? " for Grønland" : ""})`);
     if (s.sig_web && s.sess_14d && s.sess_14d_betalt / s.sess_14d > 0.4) imod.push(`${tal(s.sess_14d_betalt)} af ${tal(s.sess_14d)} besøg på tursiden er betalt trafik, så en del af interessen er købt`);
     if (s.sig_tempo && s.sidste_aars_tur && s.ly_solgt_nu != null && s.ly_solgt_nu <= 3) imod.push(`Små tal: sidste års afgang havde kun ${s.ly_solgt_nu} solgt på samme tidspunkt`);
     if (r.forslag === "kampagne" && r.p.status === "foran") imod.push("Salget er foran købskurven, så en kampagne kan være for tidlig");
@@ -909,19 +911,19 @@ function tegnDetalje(el, turkode, efterHent) {
   const ar = argumenter(r);
   const lyTur = s.sidste_aars_tur;
   let anbef;
-  if (r.forslag === "hæv") anbef = `<div class="anbef"><span class="stor tal">Hæv til ${tal(r.forslag_pris_fra)} kr.</span><span class="tal">${pct(100 * (r.forslag_pris_fra / r.pris_nu - 1), 1)} fra ${kr(r.pris_nu)}</span>${r.forslag_pris_til !== r.forslag_pris_fra ? `<span class="lille">spænd op til ${kr(r.forslag_pris_til)}</span>` : ""}</div>`;
+  if (r.forslag === "hæv") anbef = `<div class="anbef"><span class="stor tal">Hæv til ${tal(r.forslag_pris_fra)} kr.</span><span class="tal">${krD(r.forslag_pris_fra - r.pris_nu)} fra ${kr(r.pris_nu)}</span>${r.forslag_pris_til !== r.forslag_pris_fra ? `<span class="lille">spænd op til ${kr(r.forslag_pris_til)}</span>` : ""}</div>`;
   else if (r.forslag === "kampagne") anbef = `<div class="anbef kampagne"><span class="stor tal">Kampagne ${tal(Math.min(r.kampagne_pris_fra, r.kampagne_pris_til))}–${tal(Math.max(r.kampagne_pris_fra, r.kampagne_pris_til))} kr.</span><span class="lille">på et fast antal pladser i en begrænset periode. Listeprisen ${kr(r.pris_nu)} bliver stående</span></div>`;
   else anbef = `<div class="anbef holdoeje"><span class="stor">Hold øje · ingen prisændring i dag</span></div>`;
   let stige = "";
   if (r.forslag === "hæv") {
     const op = prisTrin(r), valgt = b.pris ?? r.forslag_pris_fra;
-    stige = `<div class="afsnit"><h3>Vælg pris <span style="text-transform:none;letter-spacing:0">· …470/…970, loft +${loftPct(r)} %${r.groenland ? " (Grønland)" : ""}</span></h3>${s.advarsel_under_kurve ? `<div class="advarsel vis" style="margin:0 0 8px">${esc(ar.adv[0] || "Advarsel: afgangen er bagud på seriens købskurve. Overvej en mindre stigning.")}</div>` : ""}<div class="stige">${op.map(p => { const d = 100 * (p / r.pris_nu - 1); return `<button class="trin${p >= r.forslag_pris_fra && p <= r.forslag_pris_til ? " foreslaaet" : ""}${d > loftPct(r) + 0.0001 ? " over" : ""}${s.pointmodel_pris === p ? " pm" : ""}" data-p="${p}" aria-pressed="${p === valgt}"><b class="tal">${tal(p)}</b><span>${pct(d, 1)}${p >= r.forslag_pris_fra && p <= r.forslag_pris_til ? " · forslag" : ""}</span></button>`; }).join("")}</div>
-      <div class="advarsel" id="adv">Over loftet på +${loftPct(r)} %${r.groenland ? " for Grønland" : ""}. Store stigninger har kostet salg, og DB-beregningen sætter loftet her.</div>
-      <div class="note bloed" id="lav">Under +${LAV_PCT} %: små stigninger har ikke givet ekstra DB.</div>
-      <div class="note">Skraveret = over loftet (+${loftPct(r)} %). Blå kant = maskinrummets forslag.${s.pointmodel_pris ? ` Pointmodellen: ${kr(s.pointmodel_pris)}${s.pointmodel_pris < r.pris_nu ? " (under prisen i dag)" : ""}.` : ""}</div></div>`;
+    stige = `<div class="afsnit"><h3>Vælg pris <span style="text-transform:none;letter-spacing:0">· trin på 500 kr., loft ${kr(loftKr(r))}</span></h3>${s.advarsel_under_kurve ? `<div class="advarsel vis" style="margin:0 0 8px">${esc(ar.adv[0] || "Advarsel: afgangen er bagud på seriens købskurve. Overvej en mindre stigning.")}</div>` : ""}<div class="stige">${op.map(p => { const d = 100 * (p / r.pris_nu - 1); return `<button class="trin${p >= r.forslag_pris_fra && p <= r.forslag_pris_til ? " foreslaaet" : ""}${d > loftPct(r) + 0.0001 ? " over" : ""}${s.pointmodel_pris === p ? " pm" : ""}" data-p="${p}" aria-pressed="${p === valgt}"><b class="tal">${tal(p)}</b><span>${krD(p - r.pris_nu)}${p >= r.forslag_pris_fra && p <= r.forslag_pris_til ? " · forslag" : ""}</span></button>`; }).join("")}</div>
+      <div class="advarsel" id="adv">Over loftet på ${kr(loftKr(r))} (+${loftPct(r)} %${r.groenland ? " for Grønland" : ""}). Store stigninger har kostet salg, og DB-beregningen sætter loftet her.</div>
+      <div class="note bloed" id="lav">Under ${krD(r.pris_nu * LAV_PCT / 100)} (+${LAV_PCT} %): små stigninger har ikke givet ekstra DB.</div>
+      <div class="note">Skraveret = over loftet på ${kr(loftKr(r))} (+${loftPct(r)} %${r.groenland ? ", Grønland" : ""}). Blå kant = maskinrummets forslag.${s.pointmodel_pris ? ` Pointmodellen: ${kr(s.pointmodel_pris)}${s.pointmodel_pris < r.pris_nu ? " (under prisen i dag)" : ""}` : ""}</div></div>`;
   } else if (r.forslag === "kampagne") {
     const op = kampagneTrin(r), valgt = b.pris ?? op[0];
-    stige = `<div class="afsnit"><h3>Kampagnepris og pladser</h3><div class="stige">${op.map(p => `<button class="trin foreslaaet" data-p="${p}" aria-pressed="${p === valgt}"><b class="tal">${tal(p)}</b><span>${pct(100 * (p / r.pris_nu - 1), 1)}</span></button>`).join("")}</div>
+    stige = `<div class="afsnit"><h3>Kampagnepris og pladser</h3><div class="stige">${op.map(p => `<button class="trin foreslaaet" data-p="${p}" aria-pressed="${p === valgt}"><b class="tal">${tal(p)}</b><span>${krD(p - r.pris_nu)}</span></button>`).join("")}</div>
       <div style="margin-top:8px;display:flex;gap:8px;align-items:center">på <input type="number" min="1" max="${s.pladser_tilbage}" value="${b.pladser ?? Math.min(4, s.pladser_tilbage)}" id="kPladser" style="width:56px;border:1px solid var(--linje);border-radius:6px;padding:4px 6px"> pladser i <select id="kPeriode" style="border:1px solid var(--linje);border-radius:6px;padding:4px 6px"><option>14 dage</option><option>21 dage</option><option>30 dage</option></select></div>
       <div class="note">Laveste pris de seneste 30 dage hentes fra prisloggen, hvis kampagnen skal vise en førpris.</div></div>`;
   }
@@ -1162,7 +1164,7 @@ function tegnUdfald() {
   const rk = a => `<tr data-id="${a.id}">
       <td class="tal">${kortDato(a.dato)}<div class="lille">${a.dage_siden === 0 ? "i dag" : a.dage_siden + " dage siden"}</div></td>
       <td class="kode"><b>${a.turkode}</b>${udfNavn(a) ? `<span class="navn" title="${esc(udfNavn(a))}">${esc(udfNavn(a))}</span>` : ""}<span class="navn">afrejse ${kortDato(a.afrejse)} ${String(a.afrejse).slice(2, 4)} · ${a.dage_til_afrejse} dage før</span></td>
-      <td class="h tal">${tal(a.fra_pris)} → <b>${tal(a.til_pris)}</b><div class="lille ${a.aendring_pct > 0 ? "op" : "ned"}">${pct(a.aendring_pct, 1)}</div></td>
+      <td class="h tal">${tal(a.fra_pris)} → <b>${tal(a.til_pris)}</b><div class="lille ${a.aendring_pct > 0 ? "op" : "ned"}">${krD(a.til_pris - a.fra_pris)}</div></td>
       <td>${raadTekst(a)}</td>
       <td>${a.ny_startpris ? `<span class="chip gl" title="${a.startpris_kilde === "plan" ? "Gættet ud fra seriens plan" : "Startpris på varen i NAV"}${a.startpris_nav ? ": " + tal(a.startpris_nav) : ""}">Ny startpris</span>` : chipSamml(a.sammenligning)}${a.foer_drift ? '<div><span class="chip foerdrift" title="Ændringen er lavet, før værktøjet blev taget i drift">Før drift – følger ikke maskinens råd</span></div>' : ""}</td>
       <td class="h tal">${a.solgt_ved_aendring ?? "–"}/${a.kapacitet ?? "–"}<div class="lille">nu ${tal(a.solgt_nu)}</div></td>

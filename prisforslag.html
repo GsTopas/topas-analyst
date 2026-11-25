@@ -207,6 +207,15 @@ textarea{width:100%;min-height:54px;border:1px solid var(--linje);border-radius:
 .kort h2{font-size:15px;margin:0 0 6px}
 .chip.foerdrift{background:var(--creme-lys);color:var(--tekst);border:1px solid #F2D9B8;margin-top:3px}
 .ae-tabel td{vertical-align:top}
+.ae-tabel td.kode.aabn{cursor:pointer}
+.ae-tabel td.kode.aabn b{color:var(--blaa);text-decoration:underline;text-decoration-color:rgba(13,88,121,.35);text-underline-offset:2px}
+.ae-tabel td.kode.aabn:hover b{text-decoration-color:currentColor}
+.ae-tabel tr.ae-valgt td{background:var(--blaa-lys)}
+#udf-panel{position:fixed;inset:0;background:rgba(20,30,40,.35);z-index:900;display:flex;justify-content:flex-end}
+#udf-panel .udf-boks{background:var(--plade);width:min(520px,96vw);height:100vh;box-shadow:-8px 0 30px rgba(0,0,0,.2);display:flex;flex-direction:column}
+#udf-panel .udf-top{display:flex;justify-content:space-between;align-items:center;padding:8px 12px;border-bottom:1px solid var(--linje);font-size:12px;color:#8C8C8C}
+#udf-panel .udf-luk{border:0;background:none;font-size:24px;line-height:1;cursor:pointer;color:#555}
+#udf-panel .detalje{flex:1;height:auto;min-height:0;border:0;border-radius:0}
 .ae-tabel td.kode .navn{max-width:210px;white-space:nowrap}
 .ae-tabel select,.ae-tabel input{font:inherit;font-size:12px;padding:3px 4px;border:1px solid var(--linje);border-radius:5px;max-width:170px}
 .ae-tabel input{width:130px}
@@ -902,7 +911,8 @@ function tegnDetalje(el, turkode, efterHent) {
   if (turkode && turkode.startsWith("S:")) { const top = el.scrollTop; if (el.dataset.t !== turkode) { el.scrollTop = 0; el.dataset.t = turkode; } tegnSerie(el, turkode.slice(2)); if (efterHent) el.scrollTop = top; return; }
   if (!turkode) { el.innerHTML = `<div class="afsnit tom">Vælg en afgang.</div>`; return; }
   const r = FK[turkode] || null;
-  const a = AFGK[turkode];
+  const a = AFGK[turkode] || udfAfg(turkode);
+  if (!r && !a) { el.innerHTML = `<div class="afsnit tom">${esc(turkode)} findes ikke i porteføljen.</div>`; el.dataset.t = turkode; return; }
   const top = el.scrollTop;
   if (el.dataset.t !== turkode) { el.scrollTop = 0; el.dataset.t = turkode; }
   if (!efterHent) hentDetalje(turkode, el);
@@ -1149,6 +1159,25 @@ function udfMatch(a) {
   const tekst = (a.turkode + " " + udfNavn(a) + " " + udfKat(a).map(k => k[1]).join(" ") + (/M$/.test(a.turkode) ? " aldersgruppe" : "")).toLowerCase();
   return q.split(/\s+/).every(o => tekst.includes(o));
 }
+// 25-11 (Gorm): klik på en afgang i Udfald åbner samme detaljevisning som i de andre faner, i et panel fra højre.
+// Afgange uden for porteføljen (fx under 14 dage til afrejse) bygges ud fra den nyeste udfaldslinje.
+function udfAfg(turkode) {
+  const x = (AENDR || []).filter(a => a.turkode === turkode).sort((a, b) => String(b.dato).localeCompare(String(a.dato)))[0];
+  if (!x) return null;
+  const dage = Math.round((new Date(String(x.afrejse).slice(0, 10)) - new Date(IDAG || new Date().toISOString().slice(0, 10))) / 864e5);
+  const max_pax = x.kapacitet ?? null, solgt = x.solgt_nu ?? 0;
+  return { turkode, afrejse: String(x.afrejse).slice(0, 10), dage, max_pax, solgt, pris_nu: x.til_pris, ly_tur: null, ly_solgt: null, solgt_14d: 0, navn: udfNavn(x) || "", region: region(turkode), f: null, p: prognose({ max_pax, solgt }) };
+}
+function lukUdfPanel() { document.getElementById("udf-panel")?.remove(); document.querySelectorAll(".ae-tabel tr.ae-valgt").forEach(t => t.classList.remove("ae-valgt")); }
+function aabnUdfPanel(turkode, tr) {
+  lukUdfPanel();
+  const z = document.createElement("div"); z.id = "udf-panel";
+  z.innerHTML = `<div class="udf-boks" role="dialog" aria-modal="true" aria-label="Afgang ${esc(turkode)}"><div class="udf-top"><span>Fra Udfald · Esc lukker</span><button class="udf-luk" aria-label="Luk" title="Luk (Esc)">×</button></div><aside class="detalje" id="detalje3"></aside></div>`;
+  z.onclick = e => { if (e.target === z || e.target.closest(".udf-luk")) lukUdfPanel(); };
+  document.body.appendChild(z);
+  if (tr) tr.classList.add("ae-valgt");
+  tegnDetalje(document.getElementById("detalje3"), turkode);
+}
 function tegnUdfald() {
   const el = document.getElementById("fane-udfald");
   if (AENDR === null) { el.innerHTML = '<div class="kort"><h2>Prisændringer i NAV</h2><div class="tom">Henter …</div></div>'; hentAendringer(); return; }
@@ -1163,7 +1192,7 @@ function tegnUdfald() {
   const kanRette = true; // adgang styres i pris_aendring_gem; begrænsede brugere får ingen forslag og når ikke hertil
   const rk = a => `<tr data-id="${a.id}">
       <td class="tal">${kortDato(a.dato)}<div class="lille">${a.dage_siden === 0 ? "i dag" : a.dage_siden + " dage siden"}</div></td>
-      <td class="kode"><b>${a.turkode}</b>${udfNavn(a) ? `<span class="navn" title="${esc(udfNavn(a))}">${esc(udfNavn(a))}</span>` : ""}<span class="navn">afrejse ${kortDato(a.afrejse)} ${String(a.afrejse).slice(2, 4)} · ${a.dage_til_afrejse} dage før</span></td>
+      <td class="kode aabn" title="Vis afgangen med salgskurve"><b>${a.turkode}</b>${udfNavn(a) ? `<span class="navn" title="${esc(udfNavn(a))}">${esc(udfNavn(a))}</span>` : ""}<span class="navn">afrejse ${kortDato(a.afrejse)} ${String(a.afrejse).slice(2, 4)} · ${a.dage_til_afrejse} dage før</span></td>
       <td class="h tal">${tal(a.fra_pris)} → <b>${tal(a.til_pris)}</b><div class="lille ${a.aendring_pct > 0 ? "op" : "ned"}">${krD(a.til_pris - a.fra_pris)}</div></td>
       <td>${raadTekst(a)}</td>
       <td>${a.ny_startpris ? `<span class="chip gl" title="${a.startpris_kilde === "plan" ? "Gættet ud fra seriens plan" : "Startpris på varen i NAV"}${a.startpris_nav ? ": " + tal(a.startpris_nav) : ""}">Ny startpris</span>` : chipSamml(a.sammenligning)}${a.foer_drift ? '<div><span class="chip foerdrift" title="Ændringen er lavet, før værktøjet blev taget i drift">Før drift – følger ikke maskinens råd</span></div>' : ""}</td>
@@ -1202,6 +1231,7 @@ function tegnUdfald() {
   if (sf) {
     sf.oninput = () => { T.udfaldSoeg = sf.value; clearTimeout(T.udfaldT); T.udfaldT = setTimeout(() => { const pos = sf.selectionStart; tegnUdfald(); const ny = document.getElementById("ae-soeg"); ny.focus(); ny.setSelectionRange(pos, pos); }, 200); };
   }
+  el.querySelectorAll(".ae-tabel td.kode.aabn").forEach(td => td.onclick = () => { const tr = td.closest("tr"); const a = AENDR.find(x => x.id === +tr.dataset.id); if (a) aabnUdfPanel(a.turkode, tr); });
   el.querySelectorAll(".ae-tabel tr[data-id]").forEach(tr => {
     const gem = tr.querySelector(".ae-gem"); if (!gem) return;
     tr.querySelectorAll("select,input").forEach(i => i.oninput = () => { gem.disabled = !tr.querySelector(".ae-type").value; });
@@ -1217,6 +1247,7 @@ function tegnUdfald() {
 
 // ---------- faner, filtre, tastatur ----------
 function skiftFane(f) {
+  lukUdfPanel();
   T.fane = f;
   document.querySelectorAll(".faner button").forEach(b => b.setAttribute("aria-selected", b.dataset.fane === f));
   for (const x of ["idag", "port", "udfald"]) document.getElementById("fane-" + x).classList.toggle("skjult", x !== f);
@@ -1296,6 +1327,7 @@ new MutationObserver(() => document.querySelectorAll(".detalje .afsnit.graf h3")
 })).observe(document.body, { childList: true, subtree: true });
 document.addEventListener("keydown", e => {
   if (e.key === "Escape" && document.getElementById("zoom")) { lukZoom(); return; }
+  if (e.key === "Escape" && document.getElementById("udf-panel")) { lukUdfPanel(); return; }
   const iFelt = ["INPUT", "TEXTAREA", "SELECT"].includes(document.activeElement.tagName);
   if (e.key === "Escape") { if (iFelt) document.activeElement.blur(); T.markeret.clear(); if (T.fane === "idag") tegnTabel(); return; }
   if (iFelt) return;
@@ -1330,7 +1362,7 @@ async function start() {
   if (!pr.error && pr.data?.length) port = pr.data;
   if (!st.error && st.data?.length) st.data.forEach(x => { START[x.turkode] = x; });
   // 11-11: budget pax pr. afgang ("Forventet antal pax" i NAV, ellers budget_afgang) som linje i salgsgrafen
-  sb.rpc("pris_budget_afgang_liste").then(({ data: bd, error: be }) => { if (!be && bd) bd.forEach(x => { BUDGET[x.turkode] = x; }); BUDGET_HENTET = true; if (T.fane === "idag") tegnTabel(); for (const id of ["detalje", "detalje2"]) { const el = document.getElementById(id); if (el?.dataset.t) tegnDetalje(el, el.dataset.t, true); } });
+  sb.rpc("pris_budget_afgang_liste").then(({ data: bd, error: be }) => { if (!be && bd) bd.forEach(x => { BUDGET[x.turkode] = x; }); BUDGET_HENTET = true; if (T.fane === "idag") tegnTabel(); for (const id of ["detalje", "detalje2", "detalje3"]) { const el = document.getElementById(id); if (el?.dataset.t) tegnDetalje(el, el.dataset.t, true); } });
   IDAG = data[0].dato;
   indlaes(data, port);
   udsolgtTertiler();

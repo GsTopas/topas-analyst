@@ -1150,7 +1150,7 @@ function raadTekst(a) {
   const p = a.algoritme_pris_fra != null ? (a.algoritme_pris_fra === a.algoritme_pris_til || a.algoritme_pris_til == null ? tal(a.algoritme_pris_fra) : `${tal(a.algoritme_pris_fra)}–${tal(a.algoritme_pris_til)}`) : "";
   return `${chipForslag(a.algoritme_forslag)}${p ? ` <span class="tal">${p}</span>` : ""}`;
 }
-function udfaldOversigt(L) {
+function udfaldOversigt(L, K = []) {
   const grp = Object.keys(SAMML).map(k => [k, L.filter(a => a.sammenligning === k)]).filter(g => g[1].length);
   const rk = ([k, g]) => {
     const n = g.length, gns = g.reduce((s, a) => s + (a.aendring_pct || 0), 0) / n;
@@ -1158,7 +1158,7 @@ function udfaldOversigt(L) {
     const ugeFoer = foer / (2 * n), ugeEfter = dage ? siden / (dage / 7) : null, faerdig = g.filter(a => a.udfald_faerdigt).length;
     return `<tr><td>${chipSamml(k)}</td><td class="h tal">${n}</td><td class="h tal">${pct(gns, 1)}</td><td class="h tal">${tal(foer)}</td><td class="h tal">${tal(siden)}</td><td class="h tal">${(ugeFoer).toLocaleString("da-DK", { maximumFractionDigits: 1 })}</td><td class="h tal">${ugeEfter == null ? "–" : ugeEfter.toLocaleString("da-DK", { maximumFractionDigits: 1 })}</td><td class="h tal">${Math.round(dage / n)}</td><td class="h tal">${faerdig}/${n}</td></tr>`;
   };
-  return `<table class="sml" style="max-width:980px"><tr><th>Mod algoritmens råd</th><th class="h">Ændringer</th><th class="h">Gns. ændring</th><th class="h">Solgt 14 dage før</th><th class="h">Solgt siden</th><th class="h">Pr. afgang pr. uge før</th><th class="h">Pr. afgang pr. uge efter</th><th class="h">Dage siden (gns.)</th><th class="h">Udfald færdigt</th></tr>${grp.map(rk).join("")}</table>`;
+  return `<table class="sml" style="max-width:980px"><tr><th>Mod algoritmens råd</th><th class="h">Ændringer</th><th class="h">Gns. ændring</th><th class="h">Solgt 14 dage før</th><th class="h">Solgt siden</th><th class="h">Pr. afgang pr. uge før</th><th class="h">Pr. afgang pr. uge efter</th><th class="h">Dage siden (gns.)</th><th class="h">Udfald færdigt</th></tr>${grp.map(rk).join("")}${kampOvRk(K)}</table>`;
 }
 // 12-11 (Gorm): søg og kategorier i Udfald. Kategorierne udledes af turkode og rejsens navn (der er ikke et kategorifelt i NAV-data):
 // M-suffiks = aldersgruppe 30–50 år og I-suffiks = international (som i klaviyo_afgange), resten af ord i navnet.
@@ -1205,33 +1205,25 @@ function aabnUdfPanel(turkode, tr) {
   if (tr) tr.classList.add("ae-valgt");
   tegnDetalje(document.getElementById("detalje3"), turkode);
 }
-function kampKort() {
-  if (KAMP === null) return '<div class="kort" id="kamp-kort"><h2>Kampagner fra Notion</h2><div class="tom">Henter …</div></div>';
-  if (KAMP_FEJL) return `<div class="kort" id="kamp-kort"><h2>Kampagner fra Notion</h2><div class="tom">${esc(KAMP_FEJL)}</div></div>`;
-  const alle = T.kampAlle, S = KAMP.filter(udfMatch), L = S.filter(k => alle || k.aktiv);
-  const ov = g => { const n = g.length; if (!n) return null; const foer = g.reduce((s, k) => s + k.solgt_14d_foer, 0), siden = g.reduce((s, k) => s + k.solgt_siden, 0), dage = g.reduce((s, k) => s + k.dage_siden, 0);
-    return { n, foer, siden, ugeFoer: foer / (2 * n), ugeEfter: dage ? siden / (dage / 7) : null, dage: Math.round(dage / n), faerdig: g.filter(k => k.udfald_faerdigt).length }; };
-  const f1 = x => x == null ? "–" : x.toLocaleString("da-DK", { maximumFractionDigits: 1 });
-  const ovr = (navn, o) => o ? `<tr><td>${navn}</td><td class="h tal">${o.n}</td><td class="h tal">${tal(o.foer)}</td><td class="h tal">${tal(o.siden)}</td><td class="h tal">${f1(o.ugeFoer)}</td><td class="h tal">${f1(o.ugeEfter)}</td><td class="h tal">${o.dage}</td><td class="h tal">${o.faerdig}</td></tr>` : "";
-  const rk = k => `<tr data-kt="${esc(k.turkode)}">
-      <td class="tal">${kortDato(k.start)} ${String(k.start).slice(2, 4)}<div class="lille">${k.dage_siden === 0 ? "i dag" : k.dage_siden + " dage siden"}</div></td>
+// 26-11 (Gorm): rabatturkampagner står i samme liste som prisændringerne, sorteret efter dato.
+function kampRk(k) {
+  return `<tr data-kt="${esc(k.turkode)}" class="ae-kampagne">
+      <td class="tal">${kortDato(k.start)}${String(k.start).slice(0, 4) !== String(IDAG || "").slice(0, 4) ? " " + String(k.start).slice(2, 4) : ""}<div class="lille">${k.dage_siden === 0 ? "i dag" : k.dage_siden + " dage siden"}</div></td>
       <td class="kode aabn" title="Vis afgangen med salgskurve"><b>${esc(k.turkode)}</b>${udfNavn(k) ? `<span class="navn" title="${esc(udfNavn(k))}">${esc(udfNavn(k))}</span>` : ""}<span class="navn">afrejse ${kortDato(k.afrejse)} ${String(k.afrejse).slice(2, 4)} · ${k.dage_til_afrejse} dage før</span></td>
-      <td>${k.aktiv ? '<span class="chip kampagne">Aktiv</span>' : '<span class="chip holdoeje">Afrejst</span>'}</td>
-      <td class="h tal">${tal(k.pris_nu)}</td>
-      <td>${esc(kanalKort(k.kanaler))}<div class="lille" title="${esc((k.titler || []).join(" · "))}">${esc((k.cc_ids || []).join(", "))}</div></td>
+      <td class="h tal"><b>${tal(k.pris_nu)}</b><div class="lille">pris i NAV i dag</div></td>
+      <td><span class="lille">–</span></td>
+      <td><span class="chip kampagne">Rabattur-kampagne</span>${k.aktiv ? "" : ' <span class="chip holdoeje">Afrejst</span>'}<div class="lille" title="${esc((k.titler || []).join(" · "))}">${esc(kanalKort(k.kanaler))} · ${esc((k.cc_ids || []).join(", "))}</div></td>
       <td class="h tal">${tal(k.solgt_ved_start)}/${k.kapacitet ?? "–"}<div class="lille">nu ${tal(k.solgt_nu)}</div></td>
       <td class="h tal">${tal(k.solgt_14d_foer)}</td>
       <td class="h tal"><b>${tal(k.solgt_siden)}</b><div class="lille">${k.udfald_faerdigt ? "færdigt" : k.dage_siden < 14 ? "for tidligt" : "i gang"}</div></td>
+      <td colspan="4"><span class="lille">Fra Notion · rabatbeløb står ikke i Notion</span></td>
     </tr>`;
-  return `<div class="kort" id="kamp-kort"><h2>Kampagner fra Notion</h2>
-    <p style="margin:0 0 8px">Rabatturkampagner: kort i Notion Content Calendar med "Rabattur" og en turkode i titlen (fx "Email - rabattur VNAN2701"). Mail og opslag samme dag er én kampagne. Notion har hverken rabatbeløb eller slutdato, så en kampagne regnes som aktiv indtil afrejse, og prisen er NAV-prisen i dag. Kort uden turkode i titlen (fx "Rabattur - ESLP") er ikke med. Opdateres hver nat.</p>
-    ${!KAMP.length ? '<div class="tom">Ingen kampagner fundet i Notion.</div>' : `
-    <table class="sml" style="max-width:980px"><tr><th>Kampagner</th><th class="h">Antal</th><th class="h">Solgt 14 dage før</th><th class="h">Solgt siden</th><th class="h">Pr. afgang pr. uge før</th><th class="h">Pr. afgang pr. uge efter</th><th class="h">Dage siden (gns.)</th><th class="h">Udfald færdigt</th></tr>
-      ${ovr("Aktive", ov(S.filter(k => k.aktiv)))}${ovr("Alle", ov(S))}</table>
-    <div class="seg kamp-filter" style="margin:14px 0 8px"><button data-ka="" aria-pressed="${!alle}">Aktive <span class="n">${S.filter(k => k.aktiv).length}</span></button><button data-ka="1" aria-pressed="${!!alle}">Alle <span class="n">${S.length}</span></button></div>
-    <table class="sml ae-tabel kamp-tabel"><tr><th>Start</th><th>Afgang</th><th>Status</th><th class="h">Pris i dag</th><th>Kanaler og CC-ID</th><th class="h">Solgt ved start</th><th class="h">Solgt 14 d før</th><th class="h">Solgt siden</th></tr>
-      ${L.map(rk).join("") || '<tr><td colspan="8" class="tom" style="padding:12px">Ingen kampagner med dette filter.</td></tr>'}</table>`}
-  </div>`;
+}
+function kampOvRk(K) {
+  const n = K.length; if (!n) return "";
+  const foer = K.reduce((s, k) => s + k.solgt_14d_foer, 0), siden = K.reduce((s, k) => s + k.solgt_siden, 0), dage = K.reduce((s, k) => s + k.dage_siden, 0);
+  const f1 = x => x == null ? "–" : x.toLocaleString("da-DK", { maximumFractionDigits: 1 });
+  return `<tr><td><span class="chip kampagne">Rabattur-kampagne</span></td><td class="h tal">${n}</td><td class="h tal">–</td><td class="h tal">${tal(foer)}</td><td class="h tal">${tal(siden)}</td><td class="h tal">${f1(foer / (2 * n))}</td><td class="h tal">${f1(dage ? siden / (dage / 7) : null)}</td><td class="h tal">${Math.round(dage / n)}</td><td class="h tal">${K.filter(k => k.udfald_faerdigt).length}/${n}</td></tr>`;
 }
 function tegnUdfald() {
   const el = document.getElementById("fane-udfald");
@@ -1240,9 +1232,13 @@ function tegnUdfald() {
   // 11-11: nye startpriser (ny_startpris) er ikke prisstigninger og står for sig selv
   const SOEG = AENDR.filter(udfMatch), aktivSoeg = !!(T.udfaldKat || (T.udfaldSoeg || "").trim());
   const STP = SOEG.filter(a => a.ny_startpris), AE = SOEG.filter(a => !a.ny_startpris);
-  const L = filt === "startpris" ? STP : AE.filter(a => !filt || a.sammenligning === filt);
+  // Rabatturkampagner (Notion): under "Alle" kun fra og med den første prisændring, så listen ikke trækkes år tilbage. "Rabattur-kampagner" viser dem alle.
+  const KS = (KAMP || []).filter(udfMatch), foersteAe = AE.length ? AE.map(a => String(a.dato)).sort()[0] : "";
+  const KN = KS.filter(k => String(k.start) >= foersteAe), somK = l => l.map(k => ({ ...k, _kamp: true, dato: k.start }));
+  const efterDato = (a, b) => String(b.dato).localeCompare(String(a.dato)) || String(a.turkode).localeCompare(String(b.turkode));
+  const L = filt === "startpris" ? STP : filt === "kampagne" ? somK(KS).sort(efterDato) : filt ? AE.filter(a => a.sammenligning === filt) : [...AE, ...somK(KN)].sort(efterDato);
   const foerDrift = AENDR.some(a => a.foer_drift), alleFoer = AENDR.length && AENDR.every(a => a.foer_drift);
-  const knapper = [["", "Alle stigninger", AE.length], ...Object.keys(SAMML).map(k => [k, SAMML[k][0], AE.filter(a => a.sammenligning === k).length]).filter(x => x[2]), ...(STP.length ? [["startpris", "Ny startpris", STP.length]] : [])]
+  const knapper = [["", "Alle", AE.length + KN.length], ...Object.keys(SAMML).map(k => [k, SAMML[k][0], AE.filter(a => a.sammenligning === k).length]).filter(x => x[2]), ...(KS.length ? [["kampagne", "Rabattur-kampagner", KS.length]] : []), ...(STP.length ? [["startpris", "Ny startpris", STP.length]] : [])]
     .map(([k, n, c]) => `<button data-uf="${k}" aria-pressed="${filt === k}">${n} <span class="n">${c}</span></button>`).join("");
   const kanRette = true; // adgang styres i pris_aendring_gem; begrænsede brugere får ingen forslag og når ikke hertil
   const rk = a => `<tr data-id="${a.id}">
@@ -1260,8 +1256,8 @@ function tegnUdfald() {
       <td>${kanRette ? `<button class="knap ae-gem" disabled>Gem</button>` : ""}<div class="lille ae-init">${a.initialer ? esc(a.initialer) : ""}</div></td>
     </tr>`;
   el.innerHTML = `
-    <div class="kort"><h2>Prisændringer i NAV uden om systemet</h2>
-      <p style="margin:0 0 8px">Hver enkelt prisændring på en afgang, som er lavet i NAV, holdt op mod det, algoritmen rådede til samme dag, og hvad der er solgt bagefter. Seriejusteringer (3 eller flere afgange i samme serie samme dag) er ikke med. Listen opdateres hvert 10. minut.</p>
+    <div class="kort" id="ae-kort"><h2>Prisændringer i NAV og rabatturkampagner</h2>
+      <p style="margin:0 0 8px">Hver enkelt prisændring på en afgang, som er lavet i NAV, holdt op mod det, algoritmen rådede til samme dag, og hvad der er solgt bagefter. Seriejusteringer (3 eller flere afgange i samme serie samme dag) er ikke med. Listen opdateres hvert 10. minut. Rabatturkampagner fra Notion (kort med "Rabattur" og turkoden i titlen) står i samme liste på startdatoen med orange mærke. De opdateres hver nat, og Notion har hverken rabatbeløb eller slutdato.</p>
       ${alleFoer ? '<div class="advarsel" style="display:block;background:var(--creme-lys);color:var(--tekst)"><b>Før drift – følger ikke maskinens råd.</b> Værktøjet er ikke taget i drift endnu, så alle ændringer her er lavet uden om det. De er grundlaget for at sammenligne, når det tages i brug.</div>' : ""}
       ${AENDR_FEJL ? `<div class="tom">${esc(AENDR_FEJL)}</div>` : !AENDR.length ? '<div class="tom">Ingen prisændringer registreret endnu.</div>' : `
       <div class="ae-soeg" style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin:12px 0 4px">
@@ -1270,19 +1266,17 @@ function tegnUdfald() {
         ${aktivSoeg ? `<span class="lille">${SOEG.length} af ${AENDR.length} ændringer · <a href="#" id="ae-nulstil">nulstil</a></span>` : ""}
       </div>
       <h3 style="margin:12px 0 4px">Ændring og udfald mod algoritmens råd${aktivSoeg ? ' <span class="lille" style="font-weight:400">(kun det søgte)</span>' : ""}</h3>
-      ${udfaldOversigt(AE)}${STP.length ? `<div class="note">${STP.length} ${STP.length === 1 ? "ændring er" : "ændringer er"} en ny startpris og tæller ikke med som prisstigning. Se dem under "Ny startpris".</div>` : ""}
+      ${udfaldOversigt(AE, KN)}${KAMP === null ? '<div class="note">Henter rabatturkampagner …</div>' : KAMP_FEJL ? `<div class="note">${esc(KAMP_FEJL)}</div>` : ""}${STP.length ? `<div class="note">${STP.length} ${STP.length === 1 ? "ændring er" : "ændringer er"} en ny startpris og tæller ikke med som prisstigning. Se dem under "Ny startpris".</div>` : ""}
       <div class="note">Salg pr. afgang pr. uge før er de 14 dage op til ændringen. Efter er alt solgt siden ændringen delt med dagene siden. Udfaldet er først færdigt efter 30 dage, så tidlige tal svinger meget.</div>
       <div class="seg ae-filter" style="margin:14px 0 8px">${knapper}</div>
-      <table class="sml ae-tabel"><tr><th>Ændret</th><th>Afgang</th><th class="h">Pris</th><th>Algoritmens råd</th><th>Sammenligning</th><th class="h">Solgt ved ændring</th><th class="h">Solgt 14 d før</th><th class="h">Solgt siden</th><th>Type</th><th>Årsag</th><th>Note</th><th></th></tr>
-      ${L.map(rk).join("") || '<tr><td colspan="12" class="tom" style="padding:12px">Ingen ændringer med dette filter.</td></tr>'}</table>`}
+      <table class="sml ae-tabel"><tr><th>Dato</th><th>Afgang</th><th class="h">Pris</th><th>Algoritmens råd</th><th>Sammenligning</th><th class="h">Solgt ved ændring</th><th class="h">Solgt 14 d før</th><th class="h">Solgt siden</th><th>Type</th><th>Årsag</th><th>Note</th><th></th></tr>
+      ${L.map(x => x._kamp ? kampRk(x) : rk(x)).join("") || '<tr><td colspan="12" class="tom" style="padding:12px">Ingen ændringer med dette filter.</td></tr>'}</table>`}
     </div>
-    ${kampKort()}
     <div class="kort"><h2>Beslutninger truffet i værktøjet</h2>
       <p style="margin:0">Når værktøjet er i drift, samles forslag med beslutning og udfaldet efter 30 dage her (kilde: public.pris_forslag_udfald). Der er ingen endnu.</p>
     </div>`;
   el.querySelectorAll(".ae-filter button").forEach(b => b.onclick = () => { T.udfaldFilter = b.dataset.uf; tegnUdfald(); });
-  el.querySelectorAll(".kamp-filter button").forEach(b => b.onclick = () => { T.kampAlle = !!b.dataset.ka; tegnUdfald(); });
-  el.querySelectorAll(".kamp-tabel td.kode.aabn").forEach(td => td.onclick = () => { const tr = td.closest("tr"); aabnUdfPanel(tr.dataset.kt, tr); });
+  el.querySelectorAll(".ae-tabel tr[data-kt] td.kode.aabn").forEach(td => td.onclick = () => { const tr = td.closest("tr"); aabnUdfPanel(tr.dataset.kt, tr); });
   el.querySelectorAll(".ae-kat button").forEach(b => b.onclick = () => { T.udfaldKat = b.dataset.k; tegnUdfald(); });
   const nul = el.querySelector("#ae-nulstil"); if (nul) nul.onclick = e => { e.preventDefault(); T.udfaldKat = ""; T.udfaldSoeg = ""; tegnUdfald(); };
   const sf = el.querySelector("#ae-soeg");

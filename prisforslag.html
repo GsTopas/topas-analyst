@@ -951,7 +951,7 @@ function tegnDetalje(el, turkode, efterHent) {
   el.innerHTML = `
     <div class="hoved">
       <div style="display:flex;justify-content:space-between;gap:8px;align-items:start">
-        <div><h2>${r.turkode}${r.nyt ? '<span class="chip ny">Ny i dag</span>' : ""}${s.tjekpunkt ? `<span class="chip gl">Tjekpunkt ${s.tjekpunkt} dage</span>` : ""}</h2><div class="navn">${esc(r.navn)}</div><div class="lille">Afrejse ${dato(r.afrejse)} · ${r.dage} dage · ${r.region}</div></div>
+        <div><h2>${r.turkode}${r.nyt ? '<span class="chip ny">Ny i dag</span>' : ""}${kampChip(r.turkode)}${s.tjekpunkt ? `<span class="chip gl">Tjekpunkt ${s.tjekpunkt} dage</span>` : ""}</h2><div class="navn">${esc(r.navn)}</div><div class="lille">Afrejse ${dato(r.afrejse)} · ${r.dage} dage · ${r.region}</div></div>
         <div>${chipForslag(r.forslag)}</div>
       </div>
       <div style="margin-top:10px">${anbef}</div>
@@ -1049,7 +1049,7 @@ async function gem(r, el) {
 function tegnAfgangUdenForslag(el, a) {
   const navn = NAVN_SERIE[a.turkode.slice(0, 4)] || "";
   const r = { ...a, s: {}, begrundelser: [] };
-  el.innerHTML = `<div class="hoved"><h2>${a.turkode}</h2><div class="navn">${esc(navn)}</div><div class="lille">Afrejse ${dato(a.afrejse)} · ${a.dage} dage · ${a.region}</div>
+  el.innerHTML = `<div class="hoved"><h2>${a.turkode}${kampChip(a.turkode)}</h2><div class="navn">${esc(navn)}</div><div class="lille">Afrejse ${dato(a.afrejse)} · ${a.dage} dage · ${a.region}</div>
       <div style="margin-top:10px" class="anbef holdoeje"><span class="stor">Intet forslag i dag</span></div>
       <div class="kortsagt">${kortSagt(r)}</div>
       <div class="noegle"><div><b class="tal">${a.solgt}/${a.max_pax}</b><span>solgt</span></div><div><b>${chipProg(a.p)}</b><span>tempo mod købskurven</span></div><div><b class="tal">${a.ly_tur ? tal(a.ly_solgt) : "–"}</b><span>sidste år samme dag</span></div><div><b class="tal">${tal(a.pris_nu)}</b><span>pris i dag</span>${startCelle(a.turkode)}</div></div></div>
@@ -1118,7 +1118,27 @@ const SAMML = {
 };
 const AENDR_TYPE = { dynamisk_fulgt: "Fulgte værktøjets råd", dynamisk_eget: "Eget skøn ud fra værktøjet", manuel_vurdering: "Manuel vurdering", startpris_2027: "Startpris 2027", kampagne: "Kampagne", fejlrettelse: "Fejlrettelse", andet: "Andet" };
 let AENDR = null, AENDR_FEJL = "";
+// 26-11 (Gorm): kampagner (Rabat/restpladser) fra Notion Content Calendar via pris_kampagne_liste(). Turkoden står i kortets titel.
+// Notion har ingen slutdato eller rabatbeløb, så en kampagne regnes som aktiv fra publiceringsdato til afrejse.
+let KAMP = null, KAMP_FEJL = "";
+async function hentKampagner() {
+  const { data, error } = await sb.rpc("pris_kampagne_liste");
+  if (error) { KAMP = []; KAMP_FEJL = /Could not find the function|PGRST202/i.test(error.message + error.code) ? "Kampagnelisten er ikke klar endnu." : "Kampagnerne kunne ikke hentes: " + error.message; }
+  else KAMP = data || [];
+  if (T.fane === "udfald" && AENDR !== null) tegnUdfald();
+  for (const id of ["detalje", "detalje2", "detalje3"]) { const el = document.getElementById(id); if (el?.dataset.t && !el.dataset.t.startsWith("S:")) tegnDetalje(el, el.dataset.t, true); }
+}
+const kampFor = turkode => (KAMP || []).filter(k => k.turkode === turkode).sort((a, b) => String(a.start).localeCompare(String(b.start)));
+const kanalKort = l => [...new Set((l || []).map(c => /klaviyo/i.test(c) ? "e-mail" : /facebook/i.test(c) ? "Facebook" : /instagram/i.test(c) ? "Instagram" : /meta/i.test(c) ? "Meta-annoncer" : c))].join(", ");
+function kampChip(turkode) {
+  const k = kampFor(turkode); if (!k.length) return "";
+  const sidste = k[k.length - 1];
+  return `<span class="chip kampagne" title="Kampagne i Notion (Rabat/restpladser): ${esc(k.map(x => `${kortDato(x.start)} ${(x.cc_ids || []).join(", ")} (${kanalKort(x.kanaler)})`).join(" · "))}">${sidste.aktiv ? "På kampagne" : "Kampagne"} fra ${kortDato(sidste.start)}</span>`;
+}
+// Var afgangen på kampagne, da prisen blev ændret? (kampagne startet senest på ændringsdagen)
+const kampVed = a => kampFor(a.turkode).filter(k => String(k.start) <= String(a.dato)).pop() || null;
 async function hentAendringer() {
+  if (KAMP === null) hentKampagner();
   const { data, error } = await sb.rpc("pris_aendring_liste");
   if (error) { AENDR = []; AENDR_FEJL = /Could not find the function|PGRST202/i.test(error.message + error.code) ? "Listen over prisændringer er ikke klar endnu." : "Prisændringerne kunne ikke hentes: " + error.message; }
   else AENDR = data || [];
@@ -1165,10 +1185,15 @@ function udfMatch(a) {
 // Afgange uden for porteføljen (fx under 14 dage til afrejse) bygges ud fra den nyeste udfaldslinje.
 function udfAfg(turkode) {
   const x = (AENDR || []).filter(a => a.turkode === turkode).sort((a, b) => String(b.dato).localeCompare(String(a.dato)))[0];
-  if (!x) return null;
+  if (!x) { const k = kampFor(turkode).pop(); if (!k) return null; return udfAfgKamp(k); }
   const dage = Math.round((new Date(String(x.afrejse).slice(0, 10)) - new Date(IDAG || new Date().toISOString().slice(0, 10))) / 864e5);
   const max_pax = x.kapacitet ?? null, solgt = x.solgt_nu ?? 0;
   return { turkode, afrejse: String(x.afrejse).slice(0, 10), dage, max_pax, solgt, pris_nu: x.til_pris, ly_tur: null, ly_solgt: null, solgt_14d: 0, navn: udfNavn(x) || "", region: region(turkode), f: null, p: prognose({ max_pax, solgt }) };
+}
+function udfAfgKamp(k) {
+  const dage = Math.round((new Date(String(k.afrejse).slice(0, 10)) - new Date(IDAG || new Date().toISOString().slice(0, 10))) / 864e5);
+  const max_pax = k.kapacitet ?? null, solgt = k.solgt_nu ?? 0;
+  return { turkode: k.turkode, afrejse: String(k.afrejse).slice(0, 10), dage, max_pax, solgt, pris_nu: k.pris_nu, ly_tur: null, ly_solgt: null, solgt_14d: 0, navn: udfNavn(k) || "", region: region(k.turkode), f: null, p: prognose({ max_pax, solgt }) };
 }
 function lukUdfPanel() { document.getElementById("udf-panel")?.remove(); document.querySelectorAll(".ae-tabel tr.ae-valgt").forEach(t => t.classList.remove("ae-valgt")); }
 function aabnUdfPanel(turkode, tr) {
@@ -1179,6 +1204,34 @@ function aabnUdfPanel(turkode, tr) {
   document.body.appendChild(z);
   if (tr) tr.classList.add("ae-valgt");
   tegnDetalje(document.getElementById("detalje3"), turkode);
+}
+function kampKort() {
+  if (KAMP === null) return '<div class="kort" id="kamp-kort"><h2>Kampagner fra Notion</h2><div class="tom">Henter …</div></div>';
+  if (KAMP_FEJL) return `<div class="kort" id="kamp-kort"><h2>Kampagner fra Notion</h2><div class="tom">${esc(KAMP_FEJL)}</div></div>`;
+  const alle = T.kampAlle, S = KAMP.filter(udfMatch), L = S.filter(k => alle || k.aktiv);
+  const ov = g => { const n = g.length; if (!n) return null; const foer = g.reduce((s, k) => s + k.solgt_14d_foer, 0), siden = g.reduce((s, k) => s + k.solgt_siden, 0), dage = g.reduce((s, k) => s + k.dage_siden, 0);
+    return { n, foer, siden, ugeFoer: foer / (2 * n), ugeEfter: dage ? siden / (dage / 7) : null, dage: Math.round(dage / n), faerdig: g.filter(k => k.udfald_faerdigt).length }; };
+  const f1 = x => x == null ? "–" : x.toLocaleString("da-DK", { maximumFractionDigits: 1 });
+  const ovr = (navn, o) => o ? `<tr><td>${navn}</td><td class="h tal">${o.n}</td><td class="h tal">${tal(o.foer)}</td><td class="h tal">${tal(o.siden)}</td><td class="h tal">${f1(o.ugeFoer)}</td><td class="h tal">${f1(o.ugeEfter)}</td><td class="h tal">${o.dage}</td><td class="h tal">${o.faerdig}</td></tr>` : "";
+  const rk = k => `<tr data-kt="${esc(k.turkode)}">
+      <td class="tal">${kortDato(k.start)} ${String(k.start).slice(2, 4)}<div class="lille">${k.dage_siden === 0 ? "i dag" : k.dage_siden + " dage siden"}</div></td>
+      <td class="kode aabn" title="Vis afgangen med salgskurve"><b>${esc(k.turkode)}</b>${udfNavn(k) ? `<span class="navn" title="${esc(udfNavn(k))}">${esc(udfNavn(k))}</span>` : ""}<span class="navn">afrejse ${kortDato(k.afrejse)} ${String(k.afrejse).slice(2, 4)} · ${k.dage_til_afrejse} dage før</span></td>
+      <td>${k.aktiv ? '<span class="chip kampagne">Aktiv</span>' : '<span class="chip holdoeje">Afrejst</span>'}</td>
+      <td class="h tal">${tal(k.pris_nu)}</td>
+      <td>${esc(kanalKort(k.kanaler))}<div class="lille" title="${esc((k.titler || []).join(" · "))}">${esc((k.cc_ids || []).join(", "))}</div></td>
+      <td class="h tal">${tal(k.solgt_ved_start)}/${k.kapacitet ?? "–"}<div class="lille">nu ${tal(k.solgt_nu)}</div></td>
+      <td class="h tal">${tal(k.solgt_14d_foer)}</td>
+      <td class="h tal"><b>${tal(k.solgt_siden)}</b><div class="lille">${k.udfald_faerdigt ? "færdigt" : k.dage_siden < 14 ? "for tidligt" : "i gang"}</div></td>
+    </tr>`;
+  return `<div class="kort" id="kamp-kort"><h2>Kampagner fra Notion</h2>
+    <p style="margin:0 0 8px">Kort i Notion Content Calendar med emnet "Rabat/restpladser" og en turkode i titlen (fx "Email - rabattur VNAN2701"). Mail og opslag samme dag er én kampagne. Notion har hverken rabatbeløb eller slutdato, så en kampagne regnes som aktiv indtil afrejse, og prisen er NAV-prisen i dag. Kort uden turkode i titlen (fx samlede restpladsmails) er ikke med. Opdateres hver nat.</p>
+    ${!KAMP.length ? '<div class="tom">Ingen kampagner fundet i Notion.</div>' : `
+    <table class="sml" style="max-width:980px"><tr><th>Kampagner</th><th class="h">Antal</th><th class="h">Solgt 14 dage før</th><th class="h">Solgt siden</th><th class="h">Pr. afgang pr. uge før</th><th class="h">Pr. afgang pr. uge efter</th><th class="h">Dage siden (gns.)</th><th class="h">Udfald færdigt</th></tr>
+      ${ovr("Aktive", ov(S.filter(k => k.aktiv)))}${ovr("Alle", ov(S))}</table>
+    <div class="seg kamp-filter" style="margin:14px 0 8px"><button data-ka="" aria-pressed="${!alle}">Aktive <span class="n">${S.filter(k => k.aktiv).length}</span></button><button data-ka="1" aria-pressed="${!!alle}">Alle <span class="n">${S.length}</span></button></div>
+    <table class="sml ae-tabel kamp-tabel"><tr><th>Start</th><th>Afgang</th><th>Status</th><th class="h">Pris i dag</th><th>Kanaler og CC-ID</th><th class="h">Solgt ved start</th><th class="h">Solgt 14 d før</th><th class="h">Solgt siden</th></tr>
+      ${L.map(rk).join("") || '<tr><td colspan="8" class="tom" style="padding:12px">Ingen kampagner med dette filter.</td></tr>'}</table>`}
+  </div>`;
 }
 function tegnUdfald() {
   const el = document.getElementById("fane-udfald");
@@ -1194,7 +1247,7 @@ function tegnUdfald() {
   const kanRette = true; // adgang styres i pris_aendring_gem; begrænsede brugere får ingen forslag og når ikke hertil
   const rk = a => `<tr data-id="${a.id}">
       <td class="tal">${kortDato(a.dato)}<div class="lille">${a.dage_siden === 0 ? "i dag" : a.dage_siden + " dage siden"}</div></td>
-      <td class="kode aabn" title="Vis afgangen med salgskurve"><b>${a.turkode}</b>${udfNavn(a) ? `<span class="navn" title="${esc(udfNavn(a))}">${esc(udfNavn(a))}</span>` : ""}<span class="navn">afrejse ${kortDato(a.afrejse)} ${String(a.afrejse).slice(2, 4)} · ${a.dage_til_afrejse} dage før</span></td>
+      <td class="kode aabn" title="Vis afgangen med salgskurve"><b>${a.turkode}</b>${udfNavn(a) ? `<span class="navn" title="${esc(udfNavn(a))}">${esc(udfNavn(a))}</span>` : ""}<span class="navn">afrejse ${kortDato(a.afrejse)} ${String(a.afrejse).slice(2, 4)} · ${a.dage_til_afrejse} dage før</span>${(k => k ? `<span class="chip kampagne ae-kamp" title="${esc((k.cc_ids || []).join(", ") + " · " + kanalKort(k.kanaler))}">På kampagne fra ${kortDato(k.start)}</span>` : "")(kampVed(a))}</td>
       <td class="h tal">${tal(a.fra_pris)} → <b>${tal(a.til_pris)}</b><div class="lille ${a.aendring_pct > 0 ? "op" : "ned"}">${krD(a.til_pris - a.fra_pris)}</div></td>
       <td>${raadTekst(a)}</td>
       <td>${a.ny_startpris ? `<span class="chip gl" title="${a.startpris_kilde === "plan" ? "Gættet ud fra seriens plan" : "Startpris på varen i NAV"}${a.startpris_nav ? ": " + tal(a.startpris_nav) : ""}">Ny startpris</span>` : chipSamml(a.sammenligning)}${a.foer_drift ? '<div><span class="chip foerdrift" title="Ændringen er lavet, før værktøjet blev taget i drift">Før drift – følger ikke maskinens råd</span></div>' : ""}</td>
@@ -1223,17 +1276,20 @@ function tegnUdfald() {
       <table class="sml ae-tabel"><tr><th>Ændret</th><th>Afgang</th><th class="h">Pris</th><th>Algoritmens råd</th><th>Sammenligning</th><th class="h">Solgt ved ændring</th><th class="h">Solgt 14 d før</th><th class="h">Solgt siden</th><th>Type</th><th>Årsag</th><th>Note</th><th></th></tr>
       ${L.map(rk).join("") || '<tr><td colspan="12" class="tom" style="padding:12px">Ingen ændringer med dette filter.</td></tr>'}</table>`}
     </div>
+    ${kampKort()}
     <div class="kort"><h2>Beslutninger truffet i værktøjet</h2>
       <p style="margin:0">Når værktøjet er i drift, samles forslag med beslutning og udfaldet efter 30 dage her (kilde: public.pris_forslag_udfald). Der er ingen endnu.</p>
     </div>`;
   el.querySelectorAll(".ae-filter button").forEach(b => b.onclick = () => { T.udfaldFilter = b.dataset.uf; tegnUdfald(); });
+  el.querySelectorAll(".kamp-filter button").forEach(b => b.onclick = () => { T.kampAlle = !!b.dataset.ka; tegnUdfald(); });
+  el.querySelectorAll(".kamp-tabel td.kode.aabn").forEach(td => td.onclick = () => { const tr = td.closest("tr"); aabnUdfPanel(tr.dataset.kt, tr); });
   el.querySelectorAll(".ae-kat button").forEach(b => b.onclick = () => { T.udfaldKat = b.dataset.k; tegnUdfald(); });
   const nul = el.querySelector("#ae-nulstil"); if (nul) nul.onclick = e => { e.preventDefault(); T.udfaldKat = ""; T.udfaldSoeg = ""; tegnUdfald(); };
   const sf = el.querySelector("#ae-soeg");
   if (sf) {
     sf.oninput = () => { T.udfaldSoeg = sf.value; clearTimeout(T.udfaldT); T.udfaldT = setTimeout(() => { const pos = sf.selectionStart; tegnUdfald(); const ny = document.getElementById("ae-soeg"); ny.focus(); ny.setSelectionRange(pos, pos); }, 200); };
   }
-  el.querySelectorAll(".ae-tabel td.kode.aabn").forEach(td => td.onclick = () => { const tr = td.closest("tr"); const a = AENDR.find(x => x.id === +tr.dataset.id); if (a) aabnUdfPanel(a.turkode, tr); });
+  el.querySelectorAll(".ae-tabel tr[data-id] td.kode.aabn").forEach(td => td.onclick = () => { const tr = td.closest("tr"); const a = AENDR.find(x => x.id === +tr.dataset.id); if (a) aabnUdfPanel(a.turkode, tr); });
   el.querySelectorAll(".ae-tabel tr[data-id]").forEach(tr => {
     const gem = tr.querySelector(".ae-gem"); if (!gem) return;
     tr.querySelectorAll("select,input").forEach(i => i.oninput = () => { gem.disabled = !tr.querySelector(".ae-type").value; });
@@ -1367,6 +1423,7 @@ async function start() {
   if (!pr.error && pr.data?.length) port = pr.data;
   if (!st.error && st.data?.length) st.data.forEach(x => { START[x.turkode] = x; });
   // 11-11: budget pax pr. afgang ("Forventet antal pax" i NAV, ellers budget_afgang) som linje i salgsgrafen
+  hentKampagner();
   sb.rpc("pris_budget_afgang_liste").then(({ data: bd, error: be }) => { if (!be && bd) bd.forEach(x => { BUDGET[x.turkode] = x; }); BUDGET_HENTET = true; if (T.fane === "idag") tegnTabel(); for (const id of ["detalje", "detalje2", "detalje3"]) { const el = document.getElementById(id); if (el?.dataset.t) tegnDetalje(el, el.dataset.t, true); } });
   IDAG = data[0].dato;
   indlaes(data, port);

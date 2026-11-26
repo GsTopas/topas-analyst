@@ -1118,7 +1118,7 @@ const SAMML = {
 };
 const AENDR_TYPE = { dynamisk_fulgt: "Fulgte værktøjets råd", dynamisk_eget: "Eget skøn ud fra værktøjet", manuel_vurdering: "Manuel vurdering", startpris_2027: "Startpris 2027", kampagne: "Kampagne", fejlrettelse: "Fejlrettelse", andet: "Andet" };
 let AENDR = null, AENDR_FEJL = "";
-// 26-11 (Gorm): kampagner (Rabat/restpladser) fra Notion Content Calendar via pris_kampagne_liste(). Turkoden står i kortets titel.
+// 26-11 (Gorm): rabatturkampagner fra Notion Content Calendar via pris_kampagne_liste(): kort med "Rabattur" og turkoden i titlen.
 // Notion har ingen slutdato eller rabatbeløb, så en kampagne regnes som aktiv fra publiceringsdato til afrejse.
 let KAMP = null, KAMP_FEJL = "";
 async function hentKampagner() {
@@ -1133,7 +1133,7 @@ const kanalKort = l => [...new Set((l || []).map(c => /klaviyo/i.test(c) ? "e-ma
 function kampChip(turkode) {
   const k = kampFor(turkode); if (!k.length) return "";
   const sidste = k[k.length - 1];
-  return `<span class="chip kampagne" title="Kampagne i Notion (Rabat/restpladser): ${esc(k.map(x => `${kortDato(x.start)} ${(x.cc_ids || []).join(", ")} (${kanalKort(x.kanaler)})`).join(" · "))}">${sidste.aktiv ? "På kampagne" : "Kampagne"} fra ${kortDato(sidste.start)}</span>`;
+  return `<span class="chip kampagne" title="Rabatturkampagne i Notion: ${esc(k.map(x => `${kortDato(x.start)} ${(x.cc_ids || []).join(", ")} (${kanalKort(x.kanaler)})`).join(" · "))}">${sidste.aktiv ? "På kampagne" : "Kampagne"} fra ${kortDato(sidste.start)}</span>`;
 }
 // Var afgangen på kampagne, da prisen blev ændret? (kampagne startet senest på ændringsdagen)
 const kampVed = a => kampFor(a.turkode).filter(k => String(k.start) <= String(a.dato)).pop() || null;
@@ -1224,7 +1224,7 @@ function kampKort() {
       <td class="h tal"><b>${tal(k.solgt_siden)}</b><div class="lille">${k.udfald_faerdigt ? "færdigt" : k.dage_siden < 14 ? "for tidligt" : "i gang"}</div></td>
     </tr>`;
   return `<div class="kort" id="kamp-kort"><h2>Kampagner fra Notion</h2>
-    <p style="margin:0 0 8px">Kort i Notion Content Calendar med emnet "Rabat/restpladser" og en turkode i titlen (fx "Email - rabattur VNAN2701"). Mail og opslag samme dag er én kampagne. Notion har hverken rabatbeløb eller slutdato, så en kampagne regnes som aktiv indtil afrejse, og prisen er NAV-prisen i dag. Kort uden turkode i titlen (fx samlede restpladsmails) er ikke med. Opdateres hver nat.</p>
+    <p style="margin:0 0 8px">Rabatturkampagner: kort i Notion Content Calendar med "Rabattur" og en turkode i titlen (fx "Email - rabattur VNAN2701"). Mail og opslag samme dag er én kampagne. Notion har hverken rabatbeløb eller slutdato, så en kampagne regnes som aktiv indtil afrejse, og prisen er NAV-prisen i dag. Kort uden turkode i titlen (fx "Rabattur - ESLP") er ikke med. Opdateres hver nat.</p>
     ${!KAMP.length ? '<div class="tom">Ingen kampagner fundet i Notion.</div>' : `
     <table class="sml" style="max-width:980px"><tr><th>Kampagner</th><th class="h">Antal</th><th class="h">Solgt 14 dage før</th><th class="h">Solgt siden</th><th class="h">Pr. afgang pr. uge før</th><th class="h">Pr. afgang pr. uge efter</th><th class="h">Dage siden (gns.)</th><th class="h">Udfald færdigt</th></tr>
       ${ovr("Aktive", ov(S.filter(k => k.aktiv)))}${ovr("Alle", ov(S))}</table>

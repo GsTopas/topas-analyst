@@ -351,6 +351,8 @@ function prognose(x) {
 
 let BUDGET = {}, BUDGET_HENTET = false;
 let AFG = [], AFGK = {}, F = [], FK = {}, NAVN_SERIE = {}, PORT_FULD = false, START = {};
+// 26-11: landenavne fra region_land (VN = Vietnam). Uden tabellen bruges navnet fra rejsen som før.
+let LANDNAVN = {};
 // S9: startpris pr. afgang (pris_startpris_liste). Uden kaldet vises intet.
 function startTekst(t) {
   const x = START[t]; if (!x || x.startpris == null) return "";
@@ -1263,8 +1265,10 @@ const mSel = document.getElementById("maaned");
 mSel.onchange = () => { T.maaned = mSel.value; tegnTabel(); };
 document.getElementById("land").onchange = e => { T.land = e.target.value; tegnTabel(); };
 document.getElementById("portLand").onchange = e => { T.portLand = e.target.value; tegnPort(); };
-// Landet er de to første bogstaver i turkoden. Navnet tages fra rejsens navn ("Spanien – ..."), ellers koden.
+// Landet er de to første bogstaver i turkoden. Navnet tages fra region_land (26-11), ellers rejsens navn ("Spanien – ..."), ellers koden.
+// Rejsens navn kan give et forkert land, fx "Sydvietnam" fra VNSA, så region_land går forrest.
 function landNavn(k) {
+  if (LANDNAVN[k]) return LANDNAVN[k];
   const n = Object.entries(NAVN_SERIE).find(([sk, v]) => sk.startsWith(k) && v)?.[1] || "";
   const m = n.split(/\s+[–-]\s+/)[0].trim();
   return m && m.length <= 30 ? m : k;
@@ -1358,7 +1362,8 @@ async function start() {
   if (error) { besked(`<h2>Kunne ikke hente forslagene</h2><p>${esc(error.message)}</p><p><a href="./">Log ind igen i Topas BI Agent</a></p>`); return; }
   if (!data?.length) { besked(`<h2>Ingen forslag</h2><p>Enten har morgenkørslen ikke kørt endnu, eller din bruger har ikke adgang til prisforslag.</p>`); return; }
   let port = null;
-  const [pr, st, ko] = await Promise.all([sb.rpc("pris_portefoelje"), sb.rpc("pris_startpris_liste"), sb.rpc("pris_seneste_koersel")]);
+  const [pr, st, ko, rl] = await Promise.all([sb.rpc("pris_portefoelje"), sb.rpc("pris_startpris_liste"), sb.rpc("pris_seneste_koersel"), sb.from("region_land").select("landekode,land")]);
+  if (!rl.error && Array.isArray(rl.data)) rl.data.forEach(x => { if (x.landekode && x.land) LANDNAVN[x.landekode] = x.land; });
   if (!pr.error && pr.data?.length) port = pr.data;
   if (!st.error && st.data?.length) st.data.forEach(x => { START[x.turkode] = x; });
   // 11-11: budget pax pr. afgang ("Forventet antal pax" i NAV, ellers budget_afgang) som linje i salgsgrafen

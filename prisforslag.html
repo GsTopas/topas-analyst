@@ -1125,6 +1125,11 @@ async function hentKampagner() {
   const { data, error } = await sb.rpc("pris_kampagne_liste");
   if (error) { KAMP = []; KAMP_FEJL = /Could not find the function|PGRST202/i.test(error.message + error.code) ? "Kampagnelisten er ikke klar endnu." : "Kampagnerne kunne ikke hentes: " + error.message; }
   else KAMP = data || [];
+  // 26-11: algoritmens råd på kampagnens startdag. Kommer med i pris_kampagne_liste, ellers fra pris_kampagne_raad().
+  if (KAMP.length && !("sammenligning" in KAMP[0])) {
+    const r = await sb.rpc("pris_kampagne_raad");
+    if (!r.error && r.data) { const m = Object.fromEntries(r.data.map(x => [x.turkode + "|" + x.start, x])); KAMP.forEach(k => Object.assign(k, m[k.turkode + "|" + k.start] || {})); }
+  }
   if (T.fane === "udfald" && AENDR !== null) tegnUdfald();
   for (const id of ["detalje", "detalje2", "detalje3"]) { const el = document.getElementById(id); if (el?.dataset.t && !el.dataset.t.startsWith("S:")) tegnDetalje(el, el.dataset.t, true); }
 }
@@ -1206,13 +1211,32 @@ function aabnUdfPanel(turkode, tr) {
   tegnDetalje(document.getElementById("detalje3"), turkode);
 }
 // 26-11 (Gorm): rabatturkampagner står i samme liste som prisændringerne, sorteret efter dato.
+// Sammenligning for kampagner: algoritmens råd på startdagen og seneste kampagneforslag de 14 dage før.
+const KSAMML = {
+  som_algoritmen: ["Som algoritmen", "foran", "Algoritmen sagde kampagne på startdagen"],
+  algoritmen_for_nylig: ["Algoritmen sagde kampagne", "foran", "Algoritmen sagde kampagne inden for de 14 dage op til start, men ikke på selve startdagen"],
+  mod_algoritmen: ["Mod algoritmens råd", "bagud", "Algoritmen sagde ikke kampagne på startdagen eller de 14 dage før"],
+  intet_forslag: ["Intet forslag", "holdoeje", "Intet forslag på afgangen (forslagsloggen starter 21-10-2026)"],
+};
+function chipKSamml(k) {
+  const s = KSAMML[k.sammenligning]; if (!s) return "";
+  const d = k.sammenligning === "algoritmen_for_nylig" && k.kampagneforslag_dato ? " " + kortDato(k.kampagneforslag_dato) : "";
+  return `<span class="chip ${s[1]}" title="${esc(s[2])}">${s[0]}${d}</span>`;
+}
+function kampRaad(k) {
+  if (!("sammenligning" in k)) return '<span class="lille">–</span>';
+  if (!k.algoritme_forslag) return '<span class="lille">intet forslag den dag</span>';
+  const p = k.algoritme_pris_fra != null ? (k.algoritme_pris_fra === k.algoritme_pris_til || k.algoritme_pris_til == null ? tal(k.algoritme_pris_fra) : `${tal(k.algoritme_pris_fra)}–${tal(k.algoritme_pris_til)}`) : "";
+  const kf = k.sammenligning === "algoritmen_for_nylig" && k.kampagneforslag_pris_fra != null ? `<div class="lille">kampagne ${kortDato(k.kampagneforslag_dato)}: ${tal(k.kampagneforslag_pris_fra)}–${tal(k.kampagneforslag_pris_til)}</div>` : "";
+  return `${chipForslag(k.algoritme_forslag)}${p ? ` <span class="tal">${p}</span>` : ""}${kf}`;
+}
 function kampRk(k) {
   return `<tr data-kt="${esc(k.turkode)}" class="ae-kampagne">
       <td class="tal">${kortDato(k.start)}${String(k.start).slice(0, 4) !== String(IDAG || "").slice(0, 4) ? " " + String(k.start).slice(2, 4) : ""}<div class="lille">${k.dage_siden === 0 ? "i dag" : k.dage_siden + " dage siden"}</div></td>
       <td class="kode aabn" title="Vis afgangen med salgskurve"><b>${esc(k.turkode)}</b>${udfNavn(k) ? `<span class="navn" title="${esc(udfNavn(k))}">${esc(udfNavn(k))}</span>` : ""}<span class="navn">afrejse ${kortDato(k.afrejse)} ${String(k.afrejse).slice(2, 4)} · ${k.dage_til_afrejse} dage før</span></td>
       <td class="h tal"><b>${tal(k.pris_nu)}</b><div class="lille">pris i NAV i dag</div></td>
-      <td><span class="lille">–</span></td>
-      <td><span class="chip kampagne">Rabattur-kampagne</span>${k.aktiv ? "" : ' <span class="chip holdoeje">Afrejst</span>'}<div class="lille" title="${esc((k.titler || []).join(" · "))}">${esc(kanalKort(k.kanaler))} · ${esc((k.cc_ids || []).join(", "))}</div></td>
+      <td>${kampRaad(k)}</td>
+      <td><span class="chip kampagne">Rabattur-kampagne</span>${k.aktiv ? "" : ' <span class="chip holdoeje">Afrejst</span>'}${chipKSamml(k) ? `<div>${chipKSamml(k)}</div>` : ""}<div class="lille" title="${esc((k.titler || []).join(" · "))}">${esc(kanalKort(k.kanaler))} · ${esc((k.cc_ids || []).join(", "))}</div></td>
       <td class="h tal">${tal(k.solgt_ved_start)}/${k.kapacitet ?? "–"}<div class="lille">nu ${tal(k.solgt_nu)}</div></td>
       <td class="h tal">${tal(k.solgt_14d_foer)}</td>
       <td class="h tal"><b>${tal(k.solgt_siden)}</b><div class="lille">${k.udfald_faerdigt ? "færdigt" : k.dage_siden < 14 ? "for tidligt" : "i gang"}</div></td>
@@ -1220,10 +1244,13 @@ function kampRk(k) {
     </tr>`;
 }
 function kampOvRk(K) {
-  const n = K.length; if (!n) return "";
-  const foer = K.reduce((s, k) => s + k.solgt_14d_foer, 0), siden = K.reduce((s, k) => s + k.solgt_siden, 0), dage = K.reduce((s, k) => s + k.dage_siden, 0);
+  if (!K.length) return "";
   const f1 = x => x == null ? "–" : x.toLocaleString("da-DK", { maximumFractionDigits: 1 });
-  return `<tr><td><span class="chip kampagne">Rabattur-kampagne</span></td><td class="h tal">${n}</td><td class="h tal">–</td><td class="h tal">${tal(foer)}</td><td class="h tal">${tal(siden)}</td><td class="h tal">${f1(foer / (2 * n))}</td><td class="h tal">${f1(dage ? siden / (dage / 7) : null)}</td><td class="h tal">${Math.round(dage / n)}</td><td class="h tal">${K.filter(k => k.udfald_faerdigt).length}/${n}</td></tr>`;
+  const grp = "sammenligning" in K[0] ? Object.keys(KSAMML).map(x => [x, K.filter(k => k.sammenligning === x)]).filter(g => g[1].length) : [["", K]];
+  return grp.map(([x, g]) => {
+    const n = g.length, foer = g.reduce((s, k) => s + k.solgt_14d_foer, 0), siden = g.reduce((s, k) => s + k.solgt_siden, 0), dage = g.reduce((s, k) => s + k.dage_siden, 0);
+    return `<tr><td><span class="chip kampagne">Rabattur-kampagne</span>${x ? ` <span class="chip ${KSAMML[x][1]}" title="${esc(KSAMML[x][2])}">${KSAMML[x][0]}</span>` : ""}</td><td class="h tal">${n}</td><td class="h tal">–</td><td class="h tal">${tal(foer)}</td><td class="h tal">${tal(siden)}</td><td class="h tal">${f1(foer / (2 * n))}</td><td class="h tal">${f1(dage ? siden / (dage / 7) : null)}</td><td class="h tal">${Math.round(dage / n)}</td><td class="h tal">${g.filter(k => k.udfald_faerdigt).length}/${n}</td></tr>`;
+  }).join("");
 }
 function tegnUdfald() {
   const el = document.getElementById("fane-udfald");
